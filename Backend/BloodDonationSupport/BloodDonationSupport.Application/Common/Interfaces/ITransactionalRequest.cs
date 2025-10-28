@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BloodDonationSupport.Domain.Common
+namespace BloodDonationSupport.Application.Common.Interfaces
 {
-    public abstract class AggregateRoot<TId> : BaseEntity<TId>
+    public interface ITransactionalRequest
     {
+
     }
 }

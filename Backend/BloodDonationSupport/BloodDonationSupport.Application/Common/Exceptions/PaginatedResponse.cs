@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BloodDonationSupport.Domain.Common
+namespace BloodDonationSupport.Application.Common.Exceptions
 {
-    public abstract class AggregateRoot<TId> : BaseEntity<TId>
+    internal class PaginatedResponse
     {
     }
 }
