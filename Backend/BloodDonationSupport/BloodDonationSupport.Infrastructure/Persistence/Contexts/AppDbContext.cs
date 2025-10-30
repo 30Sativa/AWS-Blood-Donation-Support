@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace BloodDonationSupport.Infrastructure.Persistence;
+namespace BloodDonationSupport.Infrastructure.Persistence.Contexts;
 
 public partial class AppDbContext : DbContext
 {

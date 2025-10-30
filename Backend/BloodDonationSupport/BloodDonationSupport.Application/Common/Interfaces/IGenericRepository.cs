@@ -12,7 +12,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<IEnumerable<TEntity>> GetAllAsync();
         Task<TEntity?> GetByIdAsync(object id);
 
-        Task<IEnumerable<TEntity>> FindAsync(Func<TEntity, bool> predicate);
+        Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate);
         Task AddAsync(TEntity entity);
         void Update(TEntity entity);
         void Delete(TEntity entity);

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BloodDonationSupport.Application.Common.Exceptions
+namespace BloodDonationSupport.Application.Common.Models
 {
     internal class PaginatedResponse
     {

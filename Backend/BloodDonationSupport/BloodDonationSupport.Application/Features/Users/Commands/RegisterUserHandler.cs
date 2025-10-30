@@ -40,7 +40,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
            var cognitoUserId = await _cognitoService.RegisterUserAsync(reg.Email, reg.Password, reg.PhoneNumber);
             //tạo domain user
             var emailVo = new Email(reg.Email);
-            var user = User.RegisterNewUser(emailVo, cognitoUserId, IsEmailExists , reg.PhoneNumber);
+            var user = UserDomain.RegisterNewUser(emailVo, cognitoUserId, IsEmailExists , reg.PhoneNumber);
             await _userRepository.AddAsync(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
