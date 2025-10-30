@@ -17,14 +17,12 @@ namespace BloodDonationSupport.Application.Common.Exceptions
             Errors = new Dictionary<string, string[]>();
         }
 
-        public ValidationException(IEnumerable<ValidationFailure> failures)
+        public ValidationException(IEnumerable<FluentValidation.Results.ValidationFailure> failures)
             : this()
         {
             Errors = failures
                 .GroupBy(e => e.PropertyName, e => e.ErrorMessage)
-                .ToDictionary(
-                    failureGroup => failureGroup.Key,
-                    failureGroup => failureGroup.ToArray());
+                .ToDictionary(fg => fg.Key, fg => fg.ToArray());
         }
     }
 }

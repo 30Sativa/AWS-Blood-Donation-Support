@@ -15,17 +15,10 @@ namespace BloodDonationSupport.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            //Đăng ký MediatR (quét toàn bộ Application assembly)
-            services.AddMediatR(cfg =>
-            {
-                cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
-            });
-
-            //Đăng ký FluentValidation (tự động tìm tất cả validator)
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
-            //  Đăng ký Pipeline Behaviors (theo thứ tự chạy)
-            // ValidationBehavior chạy trước TransactionBehavior
+            // 🧩 Pipeline Behaviors
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
 

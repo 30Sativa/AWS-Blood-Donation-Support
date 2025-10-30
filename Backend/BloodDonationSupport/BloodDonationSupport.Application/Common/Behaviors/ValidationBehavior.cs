@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 namespace BloodDonationSupport.Application.Common.Behaviors
 {
     public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+       where TRequest : IRequest<TResponse>
     {
         private readonly IEnumerable<IValidator<TRequest>> _validators;
 
@@ -33,8 +34,8 @@ namespace BloodDonationSupport.Application.Common.Behaviors
                 .Where(f => f != null)
                 .ToList();
 
-            if (failures.Count != 0)
-                throw new ValidationException(failures);
+            if (failures.Any())
+                throw new ValidationException(failures); //ném exception để middleware bắt
 
             return await next();
         }
