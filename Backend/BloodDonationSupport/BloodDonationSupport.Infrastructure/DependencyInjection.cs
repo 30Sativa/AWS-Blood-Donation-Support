@@ -1,4 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Infrastructure.Common.Options;
 using BloodDonationSupport.Infrastructure.Identity;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Repositories;
@@ -6,11 +7,6 @@ using BloodDonationSupport.Infrastructure.Persistence.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure
 {
@@ -18,16 +14,19 @@ namespace BloodDonationSupport.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
         {
-            //  Connect SQL Server
+            // Connect SQL Server
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(config.GetConnectionString("DBDefault")));
 
-            //  Register Repository + UoW
+            // Register Repository + UoW
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            //  AWS Cognito
+            // ✅ Bind AWS options từ appsettings.json
+            services.Configure<AwsOptions>(config.GetSection("AWS"));
+
+            // ✅ AWS Cognito
             services.AddScoped<ICognitoService, CognitoService>();
 
             return services;

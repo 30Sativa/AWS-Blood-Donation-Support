@@ -24,11 +24,9 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
-            // ✅ tạo command thủ công
-            var command = new RegisterUserCommand(request);
 
             // ✅ gửi qua MediatR
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(new RegisterUserCommand(request));
 
             // ✅ phản hồi kết quả
             if (!result.Success)
@@ -42,8 +40,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginUserRequest request)
         {
-            var command = new LoginUserCommand(request);
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(new LoginUserCommand(request));
 
             if (!result.Success)
                 return Unauthorized(result);

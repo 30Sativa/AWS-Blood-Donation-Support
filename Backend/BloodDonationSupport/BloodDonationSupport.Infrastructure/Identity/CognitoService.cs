@@ -1,69 +1,165 @@
 ﻿using Amazon.CognitoIdentityProvider;
+using Amazon.CognitoIdentityProvider.Model;
 using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Users.DTOs.Shared;
+using BloodDonationSupport.Infrastructure.Common.Options;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using Microsoft.Extensions.Options;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Identity
 {
     public class CognitoService : ICognitoService
     {
         private readonly IConfiguration _config;
-        private readonly AmazonCognitoIdentityProviderClient _provideClient;
-        private readonly string _clientid;
-        private readonly string _userPoorId;
+        private readonly AmazonCognitoIdentityProviderClient _client;
+        private readonly string _clientId;
+        private readonly string _userPoolId;
+        private readonly string _clientSecret;
 
 
-        public CognitoService(IConfiguration config, AmazonCognitoIdentityProviderClient provideClient, string clientid, string userPoorId)
+        public CognitoService(IOptions<AwsOptions> awsOptions)
         {
-            _config = config;
-            _provideClient = new AmazonCognitoIdentityProviderClient();
-            _clientid = _config["AWS:Cognito:ClientId"]!;
-            _userPoorId = _config["AWS:Cognito:UserPoolId"]!;
+            var options = awsOptions.Value;
+
+            //  Ép chính xác region từ appsettings.json
+            var region = Amazon.RegionEndpoint.GetBySystemName(options.Region ?? "ap-southeast-2");
+
+            var accessKey = options.Credentials.AccessKey;
+            var secretKey = options.Credentials.SecretKey;
+
+            if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretKey))
+                throw new Exception("❌ AWS credentials missing in appsettings.json");
+
+            // Thêm log để chắc chắn SDK đang sử dụng đúng region
+            Console.WriteLine($"[DEBUG] Forcing region = {region.SystemName}");
+            Console.WriteLine($"[DEBUG] Using AWS credentials: {accessKey[..5]}***");
+
+            // Ép credentials và region vào AmazonCognitoIdentityProviderClient
+            var credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+            _client = new AmazonCognitoIdentityProviderClient(credentials, region);
+
+            // Gán các biến còn lại
+            _clientId = options.Cognito.ClientId;
+            _userPoolId = options.Cognito.UserPoolId;
+            _clientSecret = options.Cognito.ClientSecret?.Trim();
         }
 
-        public Task<AuthTokens?> LoginAsync(string email, string password)
+
+
+        private static string CalculateSecretHash(string username, string clientId, string clientSecret)
         {
-            throw new NotImplementedException();
+            var message = Encoding.UTF8.GetBytes(username + clientId);
+            var key = Encoding.UTF8.GetBytes(clientSecret);
+
+            using var hmac = new System.Security.Cryptography.HMACSHA256(key);
+            var hash = hmac.ComputeHash(message);
+            return Convert.ToBase64String(hash);
         }
 
-        public Task<AuthTokens?> RefreshTokenAsync(string refreshToken)
-        {
-            throw new NotImplementedException();
-        }
 
-        public async Task<string> RegisterUserAsync(string email, string password, string? phonenumber)
+        public async Task<string> RegisterUserAsync(string email, string password, string? phoneNumber)
         {
-            var signUpRequest = new Amazon.CognitoIdentityProvider.Model.SignUpRequest
+            Console.WriteLine($"🔍 Registering user in pool: {_userPoolId} | client: {_clientId}");
+
+            try
             {
-                ClientId = _clientid,
-                Username = _userPoorId,
-                Password = password,
-            };
-            signUpRequest.UserAttributes.Add(new Amazon.CognitoIdentityProvider.Model.AttributeType
-            {
-                Name = "email",
-                Value = email
-            });
-            if (!string.IsNullOrEmpty(phonenumber))
-            {
-                signUpRequest.UserAttributes.Add(new Amazon.CognitoIdentityProvider.Model.AttributeType
+                // Tính secret hash đúng chuẩn AWS
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+
+                var request = new SignUpRequest
                 {
-                    Name = "phone_number",
-                    Value = phonenumber
-                });
+                    ClientId = _clientId,
+                    SecretHash = secretHash,
+                    Username = email,
+                    Password = password,
+                    UserAttributes = new List<AttributeType>
+            {
+                new AttributeType { Name = "email", Value = email }
             }
-            var result = await _provideClient.SignUpAsync(signUpRequest);
-            return result.UserSub;
+                };
+
+                if (!string.IsNullOrEmpty(phoneNumber))
+                {
+                    request.UserAttributes.Add(new AttributeType
+                    {
+                        Name = "phone_number",
+                        Value = phoneNumber
+                    });
+                }
+
+                var response = await _client.SignUpAsync(request);
+
+                await _client.AdminConfirmSignUpAsync(new AdminConfirmSignUpRequest
+                {
+                    Username = email,
+                    UserPoolId = _userPoolId
+                });
+
+                return response.UserSub;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"❌ Cognito register failed: {ex.Message}");
+            }
         }
 
-        public Task<bool?> ValidationTokenAsync(string accessToken)
+
+
+        // LOGIN
+        public async Task<AuthTokens?> LoginAsync(string email, string password)
         {
-            throw new NotImplementedException();
+            try
+            {
+                // ✅ Tính SECRET_HASH giống như lúc register
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+
+                var authRequest = new InitiateAuthRequest
+                {
+                    AuthFlow = AuthFlowType.USER_PASSWORD_AUTH,
+                    ClientId = _clientId,
+                    AuthParameters = new Dictionary<string, string>
+            {
+                { "USERNAME", email },
+                { "PASSWORD", password },
+                { "SECRET_HASH", secretHash } // ⚡️ thêm dòng này
+            }
+                };
+
+                var response = await _client.InitiateAuthAsync(authRequest);
+                var result = response.AuthenticationResult;
+
+                if (result == null)
+                    return null;
+
+                return new AuthTokens
+                {
+                    AccessToken = result.AccessToken,
+                    IdToken = result.IdToken,
+                    RefreshToken = result.RefreshToken,
+                    ExpiresIn = result.ExpiresIn ?? 3600
+                };
+            }
+            catch (NotAuthorizedException)
+            {
+                throw new Exception("Invalid email or password.");
+            }
+            catch (UserNotConfirmedException)
+            {
+                throw new Exception("User is not confirmed. Please verify your email first.");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Cognito login failed: {ex.Message}");
+            }
         }
+
+
+
+        public Task<AuthTokens?> RefreshTokenAsync(string refreshToken) =>
+            throw new NotImplementedException();
+
+        public Task<bool?> ValidationTokenAsync(string accessToken) =>
+            throw new NotImplementedException();
     }
 }

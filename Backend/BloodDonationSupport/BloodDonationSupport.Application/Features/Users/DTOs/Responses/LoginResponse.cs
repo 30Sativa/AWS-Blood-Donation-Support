@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BloodDonationSupport.Domain.Users.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,5 +13,7 @@ namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
         public string RefreshToken { get; set; } = default!;
         public int ExpiresIn { get; set; }
         public UserResponse User { get; set; } = default!;
+        public List<string> Roles { get; set; } = new List<string>();
+
     }
 }

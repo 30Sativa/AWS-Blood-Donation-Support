@@ -12,18 +12,9 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
     {
         public RegisterUserValidator()
         {
-            RuleFor(x => x.request.Email)
-            .NotEmpty().WithMessage("Email is required.")
-            .EmailAddress().WithMessage("Invalid email format.");
-
-            RuleFor(x => x.request.Password)
-                .NotEmpty().WithMessage("Password is required.")
-                .MinimumLength(6).WithMessage("Password must be at least 6 characters.");
-
-            RuleFor(x => x.request.PhoneNumber)
-                .Matches(@"^\+?[1-9]\d{1,15}$")
-                .When(x => !string.IsNullOrEmpty(x.request.PhoneNumber))
-                .WithMessage("Invalid phone number format.");
+            RuleFor(x => x.request)
+                .NotNull().WithMessage("Request cannot be null.")
+                .SetValidator(new RegisterUserRequestValidator());
         }
     }
 }

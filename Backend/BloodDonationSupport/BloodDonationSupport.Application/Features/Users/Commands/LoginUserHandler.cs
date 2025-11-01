@@ -31,7 +31,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         {
             var req = command.request;
             // check user exists
-            var user = await _userRepository.GetByEmailAsync(req.Email);
+            var user = await _userRepository.GetByEmailWithRolesAsync(req.Email);
             if(user == null)
             {
                 return BaseResponse<LoginResponse>.FailureResponse("Invalid email or password.");
@@ -54,7 +54,8 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                             Id = user.Id,
                             Email = user.Email.ToString(),
                             CognitoUserId = user.CognitoUserId
-                        }
+                        },
+                        Roles = user.Roles
                     },
                     "Login successfully"
                 );

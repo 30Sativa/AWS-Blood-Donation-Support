@@ -17,9 +17,10 @@ namespace BloodDonationSupport.Domain.Users.Entities
         public string? PhoneNumber { get; set; }
         public bool IsActive { get; private set; } = true;
 
+        public List<string> Roles { get; private set; } = new List<string>();
         public DateTime CreateAt { get; set; } = DateTime.UtcNow;
 
-        public UserDomain(){} // EF constructor
+        public UserDomain() { } // EF constructor
         private UserDomain(Email email, string cognitoUserId, string phoneNumber)
         {
             Email = email;
@@ -28,6 +29,24 @@ namespace BloodDonationSupport.Domain.Users.Entities
 
             AddDomainEvent(new UserRegisteredEvent(email.Value, cognitoUserId));
         }
+        // Private constructor for rehydration with roles
+        private UserDomain(
+    long id,
+    Email email,
+    string cognitoUserId,
+    string? phoneNumber,
+    bool isActive,
+    DateTime createdAt)
+        {
+            Id = id;
+            Email = email;
+            CognitoUserId = cognitoUserId;
+            PhoneNumber = phoneNumber;
+            IsActive = isActive;
+            CreateAt = createdAt;
+        }
+
+
         //Factory method: tạo user hợp lệ trong Domain
         public static UserDomain RegisterNewUser(Email email, string cognitoUserId, bool emailExists, string? phone = null)
         {
@@ -36,7 +55,7 @@ namespace BloodDonationSupport.Domain.Users.Entities
         }
 
         //Rehydration method: tái tạo user từ dữ liệu lưu trữ
-        public static UserDomain Rehydrate(long userId, Email email,  string cognitoUserId, string? phoneNumber, bool isActive, DateTime createdAt)
+        public static UserDomain Rehydrate(long userId, Email email, string cognitoUserId, string? phoneNumber, bool isActive, DateTime createdAt)
         {
             var user = new UserDomain
             {
@@ -46,9 +65,28 @@ namespace BloodDonationSupport.Domain.Users.Entities
                 PhoneNumber = phoneNumber,
                 IsActive = isActive,
                 CreateAt = createdAt
+
             };
             return user;
         }
+
+        public static UserDomain RehydrateWithRoles(
+                long userId,
+                Email email,
+            string cognitoUserId,
+                string? phoneNumber,
+                bool isActive,
+            DateTime createdAt,
+             List<string> roles)
+        {
+            var user = new UserDomain(userId, email, cognitoUserId, phoneNumber, isActive, createdAt);
+
+            // Nếu Roles có private setter, ta dùng AddRange hoặc method nội bộ thay vì gán thẳng
+            user.Roles.AddRange(roles);
+
+            return user;
+        }
+
 
         public void Deactivate()
         {

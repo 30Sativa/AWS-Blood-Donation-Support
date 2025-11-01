@@ -17,7 +17,7 @@ namespace BloodDonationSupport.Domain.Users.ValueObjects
 
         public Email(string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(value) || !EmailRegex.IsMatch(value))
             {
                 throw new DomainException("Invalid email format.");
             }

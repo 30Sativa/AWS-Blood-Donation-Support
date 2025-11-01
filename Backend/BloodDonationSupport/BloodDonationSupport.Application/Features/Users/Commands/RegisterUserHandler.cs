@@ -29,19 +29,27 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         {
             var reg = command.request;
 
-            //check mail exists
 
-           var IsEmailExists = await _userRepository.IsExistEmailAsync(reg.Email);
-           if (IsEmailExists)
+            // 🔍 Check email exists in DB
+            var isEmailExists = await _userRepository.IsExistEmailAsync(reg.Email);
+
+
+            if (isEmailExists)
             {
                 return BaseResponse<UserResponse>.FailureResponse("Email already exists.");
             }
-           //Gọi dịch vụ Cognito để đăng ký người dùng
-           var cognitoUserId = await _cognitoService.RegisterUserAsync(reg.Email, reg.Password, reg.PhoneNumber);
-            //tạo domain user
+
+            // ✅ Call Cognito register
+
+            var cognitoUserId = await _cognitoService.RegisterUserAsync(reg.Email, reg.Password, reg.PhoneNumber);
+
+
+            // 🧩 Create domain user
             var emailVo = new Email(reg.Email);
-            var user = UserDomain.RegisterNewUser(emailVo, cognitoUserId, IsEmailExists , reg.PhoneNumber);
+            var user = UserDomain.RegisterNewUser(emailVo, cognitoUserId, isEmailExists, reg.PhoneNumber);
             await _userRepository.AddAsync(user);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userRepository.AssignDefaultRoleAsync(user.Id);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return BaseResponse<UserResponse>.SuccessResponse(
@@ -54,5 +62,6 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 "Register successfully"
             );
         }
+
     }
 }

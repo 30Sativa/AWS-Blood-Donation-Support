@@ -10,13 +10,8 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
-    public record RegisterUserCommand : IRequest<BaseResponse<UserResponse>>
+    public record RegisterUserCommand(RegisterUserRequest request) : IRequest<BaseResponse<UserResponse>>
     {
-        public RegisterUserRequest request { get; }
-
-        public RegisterUserCommand(RegisterUserRequest Request)
-        {
-            this.request = request;
-        }
+ 
     }
 }

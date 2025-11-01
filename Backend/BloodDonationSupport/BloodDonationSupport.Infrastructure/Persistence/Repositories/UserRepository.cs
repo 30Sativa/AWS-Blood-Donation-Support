@@ -1,5 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Users.Entities;
+using BloodDonationSupport.Domain.Users.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,17 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 CreatedAt = domainEntity.CreateAt,
             };
             await _context.Users.AddAsync(entity);
+        }
+
+        public async Task AssignDefaultRoleAsync(long userId)
+        {
+            var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "MEMBER");
+            _context.Roles.Add(new Role
+            {
+                RoleName = defaultRole.RoleName,
+                RoleCode = defaultRole.RoleCode,
+                Description = defaultRole.Description,
+            });
         }
 
         public void Delete(UserDomain entity)
@@ -70,6 +82,29 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             );
         }
 
+        public async Task<UserDomain?> GetByEmailWithRolesAsync(string email)
+        {
+            var entity = await _context.Users
+                .Include(u => u.Roles)
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (entity == null)
+                return null;
+
+            var roles = entity.Roles.Select(ur => ur.RoleCode).ToList();
+
+            return UserDomain.RehydrateWithRoles(
+                entity.UserId,
+                new Domain.Users.ValueObjects.Email(entity.Email),
+                entity.CognitoUserId ?? string.Empty,
+                entity.PhoneNumber,
+                entity.IsActive,
+                entity.CreatedAt,
+                roles
+            );
+        }
+
+
         public Task<UserDomain?> GetByIdAsync(object id)
         {
             throw new NotImplementedException();
@@ -77,7 +112,12 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         public async Task<bool> IsExistEmailAsync(string email)
         {
-            await _context.Users.FirstOrDefaultAsync(u => u.Email == email); return true;
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            Console.WriteLine($"[Repo] Checking email {email} -> found: {user != null}");
+            return user != null;
         }
 
         public void Update(UserDomain entity)
