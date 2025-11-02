@@ -42,4 +42,7 @@ public partial class User
     public virtual UserProfile? UserProfile { get; set; }
 
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();
+    public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
+
 }

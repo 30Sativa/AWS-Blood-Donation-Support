@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Common
 {
-    internal class AggregateRoot
+    public abstract class AggregateRoot<TId> : BaseEntity<TId>
     {
     }
 }

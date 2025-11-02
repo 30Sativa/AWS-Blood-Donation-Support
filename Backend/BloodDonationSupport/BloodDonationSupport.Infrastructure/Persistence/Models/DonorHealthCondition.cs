@@ -10,4 +10,5 @@ public partial class DonorHealthCondition
     public int ConditionId { get; set; }
 
     public virtual HealthCondition Condition { get; set; } = null!;
+    public virtual Donor Donor { get; set; } = null!;
 }

@@ -6,6 +6,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 public partial class Post
 {
     public long PostId { get; set; }
+    // Thêm property khóa ngoại
+    public long UserId { get; set; }
 
     public string Title { get; set; } = null!;
 
@@ -28,4 +30,5 @@ public partial class Post
     public virtual User Author { get; set; } = null!;
 
     public virtual ICollection<PostTag> Tags { get; set; } = new List<PostTag>();
+    public virtual User User { get; set; } = null!;
 }
