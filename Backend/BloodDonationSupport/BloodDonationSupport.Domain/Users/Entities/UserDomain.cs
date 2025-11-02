@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace BloodDonationSupport.Domain.Users.Entities
 
         public List<string> Roles { get; private set; } = new List<string>();
         public DateTime CreateAt { get; set; } = DateTime.UtcNow;
+        
 
         public UserDomain() { } // EF constructor
         private UserDomain(Email email, string cognitoUserId, string phoneNumber)

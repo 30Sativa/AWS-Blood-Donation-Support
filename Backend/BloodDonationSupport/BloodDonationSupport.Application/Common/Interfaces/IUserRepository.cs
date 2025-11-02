@@ -13,5 +13,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task AssignDefaultRoleAsync(long userId);
 
         Task<long> GetUserIdByEmailAsync(string email);
+
+        
     }
 }
