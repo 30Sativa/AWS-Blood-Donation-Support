@@ -27,10 +27,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Folder Include="Persistence\Models\" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\BloodDonationSupport.Application\BloodDonationSupport.Application.csproj" />
 		<ProjectReference Include="..\BloodDonationSupport.Domain\BloodDonationSupport.Domain.csproj" />
 	</ItemGroup>

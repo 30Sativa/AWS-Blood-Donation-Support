@@ -32,18 +32,43 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 CreatedAt = domainEntity.CreateAt,
             };
             await _context.Users.AddAsync(entity);
+            // Note: Don't SaveChanges here - let UnitOfWork manage it
+            // The UserId will be set after SaveChangesAsync is called
+        }
+
+        public async Task<long> GetUserIdByEmailAsync(string email)
+        {
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email);
+            return user?.UserId ?? 0;
         }
 
         public async Task AssignDefaultRoleAsync(long userId)
         {
-            var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "MEMBER");
-            _context.Roles.Add(new Role
+            // Get User entity to ensure it's tracked
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new Exception($"User with ID {userId} not found.");
+
+            var defaultRole = await _context.Roles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoleCode == "MEMBER");
+
+            if (defaultRole == null)
+                throw new Exception("Default role 'MEMBER' not found. Please seed it first.");
+
+            // Use navigation property approach to let EF Core handle the relationship
+            var userRole = new UserRole
             {
-                RoleName = defaultRole.RoleName,
-                RoleCode = defaultRole.RoleCode,
-                Description = defaultRole.Description,
-            });
+                User = user,
+                RoleId = defaultRole.RoleId
+            };
+            _context.UserRoles.Add(userRole);
+
+            await _context.SaveChangesAsync();
         }
+
 
         public void Delete(UserDomain entity)
         {
@@ -85,13 +110,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         public async Task<UserDomain?> GetByEmailWithRolesAsync(string email)
         {
             var entity = await _context.Users
-                .Include(u => u.Roles)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.Email == email);
 
             if (entity == null)
                 return null;
 
-            var roles = entity.Roles.Select(ur => ur.RoleCode).ToList();
+            var roles = entity.UserRoles.Select(ur => ur.Role.RoleCode).ToList();
 
             return UserDomain.RehydrateWithRoles(
                 entity.UserId,

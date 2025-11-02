@@ -6,7 +6,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 public partial class Reminder
 {
     public long ReminderId { get; set; }
-
+    // ✅ Khóa ngoại tới bảng Users
+    public long UserId { get; set; }
     public long DonorId { get; set; }
 
     public string ReminderType { get; set; } = null!;
@@ -28,4 +29,5 @@ public partial class Reminder
     public DateTime CreatedAt { get; set; }
 
     public virtual Donor Donor { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 }

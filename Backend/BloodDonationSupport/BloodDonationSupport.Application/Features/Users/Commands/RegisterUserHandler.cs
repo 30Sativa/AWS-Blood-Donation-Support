@@ -48,9 +48,21 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             var emailVo = new Email(reg.Email);
             var user = UserDomain.RegisterNewUser(emailVo, cognitoUserId, isEmailExists, reg.PhoneNumber);
             await _userRepository.AddAsync(user);
+            
+            // Save to get the generated UserId
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _userRepository.AssignDefaultRoleAsync(user.Id);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            
+            // Get the generated UserId from database
+            var userId = await _userRepository.GetUserIdByEmailAsync(user.Email.Value);
+            
+            if (userId > 0)
+            {
+                await _userRepository.AssignDefaultRoleAsync(userId);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                
+                // Update domain entity with the generated UserId
+                user.GetType().GetProperty("Id")?.SetValue(user, userId);
+            }
 
             return BaseResponse<UserResponse>.SuccessResponse(
                 new UserResponse
