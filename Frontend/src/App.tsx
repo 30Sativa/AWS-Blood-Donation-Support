@@ -1,11 +1,9 @@
-import "./App.css";
+import { Button } from "./components/ui/button";
 
 function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <h1 className="text-3xl font-bold text-blue-600">
-        Hello Tailwind + React + TypeScript 💙
-      </h1>
+    <div className="flex min-h-svh flex-col items-center justify-center">
+      <Button className="text-blue-400 border border-blue-400 px-4 py-2 rounded-lg">Click me</Button>
     </div>
   );
 }
