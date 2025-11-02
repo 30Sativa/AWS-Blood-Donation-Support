@@ -11,35 +11,38 @@ namespace BloodDonationSupport.Domain.Users.Entities
     {
         public long UserId { get; private set; }
         public string FullName { get; private set; } = null!;
-        public DateTime? DateOfBirth { get; private set; }
-        public string? Address { get; private set; }
+        public int? BirthYear { get; private set; } // Thay DateOfBirth bằng BirthYear theo schema
         public string? Gender { get; private set; }
+        public bool PrivacyPhoneVisibleToStaffOnly { get; private set; } = true; // Default true theo schema
 
         // Navigation
         public UserDomain User { get; private set; } = null!;
 
         private UserProfileDomain() { } // For EF Core
 
-        private UserProfileDomain(long userId, string fullName, DateTime? dob, string? gender, string? address)
+        private UserProfileDomain(long userId, string fullName, int? birthYear, string? gender, bool privacyPhoneVisibleToStaffOnly)
         {
             UserId = userId;
             FullName = fullName;
-            DateOfBirth = dob;
+            BirthYear = birthYear;
             Gender = gender;
-            Address = address;
+            PrivacyPhoneVisibleToStaffOnly = privacyPhoneVisibleToStaffOnly;
         }
 
-        public static UserProfileDomain Create(long userId, string fullName, DateTime? dob, string? gender, string? address)
+        public static UserProfileDomain Create(long userId, string fullName, int? birthYear = null, string? gender = null, bool privacyPhoneVisibleToStaffOnly = true)
         {
-            return new UserProfileDomain(userId, fullName, dob, gender, address);
+            return new UserProfileDomain(userId, fullName, birthYear, gender, privacyPhoneVisibleToStaffOnly);
         }
 
-        public void UpdateProfile(string fullName, DateTime? dob, string? gender, string? address)
+        public void UpdateProfile(string fullName, int? birthYear = null, string? gender = null, bool? privacyPhoneVisibleToStaffOnly = null)
         {
             FullName = fullName;
-            DateOfBirth = dob;
-            Gender = gender;
-            Address = address;
+            if (birthYear.HasValue)
+                BirthYear = birthYear;
+            if (gender != null)
+                Gender = gender;
+            if (privacyPhoneVisibleToStaffOnly.HasValue)
+                PrivacyPhoneVisibleToStaffOnly = privacyPhoneVisibleToStaffOnly.Value;
         }
     }
 }

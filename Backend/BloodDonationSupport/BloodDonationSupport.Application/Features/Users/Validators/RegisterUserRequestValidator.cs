@@ -26,6 +26,10 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
                 .Matches(@"^\+?[1-9]\d{1,15}$")
                 .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
                 .WithMessage("Invalid phone number format.");
+
+            RuleFor(x => x.FullName)
+                .NotEmpty().WithMessage("Full name is required.")
+                .MaximumLength(200).WithMessage("Full name must not exceed 200 characters.");
         }
     }
 }

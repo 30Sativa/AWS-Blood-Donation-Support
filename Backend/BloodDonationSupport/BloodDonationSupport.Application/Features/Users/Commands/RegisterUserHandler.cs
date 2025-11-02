@@ -18,12 +18,14 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICognitoService _cognitoService;
         private readonly IUserRepository _userRepository;
+        private readonly IUserProfileRepository _userProfileRepository;
 
-        public RegisterUserHandler(IUnitOfWork unitOfWork, ICognitoService cognitoService, IUserRepository userRepository)
+        public RegisterUserHandler(IUnitOfWork unitOfWork, ICognitoService cognitoService, IUserRepository userRepository, IUserProfileRepository userProfileRepository)
         {
             _unitOfWork = unitOfWork;
             _cognitoService = cognitoService;
             _userRepository = userRepository;
+            _userProfileRepository = userProfileRepository;
         }
         public async Task<BaseResponse<UserResponse>> Handle(RegisterUserCommand command, CancellationToken cancellationToken)
         {
@@ -57,7 +59,19 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             
             if (userId > 0)
             {
+                // Assign default role
                 await _userRepository.AssignDefaultRoleAsync(userId);
+                
+                // Create user profile (required theo schema)
+                var userProfile = UserProfileDomain.Create(
+                    userId: userId,
+                    fullName: reg.FullName,
+                    birthYear: null, // Optional - có thể thêm sau
+                    gender: null, // Optional - có thể thêm sau
+                    privacyPhoneVisibleToStaffOnly: true // Default theo schema
+                );
+                await _userProfileRepository.AddAsync(userProfile);
+                
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 
                 // Update domain entity with the generated UserId

@@ -21,6 +21,7 @@ namespace BloodDonationSupport.Infrastructure
             // Register Repository + UoW
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IUserProfileRepository, UserProfileRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // ✅ Bind AWS options từ appsettings.json
