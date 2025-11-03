@@ -49,23 +49,33 @@ jobs:
 
       # 5️⃣ Upload thư mục publish lên EC2 qua SSH (dùng scp trực tiếp)
       - name: Setup SSH key
+        shell: bash
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf "%s" "$EC2_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -T 30 -H "$EC2_HOST" >> ~/.ssh/known_hosts || true
 
       - name: Upload published files to EC2
+        shell: bash
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
+          set -euo pipefail
           # Tạo thư mục đích trên EC2
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "sudo mkdir -p /var/www/bloodconnect-api && sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /var/www/bloodconnect-api"
-          
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$EC2_USER"@"$EC2_HOST" \
+            "sudo mkdir -p /var/www/bloodconnect-api && sudo chown -R $EC2_USER:$EC2_USER /var/www/bloodconnect-api"
+
           # Upload toàn bộ nội dung của thư mục publish
           cd ./Backend/BloodDonationSupport
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -r \
             publish/. \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/bloodconnect-api/
+            "$EC2_USER"@"$EC2_HOST":/var/www/bloodconnect-api/
 
       # 6️⃣ Restart service trên EC2 sau khi upload xong
       - name: Restart API service on EC2
