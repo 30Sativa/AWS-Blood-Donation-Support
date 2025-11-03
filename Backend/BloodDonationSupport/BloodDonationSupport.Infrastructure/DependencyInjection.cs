@@ -16,8 +16,17 @@ namespace BloodDonationSupport.Infrastructure
         {
             // Connect SQL Server
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(config.GetConnectionString("DBDefault")));
-
+    options.UseSqlServer(
+        config.GetConnectionString("DBDefault"),
+        sql =>
+        {
+            sql.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+            // Tùy chọn: tăng command timeout nếu query dài
+            sql.CommandTimeout(60);
+        }));
             // Register Repository + UoW
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
