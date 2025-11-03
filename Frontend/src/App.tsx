@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -23,6 +24,18 @@ function App() {
         <Footer />
       </div>
     </BrowserRouter> 
+=======
+import HomePage from "./pages/Homepage/homePage";
+
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-50">     
+      <main className="pt-0 -mt-[4rem]">
+          <HomePage/>
+      </main>
+    </div>
+>>>>>>> Stashed changes
   );
 }
+
 export default App;
