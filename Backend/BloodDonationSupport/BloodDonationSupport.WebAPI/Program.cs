@@ -21,6 +21,9 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(config);
+// 🔧 Merge environment variables vào configuration AWS
+builder.Configuration.AddEnvironmentVariables();
+
 
 // JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
