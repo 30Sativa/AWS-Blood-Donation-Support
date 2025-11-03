@@ -33,8 +33,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true
         };
     });
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
 var app = builder.Build();
-app.Urls.Add("http://0.0.0.0:80");
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
