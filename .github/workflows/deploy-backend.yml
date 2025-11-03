@@ -29,7 +29,7 @@ jobs:
       - name: List publish files
         run: |
           echo "Checking publish directory..."
-          PUBLISH_DIR="./Backend/BloodDonationSupport/publish"
+          PUBLISH_DIR="./Backend/publish"
           if [ -d "$PUBLISH_DIR" ]; then
             echo "✅ Publish directory exists at: $PUBLISH_DIR"
             echo "Files in publish directory:"
@@ -72,7 +72,7 @@ jobs:
             "sudo mkdir -p /var/www/bloodconnect-api && sudo chown -R $EC2_USER:$EC2_USER /var/www/bloodconnect-api"
 
           # Upload toàn bộ nội dung của thư mục publish
-          cd ./Backend/BloodDonationSupport
+          cd ./Backend
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -r \
             publish/. \
             "$EC2_USER"@"$EC2_HOST":/var/www/bloodconnect-api/
