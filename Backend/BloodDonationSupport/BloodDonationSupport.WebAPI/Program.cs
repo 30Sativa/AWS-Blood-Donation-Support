@@ -6,27 +6,28 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Ép load file appsettings.json đúng thư mục đang chạy (fix cho systemd)
+// ✅ Force config load to make sure appsettings.json is used in production
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-// Add services to the container.
+var config = builder.Configuration;
+
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add application and infrastructure layers
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(config);
 
-// JWT Configuration
+// JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var region = "ap-southeast-2";
-        var poolId = builder.Configuration["AWS:Cognito:UserPoolId"];
+        var poolId = config["AWS:Cognito:UserPoolId"];
 
         options.Authority = $"https://cognito-idp.{region}.amazonaws.com/{poolId}";
         options.TokenValidationParameters = new TokenValidationParameters
@@ -38,31 +39,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Force listen on port 5000 for all interfaces
+// Listen on all interfaces
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
 
-// Global exception middleware
+// Middleware
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// ===== Enable Swagger (configurable) =====
-var enableSwagger = builder.Configuration.GetValue<bool>("EnableSwagger");
+// ✅ Read value explicitly (add console log to verify)
+var enableSwagger = config.GetValue<bool>("EnableSwagger");
+Console.WriteLine($"EnableSwagger = {enableSwagger}");
 
-// Luôn bật Swagger nếu là Development, 
-// hoặc nếu EnableSwagger = true trong appsettings.json
+// Enable Swagger
 if (app.Environment.IsDevelopment() || enableSwagger)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// ========================================
-
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
