@@ -1,10 +1,28 @@
-import { Button } from "./components/ui/button";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import Blog from "./pages/Blog/Blog";
+// import ViewBlog from "./pages/ViewBlog";
+
+
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button className="text-blue-400 border border-blue-400 px-4 py-2 rounded-lg">Click me</Button>
-    </div>
+    <BrowserRouter>
+      <div className="flex min-h-screen flex-col">
+
+        <Header />
+
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<div className="p-8">Home Page</div>} />
+            <Route path="/blog" element={<Blog />} />
+            {/* <Route path="/blog/:slug" element={<ViewBlog />} />            */}
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </BrowserRouter> 
   );
 }
 export default App;
