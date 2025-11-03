@@ -8,7 +8,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<QcTest> builder)
         {
-            builder.ToTable("qc_tests");
+            builder.ToTable("qc_tests", t => t.HasCheckConstraint("CK_qc_tests_qc_status", "[qc_status] IN ('PENDING', 'PASSED', 'FAILED')"));
 
             builder.HasKey(q => q.QcId)
                    .HasName("PK_qc_tests");
@@ -26,8 +26,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasMaxLength(20)
                    .HasDefaultValue("PENDING");
-
-            builder.HasCheckConstraint("CK_qc_tests_qc_status", "[qc_status] IN ('PENDING', 'PASSED', 'FAILED')");
 
             builder.Property(q => q.ResultsJson)
                    .HasColumnName("results_json")

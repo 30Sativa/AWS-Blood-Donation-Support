@@ -8,7 +8,12 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<DonorAvailability> builder)
         {
-            builder.ToTable("donor_availability");
+            builder.ToTable("donor_availability", t =>
+            {
+                t.HasCheckConstraint("CK_donor_availability_weekday", "[weekday] BETWEEN 0 AND 6");
+                t.HasCheckConstraint("CK_donor_availability_time_from", "[time_from_min] BETWEEN 0 AND 1440");
+                t.HasCheckConstraint("CK_donor_availability_time_to", "[time_to_min] BETWEEN 0 AND 1440");
+            });
 
             builder.HasKey(a => a.AvailabilityId)
                    .HasName("PK_donor_availability");
@@ -25,19 +30,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasColumnName("weekday")
                    .IsRequired();
 
-            builder.HasCheckConstraint("CK_donor_availability_weekday", "[weekday] BETWEEN 0 AND 6");
-
             builder.Property(a => a.TimeFromMin)
                    .HasColumnName("time_from_min")
                    .IsRequired();
 
-            builder.HasCheckConstraint("CK_donor_availability_time_from", "[time_from_min] BETWEEN 0 AND 1440");
-
             builder.Property(a => a.TimeToMin)
                    .HasColumnName("time_to_min")
                    .IsRequired();
-
-            builder.HasCheckConstraint("CK_donor_availability_time_to", "[time_to_min] BETWEEN 0 AND 1440");
 
             builder.HasOne(a => a.Donor)
                    .WithMany(d => d.DonorAvailabilities)

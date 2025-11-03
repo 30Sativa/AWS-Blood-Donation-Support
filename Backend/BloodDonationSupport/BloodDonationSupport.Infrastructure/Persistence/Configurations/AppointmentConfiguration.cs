@@ -8,7 +8,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Appointment> builder)
         {
-            builder.ToTable("appointments");
+            builder.ToTable("appointments", t => t.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"));
 
             builder.HasKey(a => a.AppointmentId)
                    .HasName("PK_appointments");
@@ -37,8 +37,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasMaxLength(30)
                    .HasDefaultValue("SCHEDULED");
-
-            builder.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')");
 
             builder.Property(a => a.CreatedBy)
                    .HasColumnName("created_by")

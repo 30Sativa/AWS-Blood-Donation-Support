@@ -8,7 +8,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Donation> builder)
         {
-            builder.ToTable("donations");
+            builder.ToTable("donations", t => t.HasCheckConstraint("CK_donations_volume", "[volume_ml] IS NULL OR [volume_ml] > 0"));
 
             builder.HasKey(d => d.DonationId)
                    .HasName("PK_donations");
@@ -34,8 +34,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
 
             builder.Property(d => d.VolumeMl)
                    .HasColumnName("volume_ml");
-
-            builder.HasCheckConstraint("CK_donations_volume", "[volume_ml] IS NULL OR [volume_ml] > 0");
 
             builder.Property(d => d.UnitsDonated)
                    .HasColumnName("units_donated");

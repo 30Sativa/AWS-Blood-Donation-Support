@@ -8,7 +8,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Request> builder)
         {
-            builder.ToTable("requests");
+            builder.ToTable("requests", t =>
+            {
+                t.HasCheckConstraint("CK_requests_urgency", "[urgency] IN ('LOW', 'NORMAL', 'HIGH')");
+                t.HasCheckConstraint("CK_requests_quantity", "[quantity_units] > 0");
+            });
 
             builder.HasKey(r => r.RequestId)
                    .HasName("PK_requests");
@@ -27,8 +31,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasMaxLength(20)
                    .HasDefaultValue("NORMAL");
 
-            builder.HasCheckConstraint("CK_requests_urgency", "[urgency] IN ('LOW', 'NORMAL', 'HIGH')");
-
             builder.Property(r => r.BloodTypeId)
                    .HasColumnName("blood_type_id")
                    .IsRequired();
@@ -40,8 +42,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
             builder.Property(r => r.QuantityUnits)
                    .HasColumnName("quantity_units")
                    .IsRequired();
-
-            builder.HasCheckConstraint("CK_requests_quantity", "[quantity_units] > 0");
 
             builder.Property(r => r.NeedBeforeUtc)
                    .HasColumnName("need_before_utc");

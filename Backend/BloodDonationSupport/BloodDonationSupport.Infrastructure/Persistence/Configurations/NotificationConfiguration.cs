@@ -8,7 +8,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Notification> builder)
         {
-            builder.ToTable("notifications");
+            builder.ToTable("notifications", t =>
+            {
+                t.HasCheckConstraint("CK_notifications_channel", "[channel] IN ('PUSH', 'SMS', 'EMAIL')");
+                t.HasCheckConstraint("CK_notifications_status", "[status] IN ('QUEUED', 'SENT', 'FAILED', 'DELIVERED')");
+            });
 
             builder.HasKey(n => n.NotificationId)
                    .HasName("PK_notifications");
@@ -27,8 +31,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasMaxLength(20)
                    .HasDefaultValue("EMAIL");
 
-            builder.HasCheckConstraint("CK_notifications_channel", "[channel] IN ('PUSH', 'SMS', 'EMAIL')");
-
             builder.Property(n => n.TemplateCode)
                    .HasColumnName("template_code")
                    .IsRequired()
@@ -43,8 +45,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasMaxLength(20)
                    .HasDefaultValue("QUEUED");
-
-            builder.HasCheckConstraint("CK_notifications_status", "[status] IN ('QUEUED', 'SENT', 'FAILED', 'DELIVERED')");
 
             builder.Property(n => n.AwsMessageId)
                    .HasColumnName("aws_message_id")
