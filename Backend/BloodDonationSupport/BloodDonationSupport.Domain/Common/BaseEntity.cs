@@ -9,11 +9,11 @@ namespace BloodDonationSupport.Domain.Common
     public abstract class BaseEntity<TId> 
     {
         //Property by genaric
-        public TId Id { get; protected set; }
+        public TId Id { get; protected set; } = default!;
 
         //Domain Events
         private List<IDomainEvent> _domainEvents = new();
-        public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents?.AsReadOnly();
+        public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
         public void AddDomainEvent(IDomainEvent domainEvent)
         {

@@ -8,7 +8,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<DonationAttempt> builder)
         {
-            builder.ToTable("donation_attempts");
+            builder.ToTable("donation_attempts", t => t.HasCheckConstraint("CK_donation_attempts_status", "[status] IN ('COMPLETED', 'FAILED', 'NO_SHOW', 'CANCELLED')"));
 
             builder.HasKey(d => d.AttemptId)
                    .HasName("PK_donation_attempts");
@@ -26,8 +26,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasMaxLength(30)
                    .HasDefaultValue("COMPLETED");
-
-            builder.HasCheckConstraint("CK_donation_attempts_status", "[status] IN ('COMPLETED', 'FAILED', 'NO_SHOW', 'CANCELLED')");
 
             builder.Property(d => d.Reason)
                    .HasColumnName("reason")

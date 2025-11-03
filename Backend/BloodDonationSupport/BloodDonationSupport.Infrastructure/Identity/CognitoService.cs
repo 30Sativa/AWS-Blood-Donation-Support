@@ -11,11 +11,10 @@ namespace BloodDonationSupport.Infrastructure.Identity
 {
     public class CognitoService : ICognitoService
     {
-        private readonly IConfiguration _config;
         private readonly AmazonCognitoIdentityProviderClient _client;
         private readonly string _clientId;
         private readonly string _userPoolId;
-        private readonly string _clientSecret;
+        private readonly string? _clientSecret;
 
 
         public CognitoService(IOptions<AwsOptions> awsOptions)
@@ -40,15 +39,18 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _client = new AmazonCognitoIdentityProviderClient(credentials, region);
 
             // Gán các biến còn lại
-            _clientId = options.Cognito.ClientId;
-            _userPoolId = options.Cognito.UserPoolId;
+            _clientId = options.Cognito.ClientId ?? throw new ArgumentNullException(nameof(options.Cognito.ClientId));
+            _userPoolId = options.Cognito.UserPoolId ?? throw new ArgumentNullException(nameof(options.Cognito.UserPoolId));
             _clientSecret = options.Cognito.ClientSecret?.Trim();
         }
 
 
 
-        private static string CalculateSecretHash(string username, string clientId, string clientSecret)
+        private static string CalculateSecretHash(string username, string clientId, string? clientSecret)
         {
+            if (string.IsNullOrEmpty(clientSecret))
+                throw new ArgumentException("Client secret is required", nameof(clientSecret));
+
             var message = Encoding.UTF8.GetBytes(username + clientId);
             var key = Encoding.UTF8.GetBytes(clientSecret);
 

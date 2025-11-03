@@ -27,7 +27,7 @@ namespace BloodDonationSupport.Domain.Users.Entities
         {
             Email = email;
             CognitoUserId = cognitoUserId;
-            PhoneNumber = phoneNumber;
+            PhoneNumber = string.IsNullOrEmpty(phoneNumber) ? null : phoneNumber;
 
             AddDomainEvent(new UserRegisteredEvent(email.Value, cognitoUserId));
         }
@@ -53,7 +53,7 @@ namespace BloodDonationSupport.Domain.Users.Entities
         public static UserDomain RegisterNewUser(Email email, string cognitoUserId, bool emailExists, string? phone = null)
         {
             UniqueEmailRule.Check(emailExists);
-            return new UserDomain(email, cognitoUserId, phone);
+            return new UserDomain(email, cognitoUserId, phone ?? string.Empty);
         }
 
         //Rehydration method: tái tạo user từ dữ liệu lưu trữ
