@@ -1,4 +1,10 @@
-<<<<<<< Updated upstream
+
+import LoginPage from "./pages/LoginPage";
+
+function App() {
+  return <LoginPage />;
+
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -24,7 +30,7 @@ function App() {
         <Footer />
       </div>
     </BrowserRouter> 
-=======
+
 import HomePage from "./pages/Homepage/homePage";
 
 function App() {
@@ -34,7 +40,7 @@ function App() {
           <HomePage/>
       </main>
     </div>
->>>>>>> Stashed changes
+
   );
 }
 
