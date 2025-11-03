@@ -3,34 +3,39 @@ name: Deploy .NET API to AWS EC2
 on:
   push:
     branches:
-      - backend 
+      - backend   # Chạy mỗi khi bạn push code lên branch backend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Clone toàn bộ source code từ repo
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      # 2️⃣ Cài đặt .NET SDK 8.0
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
+      # 3️⃣ Build & Publish Web API ra thư mục "publish"
       - name: Publish .NET Web API
-        working-directory: ./BloodDonationSupport.WebAPI
-        run: dotnet publish -c Release -o ../publish
+        working-directory: ./Backend/BloodDonationSupport/BloodDonationSupport.WebAPI
+        run: dotnet publish -c Release -o ../../publish
 
+      # 4️⃣ Upload thư mục publish lên EC2 qua SSH
       - name: Upload published files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "./BloodDonationSupport/publish/*"
+          source: "./Backend/BloodDonationSupport/publish/*"
           target: "/var/www/bloodconnect-api"
 
+      # 5️⃣ Restart service trên EC2 sau khi upload xong
       - name: Restart API service on EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
