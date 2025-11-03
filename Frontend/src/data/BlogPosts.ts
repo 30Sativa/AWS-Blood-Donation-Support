@@ -9,7 +9,7 @@ import image16 from "@/assets/blog/image 16.png";
 export const BlogPosts: BlogPost[] = [
   {
     postId: 1,
-    title: "Why Blood Donation Is  Important",
+    title: "Why Blood Donation Is Important",
     slug: "why-blood-donation-is-important",
     introduction: [
       {
