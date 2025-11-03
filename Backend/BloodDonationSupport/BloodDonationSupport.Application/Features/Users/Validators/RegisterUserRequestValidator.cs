@@ -30,6 +30,15 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
             RuleFor(x => x.FullName)
                 .NotEmpty().WithMessage("Full name is required.")
                 .MaximumLength(200).WithMessage("Full name must not exceed 200 characters.");
+
+            RuleFor(x => x.BirthYear)
+                .InclusiveBetween(1900, DateTime.UtcNow.Year)
+                .When(x => x.BirthYear.HasValue)
+                .WithMessage("Birth year must be between 1900 and current year.");
+
+            RuleFor(x => x.Gender)
+                .Must(g => string.IsNullOrWhiteSpace(g) || new[] { "Male", "Female", "Other" }.Contains(g))
+                .WithMessage("Gender must be one of: Male, Female, Other.");
         }
     }
 }

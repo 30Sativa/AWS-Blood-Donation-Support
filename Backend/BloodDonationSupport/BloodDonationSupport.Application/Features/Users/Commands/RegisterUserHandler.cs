@@ -44,6 +44,10 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             // ✅ Call Cognito register
 
             var cognitoUserId = await _cognitoService.RegisterUserAsync(reg.Email, reg.Password, reg.PhoneNumber);
+            if (string.IsNullOrWhiteSpace(cognitoUserId))
+            {
+                return BaseResponse<UserResponse>.FailureResponse("Cognito did not return a user id.");
+            }
 
 
             // 🧩 Create domain user
@@ -63,14 +67,17 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 await _userRepository.AssignDefaultRoleAsync(userId);
                 
                 // Create user profile (required theo schema)
-                var userProfile = UserProfileDomain.Create(
-                    userId: userId,
-                    fullName: reg.FullName,
-                    birthYear: null, // Optional - có thể thêm sau
-                    gender: null, // Optional - có thể thêm sau
-                    privacyPhoneVisibleToStaffOnly: true // Default theo schema
-                );
-                await _userProfileRepository.AddAsync(userProfile);
+                if (!string.IsNullOrWhiteSpace(reg.FullName))
+                {
+                    var userProfile = UserProfileDomain.Create(
+                        userId: userId,
+                        fullName: reg.FullName,
+                        birthYear: reg.BirthYear,
+                        gender: reg.Gender,
+                        privacyPhoneVisibleToStaffOnly: true
+                    );
+                    await _userProfileRepository.AddAsync(userProfile);
+                }
                 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 

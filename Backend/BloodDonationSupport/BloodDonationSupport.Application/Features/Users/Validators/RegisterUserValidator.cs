@@ -13,8 +13,10 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
         public RegisterUserValidator()
         {
             RuleFor(x => x.request)
+                .Cascade(CascadeMode.Stop)
                 .NotNull().WithMessage("Request cannot be null.")
-                .SetValidator(new RegisterUserRequestValidator());
+                .SetValidator(new RegisterUserRequestValidator())
+                .When(x => x.request is not null);
         }
     }
 }
