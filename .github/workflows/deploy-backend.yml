@@ -23,7 +23,7 @@ jobs:
       # 3️⃣ Build & Publish Web API ra thư mục "publish"
       - name: Publish .NET Web API
         working-directory: ./Backend/BloodDonationSupport/BloodDonationSupport.WebAPI
-        run: dotnet publish -c Release -o ../../publish -warnaserror-
+        run: dotnet publish -c Release -o ../../publish
 
       # 4️⃣ Kiểm tra thư mục publish sau khi build
       - name: List publish files
