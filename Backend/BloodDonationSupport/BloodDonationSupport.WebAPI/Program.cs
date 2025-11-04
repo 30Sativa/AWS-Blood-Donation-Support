@@ -6,7 +6,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Force config load to make sure appsettings.json is used in production
+// =========================================================
+// 🔧 CONFIGURATION
+// =========================================================
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -14,19 +16,34 @@ builder.Configuration
 
 var config = builder.Configuration;
 
-// Add services
+// =========================================================
+// 🧩 SERVICES REGISTRATION
+// =========================================================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
-// 🔧 Merge environment variables vào configuration AWS
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddInfrastructure(config);
 
+// =========================================================
+// 🌐 CORS CONFIGURATION (Frontend local React dev)
+// =========================================================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalFrontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173") // React frontend local
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
-
-// JWT
+// =========================================================
+// 🔐 JWT AUTHENTICATION (AWS Cognito)
+// =========================================================
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -43,27 +60,42 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Listen on all interfaces
+// =========================================================
+// ⚙️ WEB HOST CONFIG
+// =========================================================
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();
 
-// Middleware
+// =========================================================
+// ⚡️ MIDDLEWARE PIPELINE
+// =========================================================
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// ✅ Read value explicitly (add console log to verify)
+// ✅ Swagger
 var enableSwagger = config.GetValue<bool>("EnableSwagger");
 Console.WriteLine($"EnableSwagger = {enableSwagger}");
 
-// Enable Swagger
 if (app.Environment.IsDevelopment() || enableSwagger)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// ✅ HTTPS redirection
 app.UseHttpsRedirection();
+
+// ✅ CORS
+app.UseCors("AllowLocalFrontend");
+
+// ✅ Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ✅ Controllers
 app.MapControllers();
+
+// =========================================================
+// 🚀 RUN APPLICATION
+// =========================================================
 app.Run();
