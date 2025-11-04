@@ -72,7 +72,20 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         public void Delete(UserDomain entity)
         {
-            throw new NotImplementedException();
+            // 1Xóa roles của user (UserRoles)
+            var userRoles = _context.UserRoles.Where(ur => ur.UserId == entity.Id);
+            if (userRoles.Any())
+                _context.UserRoles.RemoveRange(userRoles);
+
+            // Xóa profile (nếu có)
+            var profile = _context.UserProfiles.FirstOrDefault(p => p.UserId == entity.Id);
+            if (profile != null)
+                _context.UserProfiles.Remove(profile);
+
+            //  Xóa user
+            var user = _context.Users.FirstOrDefault(u => u.UserId == entity.Id);
+            if (user != null)
+                _context.Users.Remove(user);
         }
 
         public Task<bool> ExistsAsync(Expression<Func<UserDomain, bool>> predicate)
