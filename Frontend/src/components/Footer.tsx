@@ -10,8 +10,7 @@ const Footer = () => {
                     <div className="space-y-4">
                         <h2 className="text-2xl font-bold text-red-600">BLOOD CARE</h2>
                         <p className="text-gray-400 text-sm">
-                            Hệ thống quản lý và hỗ trợ hiến máu, kết nối người hiến máu 
-                            với những người cần máu một cách nhanh chóng và hiệu quả.
+                            Save lives with every drop of blood you donate.
                         </p>
                         <div className="flex space-x-4">
                             <a href="#" className="text-gray-400 hover:text-red-600 transition-colors">

@@ -8,7 +8,7 @@ import HeroCTA from "../../components/Homepage/HeroCTA";
 
 const HomePage: React.FC = () => {
     return (
-        <div className="pt-16">
+        <div className="">
             <Introduction />
             <BloodTypeSection />
             <ServiceSection />
