@@ -1,28 +1,17 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import HomePage from "./pages/Homepage/homePage";
-import Blog from "./pages/Blog/Blog";
-// import ViewBlog from "./pages/ViewBlog";
-// import LoginPage from "./pages/LoginPage"; // nếu dùng login riêng
+import { PublicRoutes } from "./routes/PublicRoutes";
+import { MemberRoutes } from "./routes/MemberRoutes";
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen flex-col">
-        <Header/>
+      <Routes>
+        {/* Public routes (Home, Blog, etc.) */}
+        <Route path="/*" element={<PublicRoutes />} />
 
-        <main className="flex-1 pt-0 ">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/blog" element={<Blog />} />
-            {/* <Route path="/blog/:slug" element={<ViewBlog />} /> */}
-            {/* <Route path="/login" element={<LoginPage />} /> */}
-          </Routes>
-        </main>
-
-        <Footer />
-      </div>
+        {/* Member routes */}
+        <Route path="/member/*" element={<MemberRoutes />} />
+      </Routes>
     </BrowserRouter>
   );
 }
