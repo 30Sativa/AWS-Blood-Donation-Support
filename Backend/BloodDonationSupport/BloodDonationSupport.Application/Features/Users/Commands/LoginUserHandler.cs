@@ -49,13 +49,13 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                         AccessToken = token.AccessToken,
                         RefreshToken = token.RefreshToken,
                         ExpiresIn = token.ExpiresIn,
-                        User = new UserResponse
+                        User = new AuthResponse
                         {
                             Id = user.Id,
                             Email = user.Email.ToString(),
                             CognitoUserId = user.CognitoUserId
                         },
-                        Roles = user.Roles
+                        Roles = user.Roles.ToList()
                     },
                     "Login successfully"
                 );

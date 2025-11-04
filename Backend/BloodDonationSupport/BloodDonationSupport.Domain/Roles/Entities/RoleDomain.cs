@@ -1,28 +1,49 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using BloodDonationSupport.Domain.Common;
 
 namespace BloodDonationSupport.Domain.Roles.Entities
 {
-    public class RoleDomain
+    public class RoleDomain : BaseEntity<int>
     {
-        public int Id { get; private set; }
-        public string Code { get; private set; } = string.Empty; //ADMIN, MEMBER
+        public string Code { get; private set; } = string.Empty; // ADMIN, MEMBER, STAFF
         public string Name { get; private set; } = string.Empty;
+        public string? Description { get; private set; }
 
+        private RoleDomain() { } // For EF Core
 
-        public RoleDomain() { } // EF constructor
-        private RoleDomain(int id, string code, string name)
+        private RoleDomain(string code, string name, string? description = null)
+        {
+            Code = code.ToUpperInvariant();
+            Name = name;
+            Description = description;
+        }
+
+        private RoleDomain(int id, string code, string name, string? description)
         {
             Id = id;
             Code = code;
             Name = name;
+            Description = description;
         }
-        public static RoleDomain Rehydrate(int id, string code, string name)
+
+        //  Factory tạo mới
+        public static RoleDomain Create(string code, string name, string? description = null)
         {
-            return new RoleDomain(id, code, name);
+            return new RoleDomain(code, name, description);
+        }
+
+        //  Rehydrate khi đọc từ DB
+        public static RoleDomain Rehydrate(int id, string code, string name, string? description)
+        {
+            return new RoleDomain(id, code, name, description);
+        }
+
+        // Update mô tả (dành cho admin)
+        public void Update(string? name = null, string? description = null)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+                Name = name;
+            if (description != null)
+                Description = description;
         }
     }
 }

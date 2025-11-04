@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
-    public class RegisterUserHandler : IRequestHandler<RegisterUserCommand, BaseResponse<UserResponse>>
+    public class RegisterUserHandler : IRequestHandler<RegisterUserCommand, BaseResponse<AuthResponse>>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICognitoService _cognitoService;
@@ -27,7 +27,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             _userRepository = userRepository;
             _userProfileRepository = userProfileRepository;
         }
-        public async Task<BaseResponse<UserResponse>> Handle(RegisterUserCommand command, CancellationToken cancellationToken)
+        public async Task<BaseResponse<AuthResponse>> Handle(RegisterUserCommand command, CancellationToken cancellationToken)
         {
             var reg = command.request;
 
@@ -38,7 +38,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
 
             if (isEmailExists)
             {
-                return BaseResponse<UserResponse>.FailureResponse("Email already exists.");
+                return BaseResponse<AuthResponse>.FailureResponse("Email already exists.");
             }
 
             // ✅ Call Cognito register
@@ -46,7 +46,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             var cognitoUserId = await _cognitoService.RegisterUserAsync(reg.Email, reg.Password, reg.PhoneNumber);
             if (string.IsNullOrWhiteSpace(cognitoUserId))
             {
-                return BaseResponse<UserResponse>.FailureResponse("Cognito did not return a user id.");
+                return BaseResponse<AuthResponse>.FailureResponse("Cognito did not return a user id.");
             }
 
 
@@ -85,8 +85,8 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 user.GetType().GetProperty("Id")?.SetValue(user, userId);
             }
 
-            return BaseResponse<UserResponse>.SuccessResponse(
-                new UserResponse
+            return BaseResponse<AuthResponse>.SuccessResponse(
+                new AuthResponse
                 {
                     Id = user.Id,
                     Email = user.Email.ToString(),

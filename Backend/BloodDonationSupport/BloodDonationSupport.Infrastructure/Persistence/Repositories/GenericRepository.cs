@@ -39,12 +39,12 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         public virtual async Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)
         {
-            return await _dbset.Where(predicate).ToListAsync();
+            return await _dbset.AsNoTracking().Where(predicate).ToListAsync();
         }
 
         public virtual async Task<IEnumerable<TEntity>> GetAllAsync()
         {
-           return await _dbset.ToListAsync();
+           return await _dbset.AsNoTracking().ToListAsync();
         }
 
         public virtual async Task<TEntity?> GetByIdAsync(object id)

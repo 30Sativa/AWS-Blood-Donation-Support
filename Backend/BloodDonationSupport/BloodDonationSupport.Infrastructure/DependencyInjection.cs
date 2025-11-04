@@ -14,29 +14,30 @@ namespace BloodDonationSupport.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
         {
-            // Connect SQL Server
+            //  Connect SQL Server
             services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        config.GetConnectionString("DBDefault"),
-        sql =>
-        {
-            sql.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
-            // Tùy chọn: tăng command timeout nếu query dài
-            sql.CommandTimeout(60);
-        }));
-            // Register Repository + UoW
+                options.UseSqlServer(
+                    config.GetConnectionString("DBDefault"),
+                    sql =>
+                    {
+                        sql.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorNumbersToAdd: null);
+                        sql.CommandTimeout(60); // optional: extend timeout
+                    }));
+
+            // Register Repositories
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>(); // ✅ ADD THIS
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // ✅ Bind AWS options từ appsettings.json
+            //  AWS Options
             services.Configure<AwsOptions>(config.GetSection("AWS"));
 
-            // ✅ AWS Cognito
+            // Cognito Authentication
             services.AddScoped<ICognitoService, CognitoService>();
 
             return services;

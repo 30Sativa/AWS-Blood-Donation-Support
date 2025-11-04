@@ -11,5 +11,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
     {
         Task<RoleDomain?> GetByCodeAsync(string code);
         Task<IEnumerable<RoleDomain>> GetAllAsync();
+
+        Task<bool> IsExistRoleCodeAsync(string code);
     }
 }

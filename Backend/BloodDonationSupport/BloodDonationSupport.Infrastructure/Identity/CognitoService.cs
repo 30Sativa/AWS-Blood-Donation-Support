@@ -163,5 +163,40 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
         public Task<bool?> ValidationTokenAsync(string accessToken) =>
             throw new NotImplementedException();
+        // UPDATE USER
+        public async Task  UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber)
+        {
+            var request = new AdminUpdateUserAttributesRequest
+            {
+                UserPoolId = _userPoolId,
+                Username = cognitoUserId,
+                UserAttributes = new List<AttributeType>()
+            };
+
+            if (!string.IsNullOrEmpty(newEmail))
+                request.UserAttributes.Add(new AttributeType { Name = "email", Value = newEmail });
+
+            if (!string.IsNullOrEmpty(newPhoneNumber))
+                request.UserAttributes.Add(new AttributeType { Name = "phone_number", Value = newPhoneNumber });
+
+            await _client.AdminUpdateUserAttributesAsync(request);
+        }
+
+        public async Task DeleteUserAsync(string cognitoUserId)
+        {
+            try
+            {
+                var request = new AdminDeleteUserRequest
+                {
+                    UserPoolId = _userPoolId,
+                    Username = cognitoUserId
+                };
+                await _client.AdminDeleteUserAsync(request);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to delete user from Cognito: {ex.Message}");
+            }
+        }
     }
 }

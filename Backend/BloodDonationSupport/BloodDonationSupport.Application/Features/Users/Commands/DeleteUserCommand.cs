@@ -1,6 +1,4 @@
 ﻿using BloodDonationSupport.Application.Common.Responses;
-using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
-using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -10,8 +8,8 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
-    public record RegisterUserCommand(RegisterUserRequest request) : IRequest<BaseResponse<AuthResponse>>
+    public record DeleteUserCommand(long userId) : IRequest<BaseResponse<string>>
     {
- 
+
     }
 }

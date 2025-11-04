@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using BloodDonationSupport.Domain.Common;
+﻿using BloodDonationSupport.Domain.Common;
 using BloodDonationSupport.Domain.Users.Events;
 using BloodDonationSupport.Domain.Users.Rules;
 using BloodDonationSupport.Domain.Users.ValueObjects;
@@ -15,86 +9,59 @@ namespace BloodDonationSupport.Domain.Users.Entities
     {
         public Email Email { get; private set; } = default!;
         public string CognitoUserId { get; private set; } = default!;
-        public string? PhoneNumber { get; set; }
+        public string? PhoneNumber { get; private set; }
         public bool IsActive { get; private set; } = true;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
-        public List<string> Roles { get; private set; } = new List<string>();
-        public DateTime CreateAt { get; set; } = DateTime.UtcNow;
-        
+        public IReadOnlyCollection<string> Roles => _roles.AsReadOnly();
+        private readonly List<string> _roles = new();
 
-        public UserDomain() { } // EF constructor
-        private UserDomain(Email email, string cognitoUserId, string phoneNumber)
+        private UserDomain() { } // For EF Core
+
+        private UserDomain(Email email, string cognitoUserId, string? phone)
         {
             Email = email;
             CognitoUserId = cognitoUserId;
-            PhoneNumber = string.IsNullOrEmpty(phoneNumber) ? null : phoneNumber;
+            PhoneNumber = phone;
 
             AddDomainEvent(new UserRegisteredEvent(email.Value, cognitoUserId));
         }
-        // Private constructor for rehydration with roles
-        private UserDomain(
-    long id,
-    Email email,
-    string cognitoUserId,
-    string? phoneNumber,
-    bool isActive,
-    DateTime createdAt)
+
+        private UserDomain(long id, Email email, string cognitoUserId, string? phone, bool isActive, DateTime createdAt)
         {
             Id = id;
             Email = email;
             CognitoUserId = cognitoUserId;
-            PhoneNumber = phoneNumber;
+            PhoneNumber = phone;
             IsActive = isActive;
-            CreateAt = createdAt;
+            CreatedAt = createdAt;
         }
 
-
-        //Factory method: tạo user hợp lệ trong Domain
         public static UserDomain RegisterNewUser(Email email, string cognitoUserId, bool emailExists, string? phone = null)
         {
             UniqueEmailRule.Check(emailExists);
-            return new UserDomain(email, cognitoUserId, phone ?? string.Empty);
+            return new UserDomain(email, cognitoUserId, phone);
         }
 
-        //Rehydration method: tái tạo user từ dữ liệu lưu trữ
         public static UserDomain Rehydrate(long userId, Email email, string cognitoUserId, string? phoneNumber, bool isActive, DateTime createdAt)
         {
-            var user = new UserDomain
-            {
-                Id = userId,
-                Email = email,
-                CognitoUserId = cognitoUserId,
-                PhoneNumber = phoneNumber,
-                IsActive = isActive,
-                CreateAt = createdAt
-
-            };
-            return user;
+            return new UserDomain(userId, email, cognitoUserId, phoneNumber, isActive, createdAt);
         }
 
         public static UserDomain RehydrateWithRoles(
-                long userId,
-                Email email,
-            string cognitoUserId,
-                string? phoneNumber,
-                bool isActive,
-            DateTime createdAt,
-             List<string> roles)
+            long userId, Email email, string cognitoUserId,
+            string? phoneNumber, bool isActive, DateTime createdAt, IEnumerable<string> roles)
         {
             var user = new UserDomain(userId, email, cognitoUserId, phoneNumber, isActive, createdAt);
-
-            // Nếu Roles có private setter, ta dùng AddRange hoặc method nội bộ thay vì gán thẳng
-            user.Roles.AddRange(roles);
-
+            user._roles.AddRange(roles);
             return user;
         }
 
+        public void Deactivate() => IsActive = false;
 
-        public void Deactivate()
+        public void UpdatePhone(string? phone)
         {
-            IsActive = false;
+            PhoneNumber = phone;
         }
-
-
     }
 }

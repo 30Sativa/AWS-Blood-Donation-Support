@@ -7,12 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Donors\Entities\" />
-    <Folder Include="Donors\Factories\" />
-    <Folder Include="Donors\Errors\" />
-    <Folder Include="Donors\Events\" />
-    <Folder Include="Donors\Rules\" />
-    <Folder Include="Donors\ValueObjects\" />
     <Folder Include="Shared\Enums\" />
     <Folder Include="Shared\Factories\" />
     <Folder Include="Shared\ValueObjects\" />

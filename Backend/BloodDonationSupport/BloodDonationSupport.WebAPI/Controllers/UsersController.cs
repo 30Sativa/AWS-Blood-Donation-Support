@@ -1,8 +1,7 @@
 ﻿using BloodDonationSupport.Application.Features.Users.Commands;
 using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
+using BloodDonationSupport.Application.Features.Users.Queries;
 using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -20,23 +19,19 @@ namespace BloodDonationSupport.WebAPI.Controllers
             _logger = logger;
         }
 
-
+        //  [POST] api/users/register (Cognito Register)
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
-
-            // ✅ gửi qua MediatR
             var result = await _mediator.Send(new RegisterUserCommand(request));
 
-            // ✅ phản hồi kết quả
             if (!result.Success)
                 return BadRequest(result);
 
             return Ok(result);
         }
 
-
-
+        //  [POST] api/users/login (Cognito Login)
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginUserRequest request)
         {
@@ -44,6 +39,63 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
             if (!result.Success)
                 return Unauthorized(result);
+
+            return Ok(result);
+        }
+
+        //  [POST] api/users (Admin Create new user)
+        [HttpPost]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            var result = await _mediator.Send(new CreateUserCommand(request));
+
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        // [PUT] api/users/{id} (Admin Update user)
+        [HttpPut("{id:long}")]
+        public async Task<IActionResult> UpdateUser(long id, [FromBody] UpdateUserRequest request)
+        {
+            request.Id = id;
+            var result = await _mediator.Send(new UpdateUserCommand(request));
+
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        // [GET] api/users (Admin Get all users)
+        [HttpGet]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var result = await _mediator.Send(new GetAllUsersQuery());
+            return Ok(result);
+        }
+
+        // [GET] api/users/{id} (Admin Get user by Id)
+        [HttpGet("{id:long}")]
+        public async Task<IActionResult> GetUserById(long id)
+        {
+            var result = await _mediator.Send(new GetUserByIdQuery(id));
+
+            if (result == null)
+                return NotFound($"User with ID {id} not found.");
+
+            return Ok(result);
+        }
+
+        // [DELETE] api/users/{id} (Admin Delete user)
+        [HttpDelete("{id:long}")]
+        public async Task<IActionResult> DeleteUser(long id)
+        {
+            var result = await _mediator.Send(new DeleteUserCommand(id));
+
+            if (!result.Success)
+                return BadRequest(result);
 
             return Ok(result);
         }

@@ -29,7 +29,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 CognitoUserId = domainEntity.CognitoUserId,
                 PhoneNumber = domainEntity.PhoneNumber,
                 IsActive = domainEntity.IsActive,
-                CreatedAt = domainEntity.CreateAt,
+                CreatedAt = domainEntity.CreatedAt,
             };
             await _context.Users.AddAsync(entity);
             // Note: Don't SaveChanges here - let UnitOfWork manage it
@@ -131,9 +131,25 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         }
 
 
-        public Task<UserDomain?> GetByIdAsync(object id)
+        public async Task<UserDomain?> GetByIdAsync(object id)
         {
-            throw new NotImplementedException();
+            if (id is long userId)
+            {
+                var entity = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+                if (entity == null)
+                {
+                    return null;
+                }
+                return UserDomain.Rehydrate(
+                    entity.UserId,
+                    new Domain.Users.ValueObjects.Email(entity.Email),
+                    entity.CognitoUserId ?? string.Empty,
+                    entity.PhoneNumber,
+                    entity.IsActive,
+                    entity.CreatedAt
+                );
+            }
+            return null;
         }
 
         public async Task<bool> IsExistEmailAsync(string email)
@@ -147,6 +163,16 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         }
 
         public void Update(UserDomain entity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task AssignRoleAsync(long userId, string roleCode)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<string>> GetRolesByUserIdAsync(long userId)
         {
             throw new NotImplementedException();
         }

@@ -11,9 +11,12 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<UserDomain?> GetByEmailWithRolesAsync(string email);
 
         Task AssignDefaultRoleAsync(long userId);
+        Task AssignRoleAsync(long userId, string roleCode);
 
         Task<long> GetUserIdByEmailAsync(string email);
 
-        
+        Task<IEnumerable<string>> GetRolesByUserIdAsync(long userId);
+
+
     }
 }

@@ -12,7 +12,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private  AppDbContext _context;
+        private readonly AppDbContext _context;
         private  IDbContextTransaction? _transaction;
 
         public UnitOfWork( AppDbContext context)

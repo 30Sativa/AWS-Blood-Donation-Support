@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
@@ -21,50 +20,129 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
+        //  Add profile
         public async Task AddAsync(UserProfileDomain domainEntity)
         {
             var entity = new UserProfile
             {
                 UserId = domainEntity.UserId,
                 FullName = domainEntity.FullName,
-                Gender = domainEntity.Gender,
                 BirthYear = domainEntity.BirthYear,
+                Gender = domainEntity.Gender,
                 PrivacyPhoneVisibleToStaffOnly = domainEntity.PrivacyPhoneVisibleToStaffOnly,
-                CreatedAt = domainEntity.CreatedOn // CreatedOn từ BaseEntity
+                CreatedAt = DateTime.UtcNow
             };
+
             await _context.UserProfiles.AddAsync(entity);
-            // Note: Don't SaveChanges here - let UnitOfWork manage it
-            // CreatedAt có default value SYSUTCDATETIME() trong DB, nhưng set để nhất quán
+            // Không SaveChanges ở đây, để UnitOfWork xử lý
+        }
+
+        //  Get by Id
+        public async Task<UserProfileDomain?> GetByIdAsync(object id)
+        {
+            if (id is not long userId)
+                return null;
+
+            return await GetByUserIdAsync(userId);
+        }
+
+        //  Get by UserId
+        public async Task<UserProfileDomain?> GetByUserIdAsync(long userId)
+        {
+            var up = await _context.UserProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (up == null) return null;
+
+            return UserProfileDomain.Rehydrate(
+                up.UserId,
+                up.FullName,
+                up.BirthYear,
+                up.Gender,
+                up.PrivacyPhoneVisibleToStaffOnly
+            );
+        }
+
+        //  Get all profiles
+        public async Task<IEnumerable<UserProfileDomain>> GetAllAsync()
+        {
+            return await _context.UserProfiles
+                .AsNoTracking()
+                .Select(up => UserProfileDomain.Rehydrate(
+                    up.UserId,
+                    up.FullName,
+                    up.BirthYear,
+                    up.Gender,
+                    up.PrivacyPhoneVisibleToStaffOnly
+                ))
+                .ToListAsync();
+        }
+
+        //  Get all active (PrivacyPhoneVisibleToStaffOnly == true)
+        public async Task<IEnumerable<UserProfileDomain>> GetAllActiveProfilesAsync()
+        {
+            return await _context.UserProfiles
+                .AsNoTracking()
+                .Where(up => up.PrivacyPhoneVisibleToStaffOnly == true)
+                .Select(up => UserProfileDomain.Rehydrate(
+                    up.UserId,
+                    up.FullName,
+                    up.BirthYear,
+                    up.Gender,
+                    up.PrivacyPhoneVisibleToStaffOnly
+                ))
+                .ToListAsync();
+        }
+
+        //  Update profile (EF tracking)
+        public void Update(UserProfileDomain domainEntity)
+        {
+            var entity = _context.UserProfiles.FirstOrDefault(up => up.UserId == domainEntity.UserId);
+            if (entity == null) return;
+
+            entity.FullName = domainEntity.FullName;
+            entity.BirthYear = domainEntity.BirthYear;
+            entity.Gender = domainEntity.Gender;
+            entity.PrivacyPhoneVisibleToStaffOnly = domainEntity.PrivacyPhoneVisibleToStaffOnly;
+
+            _context.UserProfiles.Update(entity);
+        }
+
+        //  Exists check
+        public async Task<bool> ExistsAsync(Expression<Func<UserProfileDomain, bool>> predicate)
+        {
+            return await _context.UserProfiles.AnyAsync(p => predicate.Compile().Invoke(
+            UserProfileDomain.Rehydrate(p.UserId, p.FullName, p.BirthYear, p.Gender, p.PrivacyPhoneVisibleToStaffOnly)));
+        }
+
+        //  Find (optional)
+        public async Task<IEnumerable<UserProfileDomain>> FindAsync(Expression<Func<UserProfileDomain, bool>> predicate)
+        {
+            var profiles = await GetAllAsync();
+            return profiles.AsQueryable().Where(predicate.Compile()).ToList();
         }
 
         public void Delete(UserProfileDomain entity)
         {
-            throw new NotImplementedException();
+            var profile = _context.UserProfiles.FirstOrDefault(up => up.UserId == entity.UserId);
+            if (profile != null)
+                _context.UserProfiles.Remove(profile);
         }
 
-        public Task<bool> ExistsAsync(Expression<Func<UserProfileDomain, bool>> predicate)
+        // Optional update return
+        public async Task<UserProfileDomain?> UpdateProfile(UserProfileDomain domainEntity)
         {
-            throw new NotImplementedException();
-        }
+            var existing = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == domainEntity.UserId);
+            if (existing == null)
+                return null;
 
-        public Task<IEnumerable<UserProfileDomain>> FindAsync(Expression<Func<UserProfileDomain, bool>> predicate)
-        {
-            throw new NotImplementedException();
-        }
+            existing.FullName = domainEntity.FullName;
+            existing.BirthYear = domainEntity.BirthYear;
+            existing.Gender = domainEntity.Gender;
+            existing.PrivacyPhoneVisibleToStaffOnly = domainEntity.PrivacyPhoneVisibleToStaffOnly;
 
-        public Task<IEnumerable<UserProfileDomain>> GetAllAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<UserProfileDomain?> GetByIdAsync(object id)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Update(UserProfileDomain entity)
-        {
-            throw new NotImplementedException();
+            _context.UserProfiles.Update(existing);
+            return domainEntity;
         }
     }
 }

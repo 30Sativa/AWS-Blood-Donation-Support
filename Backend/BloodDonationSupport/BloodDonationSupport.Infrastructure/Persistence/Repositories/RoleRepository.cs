@@ -26,7 +26,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return roles.Select(r => RoleDomain.Rehydrate(
                 r.RoleId,
                 r.RoleCode,
-                r.RoleName
+                r.RoleName,
+                r.Description
             ));
         }
 
@@ -37,14 +38,22 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 .Select(r => RoleDomain.Rehydrate(
                     r.RoleId,
                     r.RoleCode,
-                    r.RoleName
+                    r.RoleName,
+                    r.Description
                 ))
                 .FirstOrDefaultAsync();
             return entity == null ? null : RoleDomain.Rehydrate(
                 entity.Id,
                 entity.Code,
-                entity.Name
+                entity.Name,
+                entity.Description
+                
             );
+        }
+
+        public async Task<bool> IsExistRoleCodeAsync(string code)
+        {
+            return await _context.Roles.AnyAsync(r => r.RoleCode == code);
         }
     }
 }
