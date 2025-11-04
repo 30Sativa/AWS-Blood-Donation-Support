@@ -85,15 +85,23 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<UserDomain>> GetAllAsync()
+        public async Task<IEnumerable<UserDomain>> GetAllAsync()
         {
-            throw new NotImplementedException();
+            var users = await _context.Users.AsNoTracking().ToListAsync();
+            return users.Select(u => UserDomain.Rehydrate(
+                u.UserId,
+                new Email(u.Email),
+                u.CognitoUserId ?? string.Empty,
+                u.PhoneNumber,
+                u.IsActive,
+                u.CreatedAt
+            ));
         }
 
         public async Task<UserDomain?> GetByEmailAsync(string email)
         {
             var entity = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if(entity == null)
+            if (entity == null)
             {
                 return null;
             }
@@ -164,17 +172,45 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         public void Update(UserDomain entity)
         {
-            throw new NotImplementedException();
+            var user = _context.Users.FirstOrDefault(u => u.UserId == entity.Id);
+            if (user == null) return;
+
+            user.Email = entity.Email.Value;
+            user.PhoneNumber = entity.PhoneNumber;
+            user.IsActive = entity.IsActive;
+            _context.Users.Update(user);
         }
 
-        public Task AssignRoleAsync(long userId, string roleCode)
+        public async Task AssignRoleAsync(long userId, string roleCode)
         {
-            throw new NotImplementedException();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new Exception($"User with ID {userId} not found.");
+
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleCode == roleCode);
+            if (role == null)
+                throw new Exception($"Role '{roleCode}' not found.");
+
+            var existing = await _context.UserRoles
+                .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == role.RoleId);
+
+            if (existing == null)
+            {
+                await _context.UserRoles.AddAsync(new UserRole
+                {
+                    UserId = userId,
+                    RoleId = role.RoleId
+                });
+            }
         }
 
-        public Task<IEnumerable<string>> GetRolesByUserIdAsync(long userId)
+        public async Task<IEnumerable<string>> GetRolesByUserIdAsync(long userId)
         {
-            throw new NotImplementedException();
+            return await _context.UserRoles
+                          .Where(ur => ur.UserId == userId)
+                         .Include(ur => ur.Role)
+                         .Select(ur => ur.Role.RoleCode)
+                         .ToListAsync();
         }
     }
 }
