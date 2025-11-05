@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { authService } from "@/services/authService";
-import { Droplet } from "lucide-react";
+import { Droplet, LogOut } from "lucide-react";
+import { toast } from 'react-toastify';
+import { ACCESS_TOKEN, USER, commonSettings } from '@/utils/setting';
 
 type AuthMode = "login" | "register";
 
@@ -40,13 +43,37 @@ const validatePhoneLength = (phone: string): boolean => {
   return phone.length <= 30;
 };
 
+// Helper to convert phone number: 0xxx -> +84xxx
+const formatPhoneNumber = (phone: string): string => {
+  if (!phone) return phone;
+  // Remove all spaces and special characters except +
+  const cleaned = phone.replace(/\s+/g, '').trim();
+  // If starts with 0, replace with +84
+  if (cleaned.startsWith('0')) {
+    return '+84' + cleaned.substring(1);
+  }
+  // If already starts with +84, return as is
+  if (cleaned.startsWith('+84')) {
+    return cleaned;
+  }
+  // If starts with 84 (without +), add +
+  if (cleaned.startsWith('84')) {
+    return '+' + cleaned;
+  }
+  // Otherwise return as is
+  return cleaned;
+};
+
 // Get current year for birth year validation
 const currentYear = new Date().getFullYear();
 const minBirthYear = currentYear - 100; // Max age 100
 const maxBirthYear = currentYear - 18; // Min age 18 to donate
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialMode = (searchParams.get('mode') as AuthMode) || 'login';
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Register fields
@@ -57,12 +84,60 @@ export default function LoginPage() {
   const [bloodType, setBloodType] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const isSubmittingRef = useRef(false);
+  
+  // Check if user is already logged in
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = commonSettings.getStorage<string>(ACCESS_TOKEN);
+      const user = commonSettings.getStorageJson(USER);
+      if (token) {
+        setIsAuthenticated(true);
+        // Use user from storage or fallback to email from form
+        if (user) {
+          setUserInfo(user);
+        } else if (email) {
+          setUserInfo({ email });
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUserInfo(null);
+      }
+    };
+    
+    checkAuth();
+  }, [email]);
+
+  // Update mode when query param changes
+  useEffect(() => {
+    const modeParam = searchParams.get('mode') as AuthMode;
+    if (modeParam === 'login' || modeParam === 'register') {
+      setMode(modeParam);
+    }
+  }, [searchParams]);
+
+  const handleLogout = () => {
+    commonSettings.clearStorageItem(ACCESS_TOKEN);
+    commonSettings.clearStorageItem(USER);
+    setIsAuthenticated(false);
+    setUserInfo(null);
+    toast.success('Đăng xuất thành công!');
+    navigate("/", { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission - check ref immediately (synchronous)
+    if (isSubmittingRef.current || loading) {
+      return;
+    }
+    
+    isSubmittingRef.current = true;
     setError("");
-    setSuccess("");
     setLoading(true);
 
     try {
@@ -81,35 +156,24 @@ export default function LoginPage() {
         }
 
         const response = await authService.login({ email, password });
-        setSuccess("Đăng nhập thành công!");
+        toast.success('Đăng nhập thành công!');
+        
+        // Wait a bit for localStorage to be updated by authService
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Update authentication state from localStorage (ensures consistency)
+        const user = commonSettings.getStorageJson<any>(USER);
+        setIsAuthenticated(true);
+        setUserInfo(user || response.user || { email });
 
-        // Debug: log full response so we can see where the token is
-        // (some backends return token in different fields)
-        // You can view this output in the browser console.
-        // eslint-disable-next-line no-console
-        console.log("Login response:", response);
-
-        // Lưu token nếu có - both localStorage and sessionStorage for dev inspection
-        if (response.token) {
-          try {
-            localStorage.setItem("token", response.token);
-            sessionStorage.setItem("token", response.token);
-          } catch (e) {
-            // ignore storage errors (e.g., private mode)
-            // eslint-disable-next-line no-console
-            console.warn("Unable to save token to storage:", e);
-          }
-        }
-
-        // Redirect based on role
-        if (response.user?.email.includes("admin")) {
-          // Redirect to management page
-          window.location.href = "/admin";
-        } else {
-          // Redirect to member dashboard route
-          // Member routes are mounted under /member/* so navigate to /member/dashboard
-          window.location.href = "/member/dashboard";
-        }
+        // Clear form fields
+        setEmail("");
+        setPassword("");
+        
+        // Small delay before redirect to allow UI to update
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 800);
       } else {
         // Validate register fields
         if (!fullName || !email || !password) {
@@ -130,12 +194,6 @@ export default function LoginPage() {
           return;
         }
 
-        if (phoneNumber && !validatePhoneLength(phoneNumber)) {
-          setError("Số điện thoại không được vượt quá 30 ký tự");
-          setLoading(false);
-          return;
-        }
-
         if (birthYear) {
           const year = parseInt(birthYear);
           if (isNaN(year) || year < minBirthYear || year > maxBirthYear) {
@@ -145,16 +203,35 @@ export default function LoginPage() {
           }
         }
 
-        await authService.register({
+        // Format phone number: convert 0xxx to +84xxx
+        const formattedPhone = phoneNumber ? formatPhoneNumber(phoneNumber) : undefined;
+        
+        // Validate formatted phone number length
+        if (formattedPhone && !validatePhoneLength(formattedPhone)) {
+          setError("Số điện thoại không được vượt quá 30 ký tự");
+          setLoading(false);
+          return;
+        }
+        
+        // Map gender to API format (Male/Female/Other)
+        const genderMap: Record<string, string> = {
+          'Nam': 'Male',
+          'Nữ': 'Female',
+          'Khác': 'Other',
+        };
+        const apiGender = gender ? genderMap[gender] || gender : undefined;
+
+        const response = await authService.register({
           fullName,
           email,
-          phoneNumber: phoneNumber || undefined,
-          gender: gender || undefined,
+          phoneNumber: formattedPhone,
+          gender: apiGender,
           birthYear: birthYear ? parseInt(birthYear) : undefined,
           bloodType: bloodType || undefined,
           password,
         });
-        setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
+        
+        toast.success(response.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
         setMode("login");
         setPassword("");
         setFullName("");
@@ -162,15 +239,19 @@ export default function LoginPage() {
         setGender("");
         setBirthYear("");
         setBloodType("");
+        setError("");
       }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định"
-      );
+    } catch (err: any) {
+      const message = err?.message || (err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
+
+  // (đã dùng submit handler ở trên)
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -209,53 +290,78 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Greeting */}
-          <h1 className="text-2xl font-bold text-center mb-2">Chào mừng bạn</h1>
-          <p className="text-sm text-gray-600 text-center mb-6">
-            Đăng nhập hoặc tạo tài khoản để tiếp tục
-          </p>
+          {/* If user is authenticated, show logout UI */}
+          {isAuthenticated ? (
+            <>
+              <h1 className="text-2xl font-bold text-center mb-2">Bạn đã đăng nhập</h1>
+              <div className="text-center mb-6">
+                <p className="text-sm text-gray-600 mb-2">
+                  Email: <span className="font-semibold">{userInfo?.email || 'N/A'}</span>
+                </p>
+                {userInfo?.fullName && (
+                  <p className="text-sm text-gray-600 mb-2">
+                    Tên: <span className="font-semibold">{userInfo.fullName}</span>
+                  </p>
+                )}
+              </div>
+              
+              <Button
+                onClick={handleLogout}
+                className="w-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Đăng xuất
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Greeting */}
+              <h1 className="text-2xl font-bold text-center mb-2">Chào mừng bạn</h1>
+              <p className="text-sm text-gray-600 text-center mb-6">
+                Đăng nhập hoặc tạo tài khoản để tiếp tục
+              </p>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setError("");
-                setSuccess("");
-                setFullName("");
-                setPhoneNumber("");
-                setGender("");
-                setBirthYear("");
-                setBloodType("");
-              }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "login"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Đăng nhập
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("register");
-                setError("");
-                setSuccess("");
-              }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "register"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              Đăng ký
-            </button>
-          </div>
+              {/* Tabs */}
+              <div className="flex gap-2 mb-6 border-b">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    navigate("/login?mode=login", { replace: true });
+                    setError("");
+                    setFullName("");
+                    setPhoneNumber("");
+                    setGender("");
+                    setBirthYear("");
+                    setBloodType("");
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    mode === "login"
+                      ? "text-red-600 border-b-2 border-red-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Đăng nhập
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("register");
+                    navigate("/login?mode=register", { replace: true });
+                    setError("");
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    mode === "register"
+                      ? "text-red-600 border-b-2 border-red-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Đăng ký
+                </button>
+              </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
@@ -383,13 +489,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Success message */}
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
-                {success}
-              </div>
-            )}
-
             {/* Submit button */}
             <Button
               type="submit"
@@ -409,6 +508,8 @@ export default function LoginPage() {
               VD: staff@example.com / member@example.com
             </p>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

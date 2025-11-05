@@ -1,68 +1,113 @@
-import type { LoginRequest, RegisterRequest, AuthResponse } from "@/types/auth";
+import type { LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
+import axios, { AxiosHeaders } from 'axios';
+import { ACCESS_TOKEN, USER, commonSettings } from '@/utils/setting';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://13.239.7.174";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.bloodconnect.cloud';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-    }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+export const httpClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+});
+
+httpClient.interceptors.request.use((config) => {
+  const token = commonSettings.getStorage<string>(ACCESS_TOKEN);
+  if (!config.headers) config.headers = new AxiosHeaders();
+  const headers: any = config.headers as any;
+  // Support both AxiosHeaders and plain object
+  if (typeof (headers as any).set === 'function') {
+    headers.set('Accept', 'application/json');
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    headers['Accept'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
   }
-  return response.json();
-}
+  return config;
+});
+
+httpClient.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status;
+    if (status === 401 || status === 403) {
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+type ApiFieldError = { field: string; error: string };
+type ApiErrorShape = {
+  success?: boolean;
+  message?: string;
+  errors?: ApiFieldError[];
+  traceId?: string;
+  timestamp?: string;
+};
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/Users/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(credentials),
-    });
+    try {
+      const res = await httpClient.post('/api/Users/login', credentials);
+      const raw = res.data ?? {};
 
-    // Parse raw response and normalize to AuthResponse shape
-    const raw = await handleResponse<any>(response);
+      const token =
+        raw?.token ||
+        raw?.data?.accessToken ||
+        raw?.data?.access_token ||
+        raw?.accessToken ||
+        raw?.access_token;
 
-    // Try common locations for tokens depending on backend shape
-    const token = raw?.token
-      || raw?.data?.accessToken
-      || raw?.data?.access_token
-      || raw?.accessToken
-      || raw?.access_token;
+      const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
 
-    const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
+      if (token) commonSettings.setStorage(ACCESS_TOKEN, token);
+      if (user) commonSettings.setStorageJson(USER, user);
+
+      return {
+        token,
+        user,
+        message: raw?.message,
+        success: raw?.success ?? true,
+      } as AuthResponse;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const data = (err?.response?.data ?? {}) as ApiErrorShape;
+      const normalized = {
+        success: data?.success ?? false,
+        message: data?.message || 'Đăng nhập thất bại',
+        fieldErrors: Array.isArray(data?.errors) ? data.errors : undefined,
+        traceId: data?.traceId,
+        timestamp: data?.timestamp,
+        status,
+      };
+      throw normalized;
+    }
+  },
+
+  async register(data: RegisterRequest): Promise<AuthResponse> {
+    const res = await httpClient.post('/api/Users/register', data);
+    const raw = res.data ?? {};
+
+    // Register API response structure: { success, message, data: { id, email, fullname, cognitoUserId } }
+    // Note: Register doesn't return token, user needs to login after registration
+    const registerData = raw?.data;
+    const user = registerData
+      ? {
+          id: registerData.id?.toString() || '',
+          email: registerData.email || '',
+          fullname: registerData.fullname || '',
+          cognitoUserId: registerData.cognitoUserId || '',
+        }
+      : undefined;
+
+    // Don't store token for register (no token in response)
+    // Don't store user either since they need to login first
 
     return {
-      token,
+      token: undefined, // Register doesn't return token
       user,
       message: raw?.message,
-      success: raw?.success,
+      success: raw?.success ?? true,
     } as AuthResponse;
   },
 
-  async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/Users/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    });
-
-    // Normalize register response similarly
-    const raw = await handleResponse<any>(response);
-
-    const token = raw?.token || raw?.data?.accessToken || raw?.data?.access_token || raw?.accessToken;
-    const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
-
-    return {
-      token,
-      user,
-      message: raw?.message,
-      success: raw?.success,
-    } as AuthResponse;
-  },
 };
-
