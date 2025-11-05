@@ -10,9 +10,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: {
-  alias: {
+    alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  server: {
+    port: 5174, // Đổi port sang 5173
   },                
 });
 

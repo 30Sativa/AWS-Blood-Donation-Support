@@ -4,7 +4,7 @@ import Footer from "./components/Footer";
 import HomePage from "./pages/Homepage/homePage";
 import Blog from "./pages/Blog/Blog";
 // import ViewBlog from "./pages/ViewBlog";
-// import LoginPage from "./pages/LoginPage"; // nếu dùng login riêng
+import LoginPage from "./pages/LoginPage"; // nếu dùng login riêng
 
 function App() {
   return (
@@ -17,7 +17,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/blog" element={<Blog />} />
             {/* <Route path="/blog/:slug" element={<ViewBlog />} /> */}
-            {/* <Route path="/login" element={<LoginPage />} /> */}
+            <Route path="/login" element={<LoginPage />} />
           </Routes>
         </main>
 
