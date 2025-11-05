@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class User
 {
@@ -44,5 +41,4 @@ public partial class User
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
-
 }

@@ -16,7 +16,8 @@ namespace BloodDonationSupport.Domain.Users.Entities
         public IReadOnlyCollection<string> Roles => _roles.AsReadOnly();
         private readonly List<string> _roles = new();
 
-        private UserDomain() { } // For EF Core
+        private UserDomain()
+        { } // For EF Core
 
         private UserDomain(Email email, string cognitoUserId, string? phone)
         {

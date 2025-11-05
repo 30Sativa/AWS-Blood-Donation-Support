@@ -99,5 +99,15 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
             return Ok(result);
         }
+
+        // [GET] api/users/{id}/profile (Get user with profile by Id)
+        [HttpGet("{id:long}/profile")]
+        public async Task<IActionResult> GetUserWithProfileById(long id)
+        {
+            var result = await _mediator.Send(new GetUserWithProfileByIdQuery(id));
+            if (!result.Success)
+                return NotFound(result);
+            return Ok(result);
+        }
     }
 }

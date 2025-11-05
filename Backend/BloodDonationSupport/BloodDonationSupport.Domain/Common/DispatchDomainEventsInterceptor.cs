@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MediatR;
+﻿using MediatR;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace BloodDonationSupport.Domain.Common
@@ -16,6 +11,7 @@ namespace BloodDonationSupport.Domain.Common
         {
             _mediator = mediator;
         }
+
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,

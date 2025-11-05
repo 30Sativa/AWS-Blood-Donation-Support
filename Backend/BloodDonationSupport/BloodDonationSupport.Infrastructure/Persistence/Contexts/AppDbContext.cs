@@ -1,7 +1,6 @@
 ﻿using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System.IO;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
 {
@@ -17,6 +16,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
         }
 
         #region DbSets
+
         public virtual DbSet<User> Users { get; set; }
         public virtual DbSet<Role> Roles { get; set; }
         public virtual DbSet<UserRole> UserRoles { get; set; }
@@ -34,9 +34,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
         public virtual DbSet<QcTest> QcTests { get; set; }
         public virtual DbSet<Reminder> Reminders { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
-        #endregion
+
+        #endregion DbSets
 
         #region Configuration
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             // ⚙️ Load connection string from appsettings.json if not injected
@@ -51,9 +53,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
                 optionsBuilder.UseSqlServer(connectionString);
             }
         }
-        #endregion
+
+        #endregion Configuration
 
         #region Model Configuration
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -64,6 +68,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
             // ✅ Optional: Seed default roles (nếu có file RoleSeed.cs)
             // modelBuilder.SeedRoles();
         }
-        #endregion
+
+        #endregion Model Configuration
     }
 }

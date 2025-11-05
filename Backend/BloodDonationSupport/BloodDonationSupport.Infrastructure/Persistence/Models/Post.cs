@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class Post
 {
     public long PostId { get; set; }
+
     // Thêm property khóa ngoại
     public long UserId { get; set; }
 

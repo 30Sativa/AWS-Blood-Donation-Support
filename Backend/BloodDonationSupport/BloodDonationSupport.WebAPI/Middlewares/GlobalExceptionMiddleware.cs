@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
 
@@ -18,7 +17,7 @@ namespace BloodDonationSupport.WebAPI.Middlewares
         }
 
         public async Task InvokeAsync(HttpContext context)
-        {   
+        {
             try
             {
                 await _next(context);

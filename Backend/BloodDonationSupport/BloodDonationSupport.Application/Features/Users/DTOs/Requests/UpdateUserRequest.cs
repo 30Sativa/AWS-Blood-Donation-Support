@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
+﻿namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
 {
     public class UpdateUserRequest
     {

@@ -2,11 +2,6 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
@@ -17,6 +12,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         private readonly IRoleRepository _roleRepository;
         private readonly ICognitoService _cognitoService;
         private readonly IUnitOfWork _unitOfWork;
+
         public UpdateUserCommandHandler(
             IUserRepository userRepository,
             IUserProfileRepository profileRepository,
@@ -30,6 +26,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             _cognitoService = cognitoService;
             _unitOfWork = unitOfWork;
         }
+
         public async Task<BaseResponse<UserResponse>> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
         {
             var dto = request.Request;
@@ -81,7 +78,6 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
     },
     "User updated successfully."
 );
-
         }
     }
 }

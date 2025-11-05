@@ -2,24 +2,18 @@
 using BloodDonationSupport.Domain.Roles.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
     public class RoleRepository : IRoleRepository
     {
-
         private readonly AppDbContext _context;
-        
 
         public RoleRepository(AppDbContext context)
         {
             _context = context;
         }
+
         public async Task<IEnumerable<RoleDomain>> GetAllAsync()
         {
             var roles = await _context.Roles.ToListAsync();
@@ -47,7 +41,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 entity.Code,
                 entity.Name,
                 entity.Description
-                
+
             );
         }
 

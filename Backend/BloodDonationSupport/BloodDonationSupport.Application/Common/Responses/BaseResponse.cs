@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Common.Responses
+﻿namespace BloodDonationSupport.Application.Common.Responses
 {
     public class BaseResponse<T>
     {

@@ -11,7 +11,9 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<AuthTokens?> RefreshTokenAsync(string refreshToken);
 
         Task<bool?> ValidationTokenAsync(string accessToken);
+
         Task UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber);
+
         Task DeleteUserAsync(string cognitoUserId);
     }
 }

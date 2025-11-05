@@ -3,7 +3,6 @@ using Amazon.CognitoIdentityProvider.Model;
 using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Users.DTOs.Shared;
 using BloodDonationSupport.Infrastructure.Common.Options;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System.Text;
 
@@ -15,7 +14,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
         private readonly string _clientId;
         private readonly string _userPoolId;
         private readonly string? _clientSecret;
-
 
         public CognitoService(IOptions<AwsOptions> awsOptions)
         {
@@ -44,8 +42,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _clientSecret = options.Cognito.ClientSecret?.Trim();
         }
 
-
-
         private static string CalculateSecretHash(string username, string clientId, string? clientSecret)
         {
             if (string.IsNullOrEmpty(clientSecret))
@@ -58,7 +54,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             var hash = hmac.ComputeHash(message);
             return Convert.ToBase64String(hash);
         }
-
 
         public async Task<string> RegisterUserAsync(string email, string password, string? phoneNumber)
         {
@@ -105,8 +100,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 throw new Exception($"❌ Cognito register failed: {ex.Message}");
             }
         }
-
-
 
         // LOGIN
         public async Task<AuthTokens?> LoginAsync(string email, string password)
@@ -156,15 +149,13 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
         }
 
-
-
         public Task<AuthTokens?> RefreshTokenAsync(string refreshToken) =>
             throw new NotImplementedException();
 
         public Task<bool?> ValidationTokenAsync(string accessToken) =>
             throw new NotImplementedException();
         // UPDATE USER
-        public async Task  UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber)
+        public async Task UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber)
         {
             var request = new AdminUpdateUserAttributesRequest
             {

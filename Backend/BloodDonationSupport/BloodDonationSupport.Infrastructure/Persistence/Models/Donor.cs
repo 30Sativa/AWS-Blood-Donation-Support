@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class Donor
 {
@@ -39,7 +36,6 @@ public partial class Donor
 
     public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
     public virtual ICollection<DonorHealthCondition> DonorHealthConditions { get; set; } = new List<DonorHealthCondition>();
-
 
     public virtual User User { get; set; } = null!;
 }

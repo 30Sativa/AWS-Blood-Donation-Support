@@ -3,11 +3,6 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using BloodDonationSupport.Domain.Users.Entities;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
@@ -33,7 +28,6 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             _cognitoService = cognitoService;
         }
 
-
         public async Task<BaseResponse<UserResponse>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
         {
             var dto = request.request;
@@ -57,8 +51,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             await _userRepository.AddAsync(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-
-            //find userid 
+            //find userid
             var userId = await _userRepository.GetUserIdByEmailAsync(dto.Email);
             //assign role to user
             // 6️⃣ Gán role cho user
@@ -88,13 +81,8 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                     Role = dto.RoleCode,
                     CognitoUserId = cognitoUserId,
                     CreatedAt = DateTime.UtcNow
-
                 },
                 "User created successfully.");
-
         }
-
     }
 }
-
-

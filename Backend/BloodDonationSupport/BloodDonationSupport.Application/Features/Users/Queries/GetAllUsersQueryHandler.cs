@@ -1,11 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
@@ -19,6 +14,7 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             _userRepository = userRepository;
             _userProfileRepository = userProfileRepository;
         }
+
         public async Task<IEnumerable<UserResponse>> Handle(GetAllUsersQuery request, CancellationToken cancellationToken)
         {
             var users = await _userRepository.GetAllAsync();
@@ -40,7 +36,6 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
                     IsActive = user.IsActive,
                     CreatedAt = user.CreatedAt
                 });
-
             }
             return result;
         }

@@ -8,7 +8,8 @@ namespace BloodDonationSupport.Domain.Roles.Entities
         public string Name { get; private set; } = string.Empty;
         public string? Description { get; private set; }
 
-        private RoleDomain() { } // For EF Core
+        private RoleDomain()
+        { } // For EF Core
 
         private RoleDomain(string code, string name, string? description = null)
         {

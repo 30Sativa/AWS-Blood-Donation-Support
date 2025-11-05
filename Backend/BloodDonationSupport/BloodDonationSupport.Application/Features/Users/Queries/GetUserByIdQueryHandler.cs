@@ -1,12 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
@@ -20,7 +14,6 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             _userRepository = userRepository;
             _userProfileRepository = userProfileRepository;
         }
-
 
         public async Task<UserResponse> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
         {

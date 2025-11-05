@@ -1,17 +1,11 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Common.Behaviors
 {
     public class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
         where TRequest : notnull
     {
-
         private readonly IUnitOfWork _unitOfWork;
 
         public TransactionBehavior(IUnitOfWork unitOfWork)

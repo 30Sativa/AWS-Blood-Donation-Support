@@ -10,7 +10,8 @@ namespace BloodDonationSupport.Domain.Users.Entities
         public string? Gender { get; private set; }
         public bool PrivacyPhoneVisibleToStaffOnly { get; private set; } = true;
 
-        private UserProfileDomain() { } // For EF Core
+        private UserProfileDomain()
+        { } // For EF Core
 
         private UserProfileDomain(long userId, string fullName, int? birthYear, string? gender, bool privacyPhoneVisibleToStaffOnly)
         {

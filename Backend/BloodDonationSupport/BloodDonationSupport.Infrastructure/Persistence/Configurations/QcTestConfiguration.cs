@@ -56,4 +56,3 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
         }
     }
 }
-

@@ -4,12 +4,7 @@ using BloodDonationSupport.Domain.Users.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -21,6 +16,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         {
             _context = context;
         }
+
         public async Task AddAsync(UserDomain domainEntity)
         {
             var entity = new User
@@ -68,7 +64,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             await _context.SaveChangesAsync();
         }
-
 
         public void Delete(UserDomain entity)
         {
@@ -150,7 +145,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 roles
             );
         }
-
 
         public async Task<UserDomain?> GetByIdAsync(object id)
         {

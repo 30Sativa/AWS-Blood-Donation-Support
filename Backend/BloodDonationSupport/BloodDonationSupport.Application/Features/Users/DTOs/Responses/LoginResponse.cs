@@ -1,11 +1,4 @@
-﻿using BloodDonationSupport.Domain.Users.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
+﻿namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
 {
     public class LoginResponse
     {
@@ -14,6 +7,5 @@ namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
         public int ExpiresIn { get; set; }
         public AuthResponse User { get; set; } = default!;
         public List<string> Roles { get; set; } = new List<string>();
-
     }
 }

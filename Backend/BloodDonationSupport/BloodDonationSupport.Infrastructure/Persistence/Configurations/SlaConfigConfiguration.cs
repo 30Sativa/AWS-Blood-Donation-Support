@@ -1,11 +1,6 @@
 ﻿using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
 {
@@ -13,7 +8,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<SlaConfig> builder)
         {
-            builder.ToTable("sla_config"); 
+            builder.ToTable("sla_config");
 
             builder.HasKey(s => s.SlaId).HasName("PK_sla_config");
             builder.Property(s => s.SlaId).HasColumnName("sla_id");

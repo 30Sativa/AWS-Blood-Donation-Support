@@ -1,11 +1,5 @@
-﻿using BloodDonationSupport.Application.Features.Users.Commands;
-using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
+﻿using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Validators
 {
@@ -20,7 +14,6 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
             RuleFor(x => x.Password)
                 .Matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*]).{8,}$")
                 .WithMessage("Password must have at least 8 characters, including upper/lowercase, number and special symbol.");
-
 
             RuleFor(x => x.PhoneNumber)
                 .Matches(@"^\+?[1-9]\d{1,15}$")

@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class Reminder
 {
     public long ReminderId { get; set; }
+
     // ✅ Khóa ngoại tới bảng Users
     public long UserId { get; set; }
+
     public long DonorId { get; set; }
 
     public string ReminderType { get; set; } = null!;

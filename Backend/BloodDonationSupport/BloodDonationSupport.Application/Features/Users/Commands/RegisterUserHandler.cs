@@ -1,15 +1,9 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
-using BloodDonationSupport.Domain.Common;
 using BloodDonationSupport.Domain.Users.Entities;
 using BloodDonationSupport.Domain.Users.ValueObjects;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
@@ -27,14 +21,13 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             _userRepository = userRepository;
             _userProfileRepository = userProfileRepository;
         }
+
         public async Task<BaseResponse<AuthResponse>> Handle(RegisterUserCommand command, CancellationToken cancellationToken)
         {
             var reg = command.request;
 
-
             // 🔍 Check email exists in DB
             var isEmailExists = await _userRepository.IsExistEmailAsync(reg.Email);
-
 
             if (isEmailExists)
             {
@@ -49,23 +42,22 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 return BaseResponse<AuthResponse>.FailureResponse("Cognito did not return a user id.");
             }
 
-
             // 🧩 Create domain user
             var emailVo = new Email(reg.Email);
             var user = UserDomain.RegisterNewUser(emailVo, cognitoUserId, isEmailExists, reg.PhoneNumber);
             await _userRepository.AddAsync(user);
-            
+
             // Save to get the generated UserId
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            
+
             // Get the generated UserId from database
             var userId = await _userRepository.GetUserIdByEmailAsync(user.Email.Value);
-            
+
             if (userId > 0)
             {
                 // Assign default role
                 await _userRepository.AssignDefaultRoleAsync(userId);
-                
+
                 // Create user profile (required theo schema)
                 if (!string.IsNullOrWhiteSpace(reg.FullName))
                 {
@@ -78,9 +70,9 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                     );
                     await _userProfileRepository.AddAsync(userProfile);
                 }
-                
+
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
-                
+
                 // Update domain entity with the generated UserId
                 user.GetType().GetProperty("Id")?.SetValue(user, userId);
             }
@@ -90,12 +82,11 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 {
                     Id = user.Id,
                     Email = user.Email.ToString(),
-				    Fullname = reg.FullName ?? string.Empty,
+                    Fullname = reg.FullName ?? string.Empty,
                     CognitoUserId = user.CognitoUserId
                 },
                 "Register successfully"
             );
         }
-
     }
 }
