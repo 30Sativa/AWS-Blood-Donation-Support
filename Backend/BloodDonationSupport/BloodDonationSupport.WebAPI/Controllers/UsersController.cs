@@ -109,5 +109,23 @@ namespace BloodDonationSupport.WebAPI.Controllers
                 return NotFound(result);
             return Ok(result);
         }
+        // [GET] api/users/profile (Get all users with profile)
+        [HttpGet]
+        public async Task<IActionResult> GetAllUserWithProfile()
+        {
+            var result = await _mediator.Send(new GetAllUsersQuery());
+            return Ok(result);
+        }
+        //  [POST] api/users/refresh-token (Cognito Refresh Token)
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
+        {
+            var result = await _mediator.Send(new RefreshTokenCommand(refreshToken));
+
+            if (!result.Success)
+                return Unauthorized(result);
+
+            return Ok(result);
+        }
     }
 }

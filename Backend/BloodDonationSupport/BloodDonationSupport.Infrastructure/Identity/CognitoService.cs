@@ -149,8 +149,44 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
         }
 
-        public Task<AuthTokens?> RefreshTokenAsync(string refreshToken) =>
-            throw new NotImplementedException();
+        public async Task<AuthTokens?> RefreshTokenAsync(string refreshToken)
+        {
+            try
+            {
+                //  Dùng flow REFRESH_TOKEN_AUTH của AWS
+                var request = new InitiateAuthRequest
+                {
+                    AuthFlow = AuthFlowType.REFRESH_TOKEN_AUTH,
+                    ClientId = _clientId,
+                    AuthParameters = new Dictionary<string, string>
+            {
+                { "REFRESH_TOKEN", refreshToken },
+                { "SECRET_HASH", CalculateSecretHash("", _clientId, _clientSecret) } // secret bắt buộc nếu có
+            }
+                };
+
+                var response = await _client.InitiateAuthAsync(request);
+                var result = response.AuthenticationResult;
+
+                if (result == null)
+                    return null;
+
+                // ✅ Trả về token mới
+                return new AuthTokens
+                {
+                    AccessToken = result.AccessToken,
+                    IdToken = result.IdToken,
+                    RefreshToken = refreshToken, // vẫn giữ refresh token cũ
+                    ExpiresIn = result.ExpiresIn ?? 3600
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Refresh token failed: {ex.Message}");
+                throw new Exception($"Failed to refresh token: {ex.Message}");
+            }
+        }
+           
 
         public Task<bool?> ValidationTokenAsync(string accessToken) =>
             throw new NotImplementedException();
