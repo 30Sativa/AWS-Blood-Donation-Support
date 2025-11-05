@@ -15,7 +15,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174, // Đổi port sang 5173
+    port: 5173, // Đổi port sang 5173
   },                
 });
 
