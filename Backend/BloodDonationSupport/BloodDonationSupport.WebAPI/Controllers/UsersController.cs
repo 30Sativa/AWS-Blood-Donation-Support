@@ -110,7 +110,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
         // [GET] api/users/profile (Get all users with profile)
-        [HttpGet]
+        [HttpGet("/profile")]
         public async Task<IActionResult> GetAllUserWithProfile()
         {
             var result = await _mediator.Send(new GetAllUsersQuery());
