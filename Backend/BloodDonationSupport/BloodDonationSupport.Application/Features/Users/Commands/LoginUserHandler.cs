@@ -16,13 +16,15 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICognitoService _cognitoService;
-        private readonly IUserRepository _userRepository;
+		private readonly IUserRepository _userRepository;
+		private readonly IUserProfileRepository _userProfileRepository;
 
-        public LoginUserHandler(IUnitOfWork unitOfWork, ICognitoService cognitoService, IUserRepository userRepository)
+		public LoginUserHandler(IUnitOfWork unitOfWork, ICognitoService cognitoService, IUserRepository userRepository, IUserProfileRepository userProfileRepository)
         {
             _unitOfWork = unitOfWork;
             _cognitoService = cognitoService;
-            _userRepository = userRepository;
+			_userRepository = userRepository;
+			_userProfileRepository = userProfileRepository;
         }
 
 
@@ -41,25 +43,27 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             {
                 return BaseResponse<LoginResponse>.FailureResponse("Invalid email or password.");
             }
-            else
-            {
-                return BaseResponse<LoginResponse>.SuccessResponse(
-                    new LoginResponse
-                    {
-                        AccessToken = token.AccessToken,
-                        RefreshToken = token.RefreshToken,
-                        ExpiresIn = token.ExpiresIn,
-                        User = new AuthResponse
-                        {
-                            Id = user.Id,
-                            Email = user.Email.ToString(),
-                            CognitoUserId = user.CognitoUserId
-                        },
-                        Roles = user.Roles.ToList()
-                    },
-                    "Login successfully"
-                );
-            }
+			else
+			{
+				var profile = await _userProfileRepository.GetByIdAsync(user.Id);
+				return BaseResponse<LoginResponse>.SuccessResponse(
+					new LoginResponse
+					{
+						AccessToken = token.AccessToken,
+						RefreshToken = token.RefreshToken,
+						ExpiresIn = token.ExpiresIn,
+						User = new AuthResponse
+						{
+							Id = user.Id,
+							Email = user.Email.ToString(),
+							Fullname = profile?.FullName ?? string.Empty,
+							CognitoUserId = user.CognitoUserId
+						},
+						Roles = user.Roles.ToList()
+					},
+					"Login successfully"
+				);
+			}
         }
     }
 }

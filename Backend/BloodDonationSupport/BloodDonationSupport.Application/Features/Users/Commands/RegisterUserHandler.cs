@@ -90,6 +90,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
                 {
                     Id = user.Id,
                     Email = user.Email.ToString(),
+				    Fullname = reg.FullName ?? string.Empty,
                     CognitoUserId = user.CognitoUserId
                 },
                 "Register successfully"
