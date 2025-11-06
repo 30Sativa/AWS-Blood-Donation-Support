@@ -31,7 +31,8 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
             var dto = request.Request;
 
             //Bắt buộc phải có ít nhất 1 tag
-            if(dto.TagNames == null || dto.TagNames.Any()) return BaseResponse<PostResponse>.FailureResponse("At least one tag is required.");
+            if (dto.TagNames == null || !dto.TagNames.Any())
+                return BaseResponse<PostResponse>.FailureResponse("At least one tag is required.");
 
             //Check slug tồn tại
             if(await _postRepository.ExistsAsync(p=> p.Slug.Value == dto.Slug)) return BaseResponse<PostResponse>.FailureResponse($"Post with slug {dto.Slug} already exists.");
