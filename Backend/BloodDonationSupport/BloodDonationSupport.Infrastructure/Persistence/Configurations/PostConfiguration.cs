@@ -60,9 +60,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
             builder.Property(p => p.UpdatedAt)
                    .HasColumnName("updated_at");
 
-            // Foreign key to User (author)
+            // Foreign key to User (author) - align inverse navigation User.Posts to avoid shadow FK 'UserId'
             builder.HasOne(p => p.Author)
-                   .WithMany()
+                   .WithMany(u => u.Posts)
                    .HasForeignKey(p => p.AuthorId)
                    .HasConstraintName("FK_posts_users_author")
                    .OnDelete(DeleteBehavior.Restrict);
