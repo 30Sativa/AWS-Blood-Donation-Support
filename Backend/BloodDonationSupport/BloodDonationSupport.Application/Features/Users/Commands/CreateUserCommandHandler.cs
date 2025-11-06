@@ -54,10 +54,10 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             //find userid
             var userId = await _userRepository.GetUserIdByEmailAsync(dto.Email);
             //assign role to user
-            // 6️⃣ Gán role cho user
+            // Gán role cho user
             await _userRepository.AssignRoleAsync(userId, dto.RoleCode);
 
-            // 7️⃣ Tạo user profile
+            // Tạo user profile
             var profile = UserProfileDomain.Create(
                 userId,
                 dto.FullName,
@@ -68,7 +68,7 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             await _userProfileRepository.AddAsync(profile);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 8️⃣ Trả về response
+            //Trả về response
             return BaseResponse<UserResponse>.SuccessResponse(
                 new UserResponse
                 {

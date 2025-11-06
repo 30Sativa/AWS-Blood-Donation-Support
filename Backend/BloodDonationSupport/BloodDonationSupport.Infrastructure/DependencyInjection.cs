@@ -31,9 +31,9 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
-            services.AddScoped<IRoleRepository, RoleRepository>(); // ✅ ADD THIS
+            services.AddScoped<IRoleRepository, RoleRepository>(); 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-
+            services.AddScoped<IAuditService, AuditService>();
             //  AWS Options
             services.Configure<AwsOptions>(config.GetSection("AWS"));
 
