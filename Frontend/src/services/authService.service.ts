@@ -1,6 +1,6 @@
 import type { LoginRequest, RegisterRequest, AuthResponse } from '@/types/auth';
 import axios, { AxiosHeaders } from 'axios';
-import { ACCESS_TOKEN, USER, commonSettings } from '@/utils/setting';
+import { ACCESS_TOKEN, USER, commonSettings, REFRESH_TOKEN} from '@/utils/setting';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.bloodconnect.cloud';
 
@@ -35,6 +35,73 @@ httpClient.interceptors.response.use(
   }
 );
 
+// ----------------------
+// Proactive refresh (every ~30 minutes)
+// ----------------------
+let refreshTimer: number | undefined;
+
+function getRefreshRecord(): { value: string; expiry?: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(REFRESH_TOKEN);
+    return raw ? (JSON.parse(raw) as { value: string; expiry?: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const record = getRefreshRecord();
+  const storedRefreshToken = record?.value;
+  if (!storedRefreshToken) return null;
+
+  try {
+    const res = await httpClient.post(
+      '/api/Users/refresh-token',
+      JSON.stringify(storedRefreshToken),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    const raw = res.data;
+    const newAccessToken =
+      (typeof raw === 'string' ? raw : undefined) ||
+      raw?.token || raw?.accessToken || raw?.data?.accessToken || raw?.data?.token;
+    const newRefreshToken =
+      raw?.refreshToken || raw?.data?.refreshToken || raw?.data?.refresh_token || raw?.refresh_token;
+
+    if (newAccessToken) {
+      commonSettings.setStorage(ACCESS_TOKEN, newAccessToken);
+    }
+    // reset refresh token TTL to 30 minutes on every refresh
+    if (newRefreshToken) {
+      commonSettings.setStorage(REFRESH_TOKEN, newRefreshToken, 30 * 60 * 1000);
+    } else if (storedRefreshToken) {
+      commonSettings.setStorage(REFRESH_TOKEN, storedRefreshToken, 30 * 60 * 1000);
+    }
+
+    return newAccessToken ?? null;
+  } catch {
+    commonSettings.clearStorageItem(ACCESS_TOKEN);
+    commonSettings.clearStorageItem(REFRESH_TOKEN);
+    return null;
+  }
+}
+
+function scheduleProactiveRefresh() {
+  if (typeof window === 'undefined') return;
+  if (refreshTimer) window.clearInterval(refreshTimer);
+
+  // tick every 60s to check expiry
+  refreshTimer = window.setInterval(async () => {
+    const record = getRefreshRecord();
+    const expiry = record?.expiry ?? 0;
+    const timeLeft = expiry - Date.now();
+    // if less than or equal to 60s left, refresh now
+    if (record?.value && (isNaN(timeLeft) || timeLeft <= 60 * 1000)) {
+      await refreshAccessToken();
+    }
+  }, 60 * 1000);
+}
+
 type ApiFieldError = { field: string; error: string };
 type ApiErrorShape = {
   success?: boolean;
@@ -57,9 +124,20 @@ export const authService = {
         raw?.accessToken ||
         raw?.access_token;
 
+      const refreshToken =
+        raw?.refreshToken ||
+        raw?.data?.refreshToken ||
+        raw?.data?.refresh_token ||
+        raw?.refresh_token;
+
       const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
 
       if (token) commonSettings.setStorage(ACCESS_TOKEN, token);
+      if (refreshToken) {
+        // store with 30 minutes TTL
+        commonSettings.setStorage(REFRESH_TOKEN, refreshToken, 30 * 60 * 1000);
+        scheduleProactiveRefresh();
+      }
       if (user) commonSettings.setStorageJson(USER, user);
 
       return {
@@ -109,5 +187,4 @@ export const authService = {
       success: raw?.success ?? true,
     } as AuthResponse;
   },
-
 };

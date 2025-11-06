@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { authService } from "@/services/authService";
+import { authService } from "@/services/authService.service";
 import { Droplet, LogOut } from "lucide-react";
 import { toast } from 'react-toastify';
 import { ACCESS_TOKEN, USER, commonSettings } from '@/utils/setting';
