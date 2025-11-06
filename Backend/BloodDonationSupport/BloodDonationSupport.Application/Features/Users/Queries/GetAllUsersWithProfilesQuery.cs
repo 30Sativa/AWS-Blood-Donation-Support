@@ -1,15 +1,11 @@
-﻿using BloodDonationSupport.Application.Common.Responses;
+﻿using BloodDonationSupport.Application.Common.Models;
+using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
-    public record GetAllUsersWithProfilesQuery : IRequest<BaseResponse<IEnumerable<GetAllUserWithProfileResponse>>>
+    public record GetAllUsersWithProfilesQuery(int PageNumber = 1, int PageSize = 10) : IRequest<BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>>
     {
     }
 }

@@ -6,6 +6,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
     {
         Task<IEnumerable<TEntity>> GetAllAsync();
 
+        Task<(IEnumerable<TEntity> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
+
         Task<TEntity?> GetByIdAsync(object id);
 
         Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate);

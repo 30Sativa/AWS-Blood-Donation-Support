@@ -106,6 +106,27 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             ));
         }
 
+        public async Task<(IEnumerable<UserDomain> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var totalCount = await _context.Users.CountAsync();
+            var users = await _context.Users
+                .AsNoTracking()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            
+            var items = users.Select(u => UserDomain.Rehydrate(
+                u.UserId,
+                new Email(u.Email),
+                u.CognitoUserId ?? string.Empty,
+                u.PhoneNumber,
+                u.IsActive,
+                u.CreatedAt
+            ));
+            
+            return (items, totalCount);
+        }
+
         public async Task<UserDomain?> GetByEmailAsync(string email)
         {
             var entity = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);

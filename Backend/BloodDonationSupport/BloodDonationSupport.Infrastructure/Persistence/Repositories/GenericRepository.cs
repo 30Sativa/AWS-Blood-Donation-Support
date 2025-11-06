@@ -41,6 +41,18 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return await _dbset.AsNoTracking().ToListAsync();
         }
 
+        public virtual async Task<(IEnumerable<TEntity> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var totalCount = await _dbset.CountAsync();
+            var items = await _dbset
+                .AsNoTracking()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            
+            return (items, totalCount);
+        }
+
         public virtual async Task<TEntity?> GetByIdAsync(object id)
         {
             return await _dbset.FindAsync(id);

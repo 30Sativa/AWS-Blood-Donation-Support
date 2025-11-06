@@ -1,10 +1,11 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Models;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
-    public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, IEnumerable<UserResponse>>
+    public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, PaginatedResponse<UserResponse>>
     {
         private readonly IUserRepository _userRepository;
         private readonly IUserProfileRepository _userProfileRepository;
@@ -15,10 +16,11 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             _userProfileRepository = userProfileRepository;
         }
 
-        public async Task<IEnumerable<UserResponse>> Handle(GetAllUsersQuery request, CancellationToken cancellationToken)
+        public async Task<PaginatedResponse<UserResponse>> Handle(GetAllUsersQuery request, CancellationToken cancellationToken)
         {
-            var users = await _userRepository.GetAllAsync();
+            var (users, totalCount) = await _userRepository.GetPagedAsync(request.PageNumber, request.PageSize);
             var result = new List<UserResponse>();
+            
             foreach (var user in users)
             {
                 var profile = await _userProfileRepository.GetByIdAsync(user.Id);
@@ -37,7 +39,14 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
                     CreatedAt = user.CreatedAt
                 });
             }
-            return result;
+
+            return new PaginatedResponse<UserResponse>
+            {
+                Items = result,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                TotalCount = totalCount
+            };
         }
     }
 }

@@ -74,6 +74,26 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        //  Get paged profiles
+        public async Task<(IEnumerable<UserProfileDomain> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var totalCount = await _context.UserProfiles.CountAsync();
+            var items = await _context.UserProfiles
+                .AsNoTracking()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(up => UserProfileDomain.Rehydrate(
+                    up.UserId,
+                    up.FullName,
+                    up.BirthYear,
+                    up.Gender,
+                    up.PrivacyPhoneVisibleToStaffOnly
+                ))
+                .ToListAsync();
+            
+            return (items, totalCount);
+        }
+
         //  Get all active (PrivacyPhoneVisibleToStaffOnly == true)
         public async Task<IEnumerable<UserProfileDomain>> GetAllActiveProfilesAsync()
         {

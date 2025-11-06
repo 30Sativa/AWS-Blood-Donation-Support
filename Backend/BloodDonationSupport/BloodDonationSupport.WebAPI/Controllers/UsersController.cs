@@ -70,9 +70,9 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users (Admin Get all users)
         [HttpGet]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _mediator.Send(new GetAllUsersQuery());
+            var result = await _mediator.Send(new GetAllUsersQuery(pageNumber, pageSize));
             return Ok(result);
         }
 
@@ -110,10 +110,10 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
         // [GET] api/users/profile (Get all users with profile)
-        [HttpGet("/profile")]
-        public async Task<IActionResult> GetAllUserWithProfile()
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetAllUserWithProfile([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _mediator.Send(new GetAllUsersQuery());
+            var result = await _mediator.Send(new GetAllUsersWithProfilesQuery(pageNumber, pageSize));
             return Ok(result);
         }
         //  [POST] api/users/refresh-token (Cognito Refresh Token)

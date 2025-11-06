@@ -1,11 +1,12 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Models;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
-    public class GetAllUsersWithProfilesQueryHandler: IRequestHandler<GetAllUsersWithProfilesQuery, BaseResponse<IEnumerable<GetAllUserWithProfileResponse>>>
+    public class GetAllUsersWithProfilesQueryHandler: IRequestHandler<GetAllUsersWithProfilesQuery, BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>>
     {
         private readonly IUserRepository _userRepository;
         private readonly IUserProfileRepository _userProfileRepository;
@@ -18,11 +19,11 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             _userProfileRepository = userProfileRepository;
         }
 
-        public async Task<BaseResponse<IEnumerable<GetAllUserWithProfileResponse>>> Handle(
+        public async Task<BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>> Handle(
             GetAllUsersWithProfilesQuery request,
             CancellationToken cancellationToken)
         {
-            var users = await _userRepository.GetAllAsync();
+            var (users, totalCount) = await _userRepository.GetPagedAsync(request.PageNumber, request.PageSize);
             var profiles = await _userProfileRepository.GetAllAsync();
 
             var result = from u in users
@@ -41,8 +42,16 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
                              CreatedAt = u.CreatedAt
                          };
 
-            return BaseResponse<IEnumerable<GetAllUserWithProfileResponse>>.SuccessResponse(
-                result.ToList(),
+            var paginatedResponse = new PaginatedResponse<GetAllUserWithProfileResponse>
+            {
+                Items = result.ToList(),
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                TotalCount = totalCount
+            };
+
+            return BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>.SuccessResponse(
+                paginatedResponse,
                 "Fetched successfully"
             );
         }
