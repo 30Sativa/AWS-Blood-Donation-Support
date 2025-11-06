@@ -5,12 +5,11 @@ import logo from "@/assets/HomePage/logo.jpg";
 export function AdminLayout() {
   return (
     <div className="min-h-screen bg-neutral-50">
-      {/* top chrome bar */}
-      <div className="h-4 bg-neutral-200" />
+      {/* ĐÃ XOÁ thanh ngăn cách phía trên */}
 
       <div className="grid grid-cols-12">
         {/* Sidebar */}
-        <aside className="col-span-12 md:col-span-3 xl:col-span-2 bg-white border-r border-neutral-200 min-h-[calc(100vh-1rem)] p-6 flex flex-col">
+        <aside className="col-span-12 md:col-span-3 xl:col-span-2 bg-white border-r border-neutral-200 min-h-screen p-6 flex flex-col">
           <div className="flex items-center gap-3 mb-8">
             <img
               src={logo}
@@ -69,3 +68,5 @@ function SideLink({
     </NavLink>
   );
 }
+
+export default AdminLayout;
