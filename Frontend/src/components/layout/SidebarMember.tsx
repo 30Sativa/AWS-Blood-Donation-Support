@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   UserPlus,
   UserCheck,
@@ -30,19 +30,6 @@ const sidebarItems: SidebarItem[] = [
 
 export function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    // Xóa token và userId khỏi localStorage
-    localStorage.removeItem("token");
-    localStorage.removeItem("userId");
-    
-    // Xóa token khỏi sessionStorage
-    sessionStorage.removeItem("token");
-    
-    // Redirect về trang login
-    navigate("/login");
-  };
 
   return (
     <aside className="w-64 h-screen bg-gray-100 flex flex-col fixed left-0 top-0">
@@ -74,11 +61,8 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-gray-300 flex-shrink-0 mt-auto">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-        >
+      <div className="p-4 flex-shrink-0 mt-auto">
+        <button className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
           <LogOut className="w-5 h-5" />
           <span className="text-sm font-medium">Log out</span>
         </button>

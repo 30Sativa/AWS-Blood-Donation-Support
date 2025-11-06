@@ -383,24 +383,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Blood Type - Only for register */}
-            {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="bloodType">Nhóm máu</Label>
-                <Select
-                  id="bloodType"
-                  value={bloodType}
-                  onChange={(e) => setBloodType(e.target.value)}
-                >
-                  <option value="">Chọn nhóm máu (tùy chọn)</option>
-                  {BLOOD_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            )}
 
             {/* Password */}
             <div className="space-y-2">
