@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Droplet, Calendar, MapPin } from "lucide-react";
+import { getMemberProfile, updateMemberProfile } from "@/services/axios";
 
 const BLOOD_TYPES = [
   "O-",
@@ -16,24 +17,169 @@ const BLOOD_TYPES = [
   "AB+",
 ];
 
+// Helper function để decode JWT token và lấy userId
+const getUserIdFromToken = (): number | null => {
+  try {
+    // Thử lấy userId từ localStorage trước (nếu đã lưu khi login)
+    const savedUserId = localStorage.getItem("userId");
+    if (savedUserId) {
+      const userId = Number(savedUserId);
+      if (!isNaN(userId)) return userId;
+    }
+
+    // Nếu không có, thử decode từ JWT token
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+
+    // JWT token có format: header.payload.signature
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+
+    const decoded = JSON.parse(atob(payload));
+    
+    // Debug: log để xem token có gì
+    // eslint-disable-next-line no-console
+    console.log("Decoded JWT token:", decoded);
+    
+    // Thử các field phổ biến cho userId và convert sang number
+    const userId = 
+      decoded.userId || 
+      decoded.user_id || 
+      decoded.UserId || 
+      decoded.sub || 
+      decoded.id || 
+      decoded.nameid || // ASP.NET thường dùng nameid
+      decoded.unique_name ||
+      null;
+    
+    if (userId) {
+      const numUserId = Number(userId);
+      if (!isNaN(numUserId)) {
+        // Lưu vào localStorage để dùng lần sau
+        localStorage.setItem("userId", String(numUserId));
+        return numUserId;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error decoding token:", error);
+    return null;
+  }
+};
+
 export function AccountSettings() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    phone: "123 456 7890",
+    phone: "",
     bloodType: "",
     dateOfBirth: "",
     address: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [userId, setUserId] = useState<number | null>(null);
+
+  // Load profile khi component mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoadingProfile(true);
+        setError("");
+        
+        // Lấy userId từ token
+        const currentUserId = getUserIdFromToken();
+        if (!currentUserId) {
+          setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+          setLoadingProfile(false);
+          return;
+        }
+
+        setUserId(currentUserId);
+
+        // Load profile từ API
+        const response = await getMemberProfile(currentUserId);
+        if (response.success && response.data) {
+          const profile = response.data;
+          
+          // Convert birthYear thành dateOfBirth (YYYY-MM-DD format)
+          const birthDate = profile.birthYear 
+            ? `${profile.birthYear}-01-01` 
+            : "";
+
+          setFormData({
+            name: profile.fullName || "",
+            email: profile.email || "",
+            phone: profile.phoneNumber || "",
+            bloodType: "", // API response không có bloodType, cần thêm sau
+            dateOfBirth: birthDate,
+            address: "", // API response không có address, cần thêm sau
+          });
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải thông tin";
+        setError(errorMessage);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error khi user bắt đầu nhập
+    if (error) setError("");
+    if (success) setSuccess("");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Account settings updated:", formData);
-    // Handle form submission here
+    
+    if (!userId) {
+      setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // Convert dateOfBirth thành birthYear
+      const birthYear = formData.dateOfBirth 
+        ? new Date(formData.dateOfBirth).getFullYear()
+        : undefined;
+
+      const updateData = {
+        fullName: formData.name,
+        email: formData.email,
+        phoneNumber: formData.phone,
+        birthYear: birthYear,
+        bloodType: formData.bloodType || undefined,
+        address: formData.address || undefined,
+      };
+
+      const response = await updateMemberProfile(userId, updateData);
+      
+      if (response.success) {
+        setSuccess("Cập nhật thông tin thành công!");
+        // Có thể reload profile để đảm bảo dữ liệu đồng bộ
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật thông tin";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,9 +189,28 @@ export function AccountSettings() {
         <p className="text-gray-600 mt-1">Setting and changing personal information</p>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          {error}
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+          {success}
+        </div>
+      )}
+
       {/* Account Settings Form */}
       <div className="flex justify-center">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-3xl">
+        {loadingProfile ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-gray-600">Đang tải thông tin...</div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name Field */}
           <div className="space-y-2">
@@ -175,12 +340,14 @@ export function AccountSettings() {
           <div className="pt-4 flex justify-center">
             <Button
               type="submit"
-              className="bg-red-600 text-white hover:bg-red-700 py-3 px-8 text-base font-semibold rounded-md"
+              disabled={loading}
+              className="bg-red-600 text-white hover:bg-red-700 py-3 px-8 text-base font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save information
+              {loading ? "Đang lưu..." : "Save information"}
             </Button>
           </div>
         </form>
+        )}
         </div>
       </div>
     </div>

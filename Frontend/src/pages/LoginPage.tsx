@@ -82,19 +82,72 @@ export default function LoginPage() {
 
         const response = await authService.login({ email, password });
         setSuccess("Đăng nhập thành công!");
-        
-        // Lưu token nếu có
+
+        // Debug: log full response so we can see where the token is
+        // (some backends return token in different fields)
+        // You can view this output in the browser console.
+        // eslint-disable-next-line no-console
+        console.log("Login response:", response);
+
+        // Lưu token nếu có - both localStorage and sessionStorage for dev inspection
         if (response.token) {
-          localStorage.setItem("token", response.token);
+          try {
+            localStorage.setItem("token", response.token);
+            sessionStorage.setItem("token", response.token);
+            
+            // Cố gắng lấy userId từ response hoặc decode từ token
+            let userId: number | null = null;
+            
+            // Thử lấy từ response.user.id
+            if (response.user?.id) {
+              userId = Number(response.user.id);
+            }
+            
+            // Nếu không có, thử decode từ JWT token
+            if (!userId && response.token) {
+              try {
+                const payload = response.token.split(".")[1];
+                if (payload) {
+                  const decoded = JSON.parse(atob(payload));
+                  // eslint-disable-next-line no-console
+                  console.log("Decoded JWT from login:", decoded);
+                  userId = 
+                    Number(decoded.userId) || 
+                    Number(decoded.user_id) || 
+                    Number(decoded.UserId) || 
+                    Number(decoded.sub) || 
+                    Number(decoded.id) || 
+                    Number(decoded.nameid) || 
+                    Number(decoded.unique_name) ||
+                    null;
+                }
+              } catch (e) {
+                // eslint-disable-next-line no-console
+                console.warn("Unable to decode token:", e);
+              }
+            }
+            
+            // Lưu userId nếu tìm thấy
+            if (userId && !isNaN(userId)) {
+              localStorage.setItem("userId", String(userId));
+              // eslint-disable-next-line no-console
+              console.log("Saved userId to localStorage:", userId);
+            }
+          } catch (e) {
+            // ignore storage errors (e.g., private mode)
+            // eslint-disable-next-line no-console
+            console.warn("Unable to save token to storage:", e);
+          }
         }
 
         // Redirect based on role
-        if (response.user?.email.includes("staff")) {
+        if (response.user?.email.includes("admin")) {
           // Redirect to management page
           window.location.href = "/admin";
         } else {
-          // Redirect to member page
-          window.location.href = "/dashboard";
+          // Redirect to member dashboard route
+          // Member routes are mounted under /member/* so navigate to /member/dashboard
+          window.location.href = "/member/dashboard";
         }
       } else {
         // Validate register fields
@@ -131,7 +184,7 @@ export default function LoginPage() {
           }
         }
 
-        const response = await authService.register({
+        await authService.register({
           fullName,
           email,
           phoneNumber: phoneNumber || undefined,

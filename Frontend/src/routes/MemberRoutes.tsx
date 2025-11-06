@@ -4,6 +4,9 @@ import { BloodDonationHistory } from "@/pages/member/BloodDonationHistory";
 import { RegisterDonation } from "@/pages/member/RegisterDonation";
 import { SOS } from "@/pages/member/SOS";
 import { AccountSettings } from "@/pages/member/AccountSettings";
+import { Dashboard } from "@/pages/member/Dashboard";
+
+
 
 export function MemberRoutes() {
   return (
@@ -21,7 +24,7 @@ export function MemberRoutes() {
         <Route path="health-check" element={<div>Health Check</div>} />
         <Route path="notifications" element={<div>Notifications</div>} />
         <Route path="sos" element={<SOS />} />
-        <Route path="dashboard" element={<div>Dashboard</div>} />
+        <Route path="dashboard" element={<Dashboard/>} />
         <Route path="settings" element={<AccountSettings />} />
       </Route>
     </Routes>
