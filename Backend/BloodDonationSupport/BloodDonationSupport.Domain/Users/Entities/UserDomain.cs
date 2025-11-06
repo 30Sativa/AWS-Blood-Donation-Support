@@ -40,7 +40,11 @@ namespace BloodDonationSupport.Domain.Users.Entities
 
         public static UserDomain RegisterNewUser(Email email, string cognitoUserId, bool emailExists, string? phone = null)
         {
-            UniqueEmailRule.Check(emailExists);
+            var rule = new UniqueEmailRule(emailExists);
+            if (rule.IsBroken())
+            {
+                throw new DomainException(rule.Message);
+            }
             return new UserDomain(email, cognitoUserId, phone);
         }
 

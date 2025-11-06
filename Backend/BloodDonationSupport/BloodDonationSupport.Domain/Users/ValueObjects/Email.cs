@@ -1,9 +1,10 @@
 ﻿using BloodDonationSupport.Domain.Common;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace BloodDonationSupport.Domain.Users.ValueObjects
 {
-    public class Email
+    public class Email : ValueObject
     {
         public string Value { get; }
 
@@ -16,6 +17,11 @@ namespace BloodDonationSupport.Domain.Users.ValueObjects
                 throw new DomainException("Invalid email format.");
             }
             Value = value;
+        }
+
+        protected override IEnumerable<object> GetEqualityComponents()
+        {
+            yield return Value.ToLowerInvariant();
         }
 
         public override string ToString() => Value;

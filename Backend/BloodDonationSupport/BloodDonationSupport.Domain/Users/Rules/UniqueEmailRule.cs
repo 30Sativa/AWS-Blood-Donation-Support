@@ -2,14 +2,17 @@
 
 namespace BloodDonationSupport.Domain.Users.Rules
 {
-    public class UniqueEmailRule
+    public class UniqueEmailRule : IBusinessRule
     {
-        public static void Check(bool emailExists)
+        private readonly bool _emailExists;
+
+        public UniqueEmailRule(bool emailExists)
         {
-            if (emailExists)
-            {
-                throw new DomainException("Email already exists.");
-            }
+            _emailExists = emailExists;
         }
+
+        public string Message => "Email already exists.";
+
+        public bool IsBroken() => _emailExists;
     }
 }

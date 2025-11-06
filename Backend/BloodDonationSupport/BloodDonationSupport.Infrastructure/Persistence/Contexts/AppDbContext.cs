@@ -35,6 +35,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
         public virtual DbSet<Reminder> Reminders { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
 
+        // Blogging
+        public virtual DbSet<Post> Posts { get; set; }
+        public virtual DbSet<PostTag> PostTags { get; set; }
+
         #endregion DbSets
 
         #region Configuration
