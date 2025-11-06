@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { authService } from "@/services/authService";
 import { Droplet } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // <--- ĐÃ THÊM
 
 type AuthMode = "login" | "register";
 
@@ -46,7 +48,12 @@ const minBirthYear = currentYear - 100; // Max age 100
 const maxBirthYear = currentYear - 18; // Min age 18 to donate
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { refreshAuth } = useAuth(); // <--- ĐÃ THÊM: Lấy hàm refreshAuth
+  const [mode, setMode] = useState<AuthMode>(
+    location.pathname.includes("register") ? "register" : "login"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Register fields
@@ -84,16 +91,38 @@ export default function LoginPage() {
         setSuccess("Đăng nhập thành công!");
 
         // Debug: log full response so we can see where the token is
-        // (some backends return token in different fields)
-        // You can view this output in the browser console.
         // eslint-disable-next-line no-console
         console.log("Login response:", response);
 
-        // Lưu token nếu có - both localStorage and sessionStorage for dev inspection
+        type Role = "member" | "staff" | "admin";
+        let userRole: Role = "member"; // Gán mặc định là member
+
+        // 💡 BƯỚC 1: XÁC ĐỊNH EMAIL VÀ TÊN NGƯỜI DÙNG
+        const userEmail = response.user?.email || email;
+        // Ưu tiên dùng fullName/name từ response, nếu không có thì dùng phần trước @ của email
+        const userName = response.user?.fullName
+          || response.user?.name
+          || userEmail.split('@')[0];
+
+        // 💡 BƯỚC 2: XÁC ĐỊNH ROLE
+        if (userEmail.includes("admin")) {
+          userRole = "admin";
+        } else if (userEmail.includes("staff")) {
+          userRole = "staff";
+        }
+
+        // 💡 BƯỚC 3: LƯU THÔNG TIN CẦN THIẾT VÀO LOCAL STORAGE (Đã thêm userName và userEmail)
         if (response.token) {
           try {
             localStorage.setItem("token", response.token);
+            localStorage.setItem("role", userRole); // luu role tai day
+            localStorage.setItem("userEmail", userEmail);
+            localStorage.setItem("userName", userName); // <-- LƯU TÊN NGƯỜI DÙNG
             sessionStorage.setItem("token", response.token);
+
+            // 💡 GỌI REFRESH AUTH NGAY SAU KHI LƯU DỮ LIỆU MỚI
+            refreshAuth(); // <--- ĐÃ THÊM: Cập nhật Context state ngay lập tức
+
           } catch (e) {
             // ignore storage errors (e.g., private mode)
             // eslint-disable-next-line no-console
@@ -101,15 +130,9 @@ export default function LoginPage() {
           }
         }
 
-        // Redirect based on role
-        if (response.user?.email.includes("admin")) {
-          // Redirect to management page
-          window.location.href = "/admin";
-        } else {
-          // Redirect to member dashboard route
-          // Member routes are mounted under /member/* so navigate to /member/dashboard
-          window.location.href = "/member/dashboard";
-        }
+        // 💡 BƯỚC 4: CHUYỂN HƯỚNG VỀ HOMEPAGE (`/`)
+        navigate("/", { replace: true });
+
       } else {
         // Validate register fields
         if (!fullName || !email || !password) {
@@ -229,26 +252,25 @@ export default function LoginPage() {
                 setBirthYear("");
                 setBloodType("");
               }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "login"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Đăng nhập
             </button>
             <button
               type="button"
               onClick={() => {
+                navigate("/auth/register", { replace: true });
                 setMode("register");
                 setError("");
                 setSuccess("");
               }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "register"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Đăng ký
             </button>
@@ -414,4 +436,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

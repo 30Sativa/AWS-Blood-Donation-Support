@@ -22,9 +22,11 @@ const reasons = [
 const WhyDonateSection: React.FC = () => {
     return (
         <section className="bg-red-700 text-white py-12">
-            <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start gap-16">
-                {/* Bên trái - Lý do */}
-                <div className="md:w-2/3 space-y-6">
+            {/* Giữ nguyên max-w-6xl. Giảm gap từ gap-16 xuống gap-10. */}
+            <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start gap-10"> 
+                
+                {/* Bên trái - Lý do (Đã chỉnh w-2/3 -> w-7/12 (khoảng 58%)) */}
+                <div className="md:w-7/12 space-y-6"> 
                     <h2 className="text-3xl font-bold mb-6">Why Should You Donate Blood?</h2>
                     <div className="space-y-6">
                         {reasons.map((reason, index) => (
@@ -39,8 +41,8 @@ const WhyDonateSection: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Bên phải - Điều kiện hiến máu */}
-                <div className="md:w-1/3 bg-white/20 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+                {/* Bên phải - Điều kiện hiến máu (Đã chỉnh w-1/3 -> w-5/12 (khoảng 42%)) */}
+                <div className="md:w-5/12 bg-white/20 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                     <h3 className="text-xl font-semibold mb-4">Blood Donation Conditions</h3>
                     <ul className="space-y-3 text-white/90 text-sm list-disc pl-5">
                         <li>Age: 18–60 years old</li>

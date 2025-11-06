@@ -22,18 +22,21 @@ const services = [
 const ServiceSection: React.FC = () => {
     return (
         <section className="py-20 bg-red-50">
-            <div className="max-w-6xl mx-auto px-6 text-center">
+            {/* Đã thay đổi max-w-7xl thành max-w-6xl để khối nội dung cô đọng hơn */}
+            <div className="max-w-6xl mx-auto px-6 text-center"> 
                 <h2 className="text-3xl font-bold text-black mb-2">Our Services</h2>
                 <p className="text-gray-600 mb-12">
                     We provide comprehensive services for blood donation and collection
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+                {/* Giữ nguyên grid và gap-8 đã được tối ưu */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"> 
                     {services.map((service, index) => (
                         <div
                             key={index}
                             className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all"
                         >
+                            {/* ... (Giữ nguyên nội dung service card) ... */}
                             <div className="bg-red-50 w-14 h-14 flex items-center justify-center rounded-xl mx-auto mb-6">
                                 {service.icon}
                             </div>

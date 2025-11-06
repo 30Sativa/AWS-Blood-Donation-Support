@@ -5,8 +5,9 @@ import { Heart, Users, Award } from "lucide-react";
 const Introduction: React.FC = () => {
     return (
         <section
-            className="relative w-full h-[70vh] flex items-center justify-center bg-cover bg-position-[center_left_-400px]
- px-10 md:px-20"
+            // ĐIỀU CHỈNH ẢNH NỀN: Sử dụng bg-[position:25%_center] để ảnh bị dịch chuyển sang trái (lệch trái)
+            // Thay thế cho cú pháp cũ bg-position-[center_left_-400px]
+            className="relative w-full h-[70vh] flex items-center bg-cover bg-position-[center_left_-400px]" 
             style={{
                 backgroundImage: `url(${bgImage})`,
             }}
@@ -14,9 +15,10 @@ const Introduction: React.FC = () => {
             {/* Overlay mờ để chữ nổi bật */}
             <div className="absolute inset-0 bg-white/40 backdrop-blur-[3px]"></div>
 
-            {/* Nội dung */}
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-8xl"> {/* chỉnh khoảng cách hai bên}
-        {/* Bên trái */}
+            {/* Nội dung: FIX PHÌNH BẰNG max-w-7xl và căn giữa mx-auto */}
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl mx-auto px-6"> 
+                
+                {/* Bên trái */}
                 <div className="text-gray-800 md:w-1/2 space-y-6">
                     <h1 className="text-4xl md:text-5xl font-bold">
                         Every Drop of Blood <br />
@@ -35,7 +37,6 @@ const Introduction: React.FC = () => {
                         <button className="bg-white text-red-600 font-medium px-6 py-2 rounded-lg shadow-md border border-red-500 hover:bg-red-100 transition">
                             Searching for blood
                         </button>
-
                     </div>
                 </div>
 

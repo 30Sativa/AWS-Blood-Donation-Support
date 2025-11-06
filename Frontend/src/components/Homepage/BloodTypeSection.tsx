@@ -16,7 +16,8 @@ const BloodTypeSection: React.FC = () => {
             </h2>
             <p className="text-gray-600 mb-10">Current blood reserve status</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-16 max-w-6xl mx-auto px-6">
+            {/* Điều chỉnh: Sử dụng max-w-6xl để cô đọng nội dung và mx-auto để căn giữa */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-6 max-w-6xl mx-auto px-6"> 
                 {bloodTypes.map((item) => (
                     <div
                         key={item.type}
