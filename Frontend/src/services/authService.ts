@@ -15,9 +15,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const loginUrl = `${API_BASE_URL}/api/Users/login`;
-    // eslint-disable-next-line no-console
     console.log("Login URL:", loginUrl);
-    // eslint-disable-next-line no-console
     console.log("API_BASE_URL:", API_BASE_URL);
     
     try {
@@ -30,25 +28,24 @@ export const authService = {
       });
 
       // Parse raw response and normalize to AuthResponse shape
-      const raw = await handleResponse<any>(response);
+      const raw = await handleResponse<Record<string, unknown>>(response);
 
       // Try common locations for tokens depending on backend shape
-      const token = raw?.token
-        || raw?.data?.accessToken
-        || raw?.data?.access_token
+      const token = (raw?.token
+        || (raw?.data as Record<string, unknown>)?.accessToken
+        || (raw?.data as Record<string, unknown>)?.access_token
         || raw?.accessToken
-        || raw?.access_token;
+        || raw?.access_token) as string | undefined;
 
-      const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
+      const user = (raw?.user || (raw?.data as Record<string, unknown>)?.user || (raw?.data as Record<string, unknown>)?.userInfo) as AuthResponse['user'] | undefined;
 
       return {
         token,
         user,
-        message: raw?.message,
-        success: raw?.success,
+        message: raw?.message as string | undefined,
+        success: raw?.success as boolean | undefined,
       } as AuthResponse;
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Login error:", error);
       if (error instanceof TypeError && error.message.includes("fetch")) {
         throw new Error(
@@ -72,16 +69,16 @@ export const authService = {
     });
 
     // Normalize register response similarly
-    const raw = await handleResponse<any>(response);
+    const raw = await handleResponse<Record<string, unknown>>(response);
 
-    const token = raw?.token || raw?.data?.accessToken || raw?.data?.access_token || raw?.accessToken;
-    const user = raw?.user || raw?.data?.user || raw?.data?.userInfo || undefined;
+    const token = (raw?.token || (raw?.data as Record<string, unknown>)?.accessToken || (raw?.data as Record<string, unknown>)?.access_token || raw?.accessToken) as string | undefined;
+    const user = (raw?.user || (raw?.data as Record<string, unknown>)?.user || (raw?.data as Record<string, unknown>)?.userInfo) as AuthResponse['user'] | undefined;
 
     return {
       token,
       user,
-      message: raw?.message,
-      success: raw?.success,
+      message: raw?.message as string | undefined,
+      success: raw?.success as boolean | undefined,
     } as AuthResponse;
   },
 };

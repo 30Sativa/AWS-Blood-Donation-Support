@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Droplet, Calendar, MapPin } from "lucide-react";
-import { getMemberProfile, updateMemberProfile } from "@/services/axios";
+import { profileService } from "@/services/profileService";
 
 const BLOOD_TYPES = [
   "O-",
@@ -102,7 +102,7 @@ export function AccountSettings() {
         setUserId(currentUserId);
 
         // Load profile từ API
-        const response = await getMemberProfile(currentUserId);
+        const response = await profileService.getProfile(currentUserId);
         if (response.success && response.data) {
           const profile = response.data;
           
@@ -165,7 +165,7 @@ export function AccountSettings() {
         address: formData.address || undefined,
       };
 
-      const response = await updateMemberProfile(userId, updateData);
+      const response = await profileService.updateProfile(userId, updateData);
       
       if (response.success) {
         setSuccess("Cập nhật thông tin thành công!");

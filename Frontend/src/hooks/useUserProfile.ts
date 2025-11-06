@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { getMemberProfile } from "@/services/axios";
+import { profileService } from "@/services/profileService";
+import type { UserProfile } from "@/types/profile";
 
 const getUserIdFromToken = (): number | null => {
   try {
@@ -37,14 +38,13 @@ const getUserIdFromToken = (): number | null => {
 
     return null;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("Error decoding token:", error);
     return null;
   }
 };
 
 export function useUserProfile() {
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +60,7 @@ export function useUserProfile() {
           return;
         }
 
-        const res = await getMemberProfile(userId);
+        const res = await profileService.getProfile(userId);
         if (res && res.success && res.data) {
           setProfile(res.data);
         }

@@ -83,33 +83,25 @@ export default function LoginPage() {
         const response = await authService.login({ email, password });
         setSuccess("Đăng nhập thành công!");
 
-        // Debug: log full response so we can see where the token is
-        // (some backends return token in different fields)
-        // You can view this output in the browser console.
-        // eslint-disable-next-line no-console
         console.log("Login response:", response);
 
-        // Lưu token nếu có - both localStorage and sessionStorage for dev inspection
         if (response.token) {
           try {
             localStorage.setItem("token", response.token);
             sessionStorage.setItem("token", response.token);
             
-            // Cố gắng lấy userId từ response hoặc decode từ token
+          
             let userId: number | null = null;
             
-            // Thử lấy từ response.user.id
             if (response.user?.id) {
               userId = Number(response.user.id);
             }
             
-            // Nếu không có, thử decode từ JWT token
             if (!userId && response.token) {
               try {
                 const payload = response.token.split(".")[1];
                 if (payload) {
                   const decoded = JSON.parse(atob(payload));
-                  // eslint-disable-next-line no-console
                   console.log("Decoded JWT from login:", decoded);
                   userId = 
                     Number(decoded.userId) || 
@@ -122,20 +114,15 @@ export default function LoginPage() {
                     null;
                 }
               } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn("Unable to decode token:", e);
               }
             }
             
-            // Lưu userId nếu tìm thấy
             if (userId && !isNaN(userId)) {
               localStorage.setItem("userId", String(userId));
-              // eslint-disable-next-line no-console
               console.log("Saved userId to localStorage:", userId);
             }
           } catch (e) {
-            // ignore storage errors (e.g., private mode)
-            // eslint-disable-next-line no-console
             console.warn("Unable to save token to storage:", e);
           }
         }
@@ -383,6 +370,24 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Blood Type - Only for register */}
+            {mode === "register" && (
+              <div className="space-y-2">
+                <Label htmlFor="bloodType">Nhóm máu</Label>
+                <Select
+                  id="bloodType"
+                  value={bloodType}
+                  onChange={(e) => setBloodType(e.target.value)}
+                >
+                  <option value="">Chọn nhóm máu (tùy chọn)</option>
+                  {BLOOD_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             {/* Password */}
             <div className="space-y-2">
