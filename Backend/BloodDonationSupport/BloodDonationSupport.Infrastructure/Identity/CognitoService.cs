@@ -281,5 +281,30 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 return false;
             }
         }
+
+        // VERIFY USER EMAIL
+        public async Task<bool> ConfirmEmailAsync(string email, string confirmationCode)
+        {
+            try
+            {
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+                var request = new ConfirmSignUpRequest
+                {
+                    ClientId = _clientId,
+                    Username = email,
+                    ConfirmationCode = confirmationCode,
+                    SecretHash = secretHash
+                };
+
+                await _client.ConfirmSignUpAsync(request);
+                Console.WriteLine($"✅ Email confirmed successfully for {email}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

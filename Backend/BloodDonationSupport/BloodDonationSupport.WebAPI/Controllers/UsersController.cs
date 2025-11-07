@@ -141,5 +141,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(request);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+
+        [HttpPost("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
+        {
+            var result = await _mediator.Send(new ConfirmEmailCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
     }
 }
