@@ -31,7 +31,7 @@ export function AdminLayout() {
           </nav>
 
           <div className="mt-auto pt-6">
-            <SideLink to="/logout" icon={<LogOut className="h-4 w-4" />} label="Log out" />
+            <SideLink to="/auth/logout" icon={<LogOut className="h-4 w-4" />} label="Log out" />
           </div>
         </aside>
 

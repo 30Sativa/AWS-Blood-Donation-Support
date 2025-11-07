@@ -1,4 +1,4 @@
-// fileName: LoginPage.tsx (ĐÃ SỬA LỖI TYPESCRIPT)
+
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { authService } from "@/services/authService";
 import { Droplet } from "lucide-react";
 
-// ⭐️ BƯỚC 1: Import thêm useNavigate và useAuth
+// Import thêm useNavigate và useAuth
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // (Đảm bảo đúng đường dẫn)
 
@@ -41,7 +41,7 @@ const maxBirthYear = currentYear - 18;
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
 
-  // ⭐️ BƯỚC 2: Khởi tạo navigate và useAuth
+  // Khởi tạo navigate và useAuth
   const navigate = useNavigate();
   const { refreshAuth } = useAuth(); // Lấy hàm refresh từ Context
 
@@ -50,7 +50,6 @@ export default function LoginPage() {
     return initialMode === "register" ? "register" : "login";
   });
 
-  // ... (Các state còn lại giữ nguyên) ...
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -77,13 +76,13 @@ export default function LoginPage() {
 
     try {
       if (mode === "login") {
-        // ... (Validation giữ nguyên) ...
+        
 
         const response = await authService.login({ email, password });
         setSuccess("Đăng nhập thành công!");
         console.log("Login response:", response);
 
-        // ⭐️ BƯỚC 3: LƯU DATA MÀ AUTHCONTEXT CẦN
+        //  LƯU DATA MÀ AUTHCONTEXT CẦN
         if (response.token && response.user) {
           try {
             localStorage.setItem("token", response.token);
@@ -121,11 +120,9 @@ export default function LoginPage() {
         }
 
       } else {
-        // ... (Logic Register giữ nguyên) ...
+      
         if (!fullName || !email || !password) {
-          // ... (validation) ...
         }
-        // ... (các validation khác) ...
         await authService.register({
           fullName,
           email,
@@ -261,8 +258,7 @@ export default function LoginPage() {
                 type="email"
                 placeholder="email@example.com"
                 value={email}
-                // ⭐️ SỬA LỖI TẠI ĐÂY:
-                onChange={(e) => setEmail(e.target.value)} // Sửa e.g.value thành e.target.value
+                onChange={(e) => setEmail(e.target.value)} 
                 maxLength={255}
                 required
               />
