@@ -24,16 +24,6 @@ const GENDER_OPTIONS = [
   { value: "Khác", label: "Khác" },
 ];
 
-// ... (Các hàm helper validate giữ nguyên) ...
-const validateEmailLength = (email: string): boolean => {
-  return email.length <= 255;
-};
-const validateFullNameLength = (name: string): boolean => {
-  return name.length <= 200;
-};
-const validatePhoneLength = (phone: string): boolean => {
-  return phone.length <= 30;
-};
 const currentYear = new Date().getFullYear();
 const minBirthYear = currentYear - 100;
 const maxBirthYear = currentYear - 18;
@@ -93,8 +83,8 @@ export default function LoginPage() {
               response.user.email.includes("staff") ? "staff" : "member";
 
             // Lấy ID và Tên (fullName) từ response.user
-            const userId = (response.user as any).id || (response.user as any).userId;
-            const userName = (response.user as any).fullName || '';
+            const userId = response.user.id;
+            const userName = (response.user as { fullName?: string }).fullName || '';
 
             localStorage.setItem("role", userRole); // ⭐️ LƯU ROLE
             localStorage.setItem("userEmail", response.user.email); // ⭐️ LƯU EMAIL
@@ -120,9 +110,7 @@ export default function LoginPage() {
         }
 
       } else {
-      
-        if (!fullName || !email || !password) {
-        }
+        // Register
         await authService.register({
           fullName,
           email,

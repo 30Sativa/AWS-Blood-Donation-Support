@@ -37,10 +37,6 @@ const getUserIdFromToken = (): number | null => {
 
     const decoded = JSON.parse(atob(payload));
     
-    // Debug: log để xem token có gì
-    // eslint-disable-next-line no-console
-    console.log("Decoded JWT token:", decoded);
-    
     // Thử các field phổ biến cho userId và convert sang number
     const userId = 
       decoded.userId || 
@@ -63,7 +59,6 @@ const getUserIdFromToken = (): number | null => {
     
     return null;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("Error decoding token:", error);
     return null;
   }
@@ -331,7 +326,7 @@ export function AccountSettings() {
               value={formData.address}
               onChange={(e) => handleInputChange("address", e.target.value)}
               required
-              className="flex min-h-[80px] w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 focus-visible:border-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-20 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 focus-visible:border-red-500 disabled:cursor-not-allowed disabled:opacity-50"
               rows={3}
             />
           </div>
