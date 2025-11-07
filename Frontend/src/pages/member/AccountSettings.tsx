@@ -3,18 +3,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Droplet, Calendar, MapPin } from "lucide-react";
+import { User, Mail, Phone, Calendar } from "lucide-react";
 import { profileService } from "@/services/profileService";
 
-const BLOOD_TYPES = [
-  "O-",
-  "O+",
-  "A-",
-  "A+",
-  "B-",
-  "B+",
-  "AB-",
-  "AB+",
+const GENDER_OPTIONS = [
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+  { value: "Other", label: "Orther" },
 ];
 
 // Helper function để decode JWT token và lấy userId
@@ -36,6 +31,10 @@ const getUserIdFromToken = (): number | null => {
     if (!payload) return null;
 
     const decoded = JSON.parse(atob(payload));
+    
+    // Debug: log để xem token có gì
+    // eslint-disable-next-line no-console
+    console.log("Decoded JWT token:", decoded);
     
     // Thử các field phổ biến cho userId và convert sang number
     const userId = 
@@ -59,6 +58,7 @@ const getUserIdFromToken = (): number | null => {
     
     return null;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error decoding token:", error);
     return null;
   }
@@ -69,9 +69,8 @@ export function AccountSettings() {
     name: "",
     email: "",
     phone: "",
-    bloodType: "",
     dateOfBirth: "",
-    address: "",
+    gender: "",
   });
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -110,9 +109,8 @@ export function AccountSettings() {
             name: profile.fullName || "",
             email: profile.email || "",
             phone: profile.phoneNumber || "",
-            bloodType: "", // API response không có bloodType, cần thêm sau
             dateOfBirth: birthDate,
-            address: "", // API response không có address, cần thêm sau
+            gender: profile.gender || "",
           });
         }
       } catch (err) {
@@ -151,23 +149,27 @@ export function AccountSettings() {
         ? new Date(formData.dateOfBirth).getFullYear()
         : undefined;
 
+      // Chuẩn bị data theo format API
       const updateData = {
-        fullName: formData.name,
+        id: userId,
         email: formData.email,
         phoneNumber: formData.phone,
+        fullName: formData.name,
         birthYear: birthYear,
-        bloodType: formData.bloodType || undefined,
-        address: formData.address || undefined,
+        gender: formData.gender || undefined,
+        // roleCode và isActive có thể không cần gửi nếu API tự xử lý
       };
 
       const response = await profileService.updateProfile(userId, updateData);
       
       if (response.success) {
         setSuccess("Cập nhật thông tin thành công!");
-        // Có thể reload profile để đảm bảo dữ liệu đồng bộ
+        // Reload profile sau 1.5s
         setTimeout(() => {
           window.location.reload();
         }, 1500);
+      } else {
+        setError(response.message || "Cập nhật thất bại");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật thông tin";
@@ -244,7 +246,7 @@ export function AccountSettings() {
             />
           </div>
 
-          {/* Phone and Blood Type - Same Row */}
+          {/* Phone and Gender - Same Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Phone Field */}
             <div className="space-y-2">
@@ -265,25 +267,25 @@ export function AccountSettings() {
               />
             </div>
 
-            {/* Blood Type Field */}
+            {/* Gender Field */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Droplet className="w-5 h-5 text-gray-600" />
-                <Label htmlFor="bloodType" className="text-black">
-                  Blood type<span className="text-red-600">*</span>
+                <User className="w-5 h-5 text-gray-600" />
+                <Label htmlFor="gender" className="text-black">
+                  Gender<span className="text-red-600">*</span>
                 </Label>
               </div>
               <Select
-                id="bloodType"
-                value={formData.bloodType}
-                onChange={(e) => handleInputChange("bloodType", e.target.value)}
+                id="gender"
+                value={formData.gender}
+                onChange={(e) => handleInputChange("gender", e.target.value)}
                 required
                 className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500"
               >
-                <option value="">Choose blood type</option>
-                {BLOOD_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                <option value="">Choose gender</option>
+                {GENDER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </Select>
@@ -312,33 +314,14 @@ export function AccountSettings() {
             </div>
           </div>
 
-          {/* Address Field */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-gray-600" />
-              <Label htmlFor="address" className="text-black">
-              Geolocation <span className="text-red-600">*</span>
-              </Label>
-            </div>
-            <textarea
-              id="address"
-              placeholder="Enter your address..."
-              value={formData.address}
-              onChange={(e) => handleInputChange("address", e.target.value)}
-              required
-              className="flex min-h-20 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 focus-visible:border-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-              rows={3}
-            />
-          </div>
-
-          {/* Save Button */}
+          {/* Update Button */}
           <div className="pt-4 flex justify-center">
             <Button
               type="submit"
               disabled={loading}
               className="bg-red-600 text-white hover:bg-red-700 py-3 px-8 text-base font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Đang lưu..." : "Save information"}
+              {loading ? "Đang cập nhật..." : "Update Information"}
             </Button>
           </div>
         </form>
