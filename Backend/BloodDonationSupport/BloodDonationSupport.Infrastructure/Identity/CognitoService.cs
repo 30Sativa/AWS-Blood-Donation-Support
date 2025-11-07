@@ -61,7 +61,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
             try
             {
-                // Tính secret hash đúng chuẩn AWS
+                // ✅ Tính secret hash đúng chuẩn AWS
                 var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
 
                 var request = new SignUpRequest
@@ -85,21 +85,29 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     });
                 }
 
+                // ✅ Gọi Cognito đăng ký
                 var response = await _client.SignUpAsync(request);
 
-                await _client.AdminConfirmSignUpAsync(new AdminConfirmSignUpRequest
-                {
-                    Username = email,
-                    UserPoolId = _userPoolId
-                });
+                // ❌ KHÔNG GỌI AdminConfirmSignUp nữa
+                // Cognito sẽ tự gửi email verify đến người dùng
+                Console.WriteLine($"📧 Verification email sent to {email}");
 
                 return response.UserSub;
+            }
+            catch (UsernameExistsException)
+            {
+                throw new Exception("⚠️ Email is already registered.");
+            }
+            catch (InvalidPasswordException)
+            {
+                throw new Exception("⚠️ Password does not meet Cognito policy requirements.");
             }
             catch (Exception ex)
             {
                 throw new Exception($"❌ Cognito register failed: {ex.Message}");
             }
         }
+
 
         // LOGIN
         public async Task<AuthTokens?> LoginAsync(string email, string password)
