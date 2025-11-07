@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
 {
-    internal class ConfirmEmailRequest
+    public class ConfirmEmailRequest
     {
+        public string Email { get; set; } = string.Empty;
+        public string ConfirmationCode { get; set; } = string.Empty;
     }
 }
