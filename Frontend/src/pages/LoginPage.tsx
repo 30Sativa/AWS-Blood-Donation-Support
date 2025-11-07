@@ -363,6 +363,20 @@ export default function LoginPage() {
             >
               {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
             </Button>
+
+            {/* Forgot password link - Only show in login mode */}
+            {mode === "login" && (
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-sm text-red-600 hover:text-red-700 hover:underline transition-colors"
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
+            )}
+            
           </form>
 
           {/* Demo info */}

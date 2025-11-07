@@ -9,6 +9,7 @@ import AuthLayout from "../components/layout/AuthLayout";
 import HomePage from "../pages/Homepage/homePage";
 import LoginPage from "../pages/LoginPage";
 import Blog from "@/pages/Blog/Blog";
+import Forgotpassword from "@/components/Forgotpassword/Forgotpassword";
 
 // Components & Layouts Protected
 import ProtectedRoute from "./PrivateRoutes"; 
@@ -49,6 +50,14 @@ const routes = createBrowserRouter([
     children: [
       { path: "login", element: <LoginPage /> },
       {path: "register", element: <LoginPage/>}
+    ],
+  },
+  // --- 2.1. ROUTE FORGOT PASSWORD ---
+  {
+    path: "/forgot-password",
+    element: <AuthLayout />,
+    children: [
+      { index: true, element: <Forgotpassword /> }
     ],
   },
   
