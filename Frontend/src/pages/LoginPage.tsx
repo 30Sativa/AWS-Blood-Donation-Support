@@ -1,4 +1,6 @@
-import { useState } from "react";
+
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,50 +8,50 @@ import { Select } from "@/components/ui/select";
 import { authService } from "@/services/authService";
 import { Droplet } from "lucide-react";
 
+// Import thêm useNavigate và useAuth
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // (Đảm bảo đúng đường dẫn)
+
 type AuthMode = "login" | "register";
 
+// ... (Các hằng số BLOOD_TYPES, GENDER_OPTIONS giữ nguyên) ...
 const BLOOD_TYPES = [
-  "O-",
-  "O+",
-  "A-",
-  "A+",
-  "B-",
-  "B+",
-  "AB-",
-  "AB+",
+  "O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+",
 ];
-
 const GENDER_OPTIONS = [
   { value: "Nam", label: "Nam" },
   { value: "Nữ", label: "Nữ" },
   { value: "Khác", label: "Khác" },
 ];
 
-// Helper to validate email length (max 255 chars per database)
+// ... (Các hàm helper validate giữ nguyên) ...
 const validateEmailLength = (email: string): boolean => {
   return email.length <= 255;
 };
-
-// Helper to validate full name length (max 200 chars per database)
 const validateFullNameLength = (name: string): boolean => {
   return name.length <= 200;
 };
-
-// Helper to validate phone number length (max 30 chars per database)
 const validatePhoneLength = (phone: string): boolean => {
   return phone.length <= 30;
 };
-
-// Get current year for birth year validation
 const currentYear = new Date().getFullYear();
-const minBirthYear = currentYear - 100; // Max age 100
-const maxBirthYear = currentYear - 18; // Min age 18 to donate
+const minBirthYear = currentYear - 100;
+const maxBirthYear = currentYear - 18;
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [searchParams] = useSearchParams();
+
+  // Khởi tạo navigate và useAuth
+  const navigate = useNavigate();
+  const { refreshAuth } = useAuth(); // Lấy hàm refresh từ Context
+
+  const [mode, setMode] = useState<AuthMode>(() => {
+    const initialMode = searchParams.get("mode") as AuthMode | null;
+    return initialMode === "register" ? "register" : "login";
+  });
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Register fields
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [gender, setGender] = useState("");
@@ -59,6 +61,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  useEffect(() => {
+    const modeParam = searchParams.get("mode") as AuthMode | null;
+    if (modeParam === "login" || modeParam === "register") {
+      setMode(modeParam);
+    }
+  }, [searchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -67,110 +76,53 @@ export default function LoginPage() {
 
     try {
       if (mode === "login") {
-        // Validate login fields
-        if (!email || !password) {
-          setError("Vui lòng điền đầy đủ thông tin");
-          setLoading(false);
-          return;
-        }
-
-        if (!validateEmailLength(email)) {
-          setError("Email không được vượt quá 255 ký tự");
-          setLoading(false);
-          return;
-        }
+        
 
         const response = await authService.login({ email, password });
         setSuccess("Đăng nhập thành công!");
-
         console.log("Login response:", response);
 
-        if (response.token) {
+        //  LƯU DATA MÀ AUTHCONTEXT CẦN
+        if (response.token && response.user) {
           try {
             localStorage.setItem("token", response.token);
             sessionStorage.setItem("token", response.token);
-            
-          
-            let userId: number | null = null;
-            
-            if (response.user?.id) {
-              userId = Number(response.user.id);
+
+            // Xác định vai trò (role) - Giả định logic dựa trên email
+            const userRole = response.user.email.includes("admin") ? "admin" :
+              response.user.email.includes("staff") ? "staff" : "member";
+
+            // Lấy ID và Tên (fullName) từ response.user
+            const userId = (response.user as any).id || (response.user as any).userId;
+            const userName = (response.user as any).fullName || '';
+
+            localStorage.setItem("role", userRole); // ⭐️ LƯU ROLE
+            localStorage.setItem("userEmail", response.user.email); // ⭐️ LƯU EMAIL
+            localStorage.setItem("userName", userName); // ⭐️ LƯU USERNAME
+
+            if (userId) {
+              localStorage.setItem("userId", String(userId)); // ⭐️ LƯU USERID
             }
-            
-            if (!userId && response.token) {
-              try {
-                const payload = response.token.split(".")[1];
-                if (payload) {
-                  const decoded = JSON.parse(atob(payload));
-                  console.log("Decoded JWT from login:", decoded);
-                  userId = 
-                    Number(decoded.userId) || 
-                    Number(decoded.user_id) || 
-                    Number(decoded.UserId) || 
-                    Number(decoded.sub) || 
-                    Number(decoded.id) || 
-                    Number(decoded.nameid) || 
-                    Number(decoded.unique_name) ||
-                    null;
-                }
-              } catch (e) {
-                console.warn("Unable to decode token:", e);
-              }
-            }
-            
-            if (userId && !isNaN(userId)) {
-              localStorage.setItem("userId", String(userId));
-              console.log("Saved userId to localStorage:", userId);
-            }
+
+            // ⭐️ BƯỚC 4: BÁO CHO CONTEXT TẢI LẠI STATE
+            refreshAuth();
+
           } catch (e) {
             console.warn("Unable to save token to storage:", e);
           }
         }
 
-        // Redirect based on role
+        // ⭐️ BƯỚC 5: SỬ DỤNG NAVIGATE (thay vì window.location.href)
         if (response.user?.email.includes("admin")) {
-          // Redirect to management page
-          window.location.href = "/admin";
+          navigate("/admin", { replace: true });
         } else {
-          // Redirect to member dashboard route
-          // Member routes are mounted under /member/* so navigate to /member/dashboard
-          window.location.href = "/member/dashboard";
+          navigate("/member/dashboard", { replace: true });
         }
+
       } else {
-        // Validate register fields
+      
         if (!fullName || !email || !password) {
-          setError("Vui lòng điền đầy đủ các trường bắt buộc");
-          setLoading(false);
-          return;
         }
-
-        if (!validateFullNameLength(fullName)) {
-          setError("Họ và tên không được vượt quá 200 ký tự");
-          setLoading(false);
-          return;
-        }
-
-        if (!validateEmailLength(email)) {
-          setError("Email không được vượt quá 255 ký tự");
-          setLoading(false);
-          return;
-        }
-
-        if (phoneNumber && !validatePhoneLength(phoneNumber)) {
-          setError("Số điện thoại không được vượt quá 30 ký tự");
-          setLoading(false);
-          return;
-        }
-
-        if (birthYear) {
-          const year = parseInt(birthYear);
-          if (isNaN(year) || year < minBirthYear || year > maxBirthYear) {
-            setError(`Năm sinh phải từ ${minBirthYear} đến ${maxBirthYear} (từ 18 đến 100 tuổi)`);
-            setLoading(false);
-            return;
-          }
-        }
-
         await authService.register({
           fullName,
           email,
@@ -182,6 +134,7 @@ export default function LoginPage() {
         });
         setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
         setMode("login");
+        // ... (Reset fields) ...
         setPassword("");
         setFullName("");
         setPhoneNumber("");
@@ -255,11 +208,10 @@ export default function LoginPage() {
                 setBirthYear("");
                 setBloodType("");
               }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "login"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Đăng nhập
             </button>
@@ -270,11 +222,10 @@ export default function LoginPage() {
                 setError("");
                 setSuccess("");
               }}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "register"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               Đăng ký
             </button>
@@ -307,7 +258,7 @@ export default function LoginPage() {
                 type="email"
                 placeholder="email@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)} 
                 maxLength={255}
                 required
               />
@@ -440,4 +391,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

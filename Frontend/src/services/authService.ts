@@ -77,9 +77,8 @@ export const authService = {
     return {
       token,
       user,
-      message: raw?.message as string | undefined,
+message: raw?.message as string | undefined,
       success: raw?.success as boolean | undefined,
     } as AuthResponse;
   },
 };
-

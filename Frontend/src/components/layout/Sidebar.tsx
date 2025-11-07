@@ -48,7 +48,7 @@ export default function Sidebar({ items = defaultMemberItems, onCollapsedChange,
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     sessionStorage.removeItem("token");
-    navigate("/login");
+    navigate("/auth/login");
   };
 
   return (

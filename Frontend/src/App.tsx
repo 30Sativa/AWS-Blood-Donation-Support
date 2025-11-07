@@ -1,19 +1,13 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { PublicRoutes } from "./routes/PublicRoutes";
-import { MemberRoutes } from "./routes/MemberRoutes";
+import { RouterProvider } from "react-router-dom";
+import routes from "./routes/PublicRoutes";
+import { AuthProvider } from "./context/AuthContext"; 
 
 function App() {
+  const router = routes;
   return (
-
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes (Home, Blog, etc.) */}
-        <Route path="/*" element={<PublicRoutes />} />
-
-        {/* Member routes */}
-        <Route path="/member/*" element={<MemberRoutes />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
 
