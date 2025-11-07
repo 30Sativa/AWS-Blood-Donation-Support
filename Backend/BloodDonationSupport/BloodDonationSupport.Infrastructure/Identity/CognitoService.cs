@@ -225,5 +225,53 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 Console.WriteLine($"⚠️ Failed to delete user from Cognito: {ex.Message}");
             }
         }
+
+        public async Task<bool> ForgotPasswordAsync(string email)
+        {
+            try
+            {
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+                var request = new ForgotPasswordRequest
+                {
+                    ClientId = _clientId,
+                    Username = email,
+                    SecretHash = secretHash
+                };
+
+                var response = await _client.ForgotPasswordAsync(request);
+                Console.WriteLine($"📩 Verification code sent to {response.CodeDeliveryDetails.Destination}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ForgotPassword failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> ConfirmForgotPasswordAsync(string email, string confirmationCode, string newPassword)
+        {
+            try
+            {
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+                var request = new ConfirmForgotPasswordRequest
+                {
+                    ClientId = _clientId,
+                    Username = email,
+                    Password = newPassword,
+                    ConfirmationCode = confirmationCode,
+                    SecretHash = secretHash
+                };
+
+                await _client.ConfirmForgotPasswordAsync(request);
+                Console.WriteLine($"✅ Password reset successful for {email}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ConfirmForgotPassword failed: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
