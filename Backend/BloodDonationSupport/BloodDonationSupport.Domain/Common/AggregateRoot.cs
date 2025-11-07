@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Domain.Common
+﻿namespace BloodDonationSupport.Domain.Common
 {
-    internal class AggregateRoot
+    public abstract class AggregateRoot<TId> : BaseEntity<TId>
     {
     }
 }

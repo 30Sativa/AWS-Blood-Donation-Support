@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class DonorHealthCondition
 {
@@ -10,4 +7,5 @@ public partial class DonorHealthCondition
     public int ConditionId { get; set; }
 
     public virtual HealthCondition Condition { get; set; } = null!;
+    public virtual Donor Donor { get; set; } = null!;
 }
