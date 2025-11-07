@@ -1,22 +1,15 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { PublicRoutes } from "./routes/PublicRoutes";
-import { MemberRoutes } from "./routes/MemberRoutes";
-import { AdminRoutes } from "./routes/AdminRoutes";
+import { RouterProvider } from "react-router-dom";
+import routes from "./routes/PublicRoutes";
+// 1. Import AuthProvider từ đường dẫn bạn vừa tạo
+import { AuthProvider } from "./context/AuthContext"; 
 
 function App() {
+  const router = routes;
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes (Home, Blog, etc.) */}
-        <Route path="/*" element={<PublicRoutes />} />
-
-        {/* Member routes */}
-        <Route path="/member/*" element={<MemberRoutes />} />
-
-        {/* Admin routes */}
-        <Route path="/admin/*" element={<AdminRoutes />} />
-      </Routes>
-    </BrowserRouter>
+    // 2. Bọc toàn bộ RouterProvider bằng AuthProvider
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
 
