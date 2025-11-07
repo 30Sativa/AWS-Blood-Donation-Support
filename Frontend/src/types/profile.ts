@@ -17,14 +17,14 @@ export interface UserProfileResponse {
 }
 
 export interface UpdateProfileRequest {
-  fullName?: string;
+  id?: number;
   email?: string;
   phoneNumber?: string;
+  fullName?: string;
   birthYear?: number;
   gender?: string;
-  bloodType?: string;
-  address?: string;
-  privacyPhoneVisibleToStaffOnly?: boolean;
+  roleCode?: string;
+  isActive?: boolean;
 }
 
 export interface ProfileError {

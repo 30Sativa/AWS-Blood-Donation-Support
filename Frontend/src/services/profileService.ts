@@ -40,15 +40,15 @@ export const profileService = {
   },
 
   /**
-   * Cập nhật thông tin profile của user
-   * PUT /api/Users/{id}/profile
+   * Cập nhật thông tin user
+   * PUT /api/Users/{id}
    */
   async updateProfile(
     userId: number,
     data: UpdateProfileRequest
   ): Promise<UserProfileResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Users/${userId}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/Users/${userId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
