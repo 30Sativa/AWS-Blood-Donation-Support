@@ -38,6 +38,8 @@ public partial class Donor
     public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
 
     public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
+    public virtual ICollection<DonorHealthCondition> DonorHealthConditions { get; set; } = new List<DonorHealthCondition>();
+
 
     public virtual User User { get; set; } = null!;
 }
