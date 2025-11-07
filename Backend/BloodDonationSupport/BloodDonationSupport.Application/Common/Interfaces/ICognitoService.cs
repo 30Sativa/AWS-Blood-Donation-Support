@@ -15,5 +15,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber);
 
         Task DeleteUserAsync(string cognitoUserId);
+
+        Task<bool> ForgotPasswordAsync(string email);
+        Task<bool> ConfirmForgotPasswordAsync(string email, string confirmationCode, string newPassword);
     }
 }

@@ -127,5 +127,19 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
             return Ok(result);
         }
+        
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand request)
+        {
+            var result = await _mediator.Send(request);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ConfirmResetPasswordCommand request)
+        {
+            var result = await _mediator.Send(request);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }
