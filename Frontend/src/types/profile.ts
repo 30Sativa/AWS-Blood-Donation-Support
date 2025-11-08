@@ -8,6 +8,8 @@ export interface UserProfile {
   birthYear: number;
   gender: string;
   privacyPhoneVisibleToStaffOnly: boolean;
+  address?: string;
+  bloodType?: string;
 }
 
 export interface UserProfileResponse {
@@ -17,13 +19,16 @@ export interface UserProfileResponse {
 }
 
 export interface UpdateProfileRequest {
+  id?: number;
   fullName?: string;
   email?: string;
   phoneNumber?: string;
   birthYear?: number;
   gender?: string;
-  bloodType?: string;
+  roleCode?: string;
+  isActive?: boolean;
   address?: string;
+  bloodType?: string;
   privacyPhoneVisibleToStaffOnly?: boolean;
 }
 
