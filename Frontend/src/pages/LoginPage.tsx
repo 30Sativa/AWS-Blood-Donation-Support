@@ -1,206 +1,147 @@
-import { useEffect, useState, useMemo } from "react";
+
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { authService } from "@/services/authService";
 import { Droplet } from "lucide-react";
+
+// Import thêm useNavigate và useAuth
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { useFormik } from "formik";
-import * as Yup from "yup";
+import { useAuth } from "../context/AuthContext"; // (Đảm bảo đúng đường dẫn)
 
 type AuthMode = "login" | "register";
 
+// ... (Các hằng số BLOOD_TYPES, GENDER_OPTIONS giữ nguyên) ...
 const BLOOD_TYPES = [
   "O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+",
 ];
-
 const GENDER_OPTIONS = [
-  { value: "Male", label: "Male" },
-  { value: "Female", label: "Female" },
-  { value: "Other", label: "Other" },
+  { value: "Nam", label: "Nam" },
+  { value: "Nữ", label: "Nữ" },
+  { value: "Khác", label: "Khác" },
 ];
 
 const currentYear = new Date().getFullYear();
-
-const loginSchema = Yup.object().shape({
-  email: Yup.string()
-    .required("Email is required.")
-    .email("Invalid email format.")
-    .max(255, "Email must not exceed 255 characters."),
-  password: Yup.string()
-    .required("Password is required."),
-});
-
-const registerSchema = Yup.object().shape({
-  fullName: Yup.string()
-    .required("Full name is required.")
-    .max(200, "Full name must not exceed 200 characters."),
-  email: Yup.string()
-    .required("Email is required.")
-    .email("Invalid email format.")
-    .max(255, "Email must not exceed 255 characters."),
-  phoneNumber: Yup.string()
-    .required("Phone number is required.")
-    .matches(/^\+?[1-9]\d{1,15}$/, "Invalid phone number format."),
-  password: Yup.string()
-    .required("Password is required.")
-    .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/,
-      "Password must have at least 8 characters, including upper/lowercase, number and special symbol."
-    ),
-  gender: Yup.string()
-    .oneOf(["Male", "Female", "Other", ""], "Gender must be one of: Male, Female, Other.")
-    .nullable()
-    .required("Gender is required."),
-  birthYear: Yup.string()
-    .required("Birth year is required.")
-    .test(
-      "is-valid-year",
-      `Birth year must be between 1900 and ${currentYear}.`,
-      function (value) {
-        if (!value || value.trim() === "") {
-          return false;
-        }
-        const year = parseInt(value);
-        return (
-          !isNaN(year) &&
-          Number.isInteger(year) &&
-          year >= 1900 &&
-          year <= currentYear
-        );
-      }
-    ),
-  bloodType: Yup.string()
-    .required("Blood type is required.")
-    .oneOf(BLOOD_TYPES, "Invalid blood type."),
-});
+const minBirthYear = currentYear - 100;
+const maxBirthYear = currentYear - 18;
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
+
+  // Khởi tạo navigate và useAuth
   const navigate = useNavigate();
-  const { refreshAuth } = useAuth();
+  const { refreshAuth } = useAuth(); // Lấy hàm refresh từ Context
+
   const [mode, setMode] = useState<AuthMode>(() => {
     const initialMode = searchParams.get("mode") as AuthMode | null;
     return initialMode === "register" ? "register" : "login";
   });
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [bloodType, setBloodType] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const validationSchema = useMemo(
-    () => (mode === "login" ? loginSchema : registerSchema),
-    [mode]
-  );
-
-  const formik = useFormik({
-    initialValues: {
-      email: "",
-      password: "",
-      fullName: "",
-      phoneNumber: "",
-      gender: "",
-      birthYear: "",
-      bloodType: "",
-    },
-    validationSchema: validationSchema,
-    validateOnChange: false,
-    validateOnBlur: true,
-    validateOnMount: false,
-    onSubmit: async (values) => {
-      setError("");
-      setSuccess("");
-      setLoading(true);
-
-      try {
-        if (mode === "login") {
-          const response = await authService.login({
-            email: values.email,
-            password: values.password,
-          });
-          setSuccess("Login successful!");
-          console.log("Login response:", response);
-
-          if (response.token && response.user) {
-            try {
-              localStorage.setItem("token", response.token);
-              sessionStorage.setItem("token", response.token);
-
-              const userRole = response.user.email.includes("admin")
-                ? "admin"
-                : response.user.email.includes("staff")
-                ? "staff"
-                : "member";
-
-              const userId = response.user.id;
-              const userName =
-                (response.user as { fullName?: string }).fullName || "";
-
-              localStorage.setItem("role", userRole);
-              localStorage.setItem("userEmail", response.user.email);
-              localStorage.setItem("userName", userName);
-
-              if (userId) {
-                localStorage.setItem("userId", String(userId));
-              }
-
-              refreshAuth();
-            } catch (e) {
-              console.warn("Unable to save token to storage:", e);
-            }
-          }
-
-          if (response.user?.email.includes("admin")) {
-            navigate("/admin", { replace: true });
-          } else {
-            navigate("/member/dashboard", { replace: true });
-          }
-        } else {
-          await authService.register({
-            fullName: values.fullName,
-            email: values.email,
-            phoneNumber: values.phoneNumber,
-            gender: values.gender || undefined,
-            birthYear: parseInt(values.birthYear),
-            bloodType: values.bloodType,
-            password: values.password,
-          });
-          setSuccess("Registration successful! Please login.");
-          setMode("login");
-          formik.resetForm();
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "An unexpected error occurred"
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-  });
-
   useEffect(() => {
     const modeParam = searchParams.get("mode") as AuthMode | null;
     if (modeParam === "login" || modeParam === "register") {
-      if (modeParam !== mode) {
-        setMode(modeParam);
-        formik.resetForm();
-        setError("");
-        setSuccess("");
-      }
+      setMode(modeParam);
     }
-  }, [searchParams, mode, formik]);
+  }, [searchParams]);
 
-  const handleModeChange = (newMode: AuthMode) => {
-    setMode(newMode);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError("");
     setSuccess("");
-    formik.resetForm();
+    setLoading(true);
+
+    try {
+      if (mode === "login") {
+        
+
+        const response = await authService.login({ email, password });
+        setSuccess("Đăng nhập thành công!");
+        console.log("Login response:", response);
+
+        //  LƯU DATA MÀ AUTHCONTEXT CẦN
+        if (response.token && response.user) {
+          try {
+            localStorage.setItem("token", response.token);
+            sessionStorage.setItem("token", response.token);
+
+            // Xác định vai trò (role) - Giả định logic dựa trên email
+            const userRole = response.user.email.includes("admin") ? "admin" :
+              response.user.email.includes("staff") ? "staff" : "member";
+
+            // Lấy ID và Tên (fullName) từ response.user
+            const userId = response.user.id;
+            const userName = (response.user as { fullName?: string }).fullName || '';
+
+            localStorage.setItem("role", userRole); // ⭐️ LƯU ROLE
+            localStorage.setItem("userEmail", response.user.email); // ⭐️ LƯU EMAIL
+            localStorage.setItem("userName", userName); // ⭐️ LƯU USERNAME
+
+            if (userId) {
+              localStorage.setItem("userId", String(userId)); // ⭐️ LƯU USERID
+            }
+
+            // ⭐️ BƯỚC 4: BÁO CHO CONTEXT TẢI LẠI STATE
+            refreshAuth();
+
+          } catch (e) {
+            console.warn("Unable to save token to storage:", e);
+          }
+        }
+
+        // ⭐️ BƯỚC 5: SỬ DỤNG NAVIGATE (thay vì window.location.href)
+        if (response.user?.email.includes("admin")) {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/member/dashboard", { replace: true });
+        }
+
+      } else {
+        // Register
+        await authService.register({
+          fullName,
+          email,
+          phoneNumber: phoneNumber || undefined,
+          gender: gender || undefined,
+          birthYear: birthYear ? parseInt(birthYear) : undefined,
+          bloodType: bloodType || undefined,
+          password,
+        });
+        setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
+        setMode("login");
+        // ... (Reset fields) ...
+        setPassword("");
+        setFullName("");
+        setPhoneNumber("");
+        setGender("");
+        setBirthYear("");
+        setBloodType("");
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Back to home link */}
       <div className="p-6">
         <a
           href="/"
@@ -221,255 +162,216 @@ export default function LoginPage() {
               strokeLinejoin="round"
             />
           </svg>
-          Back to home
+          Quay lại trang chủ
         </a>
       </div>
 
+      {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+          {/* Logo */}
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
               <Droplet className="w-6 h-6 text-white" fill="currentColor" />
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-2">Welcome</h1>
+          {/* Greeting */}
+          <h1 className="text-2xl font-bold text-center mb-2">Chào mừng bạn</h1>
           <p className="text-sm text-gray-600 text-center mb-6">
-            Login or create an account to continue
+            Đăng nhập hoặc tạo tài khoản để tiếp tục
           </p>
 
+          {/* Tabs */}
           <div className="flex gap-2 mb-6 border-b">
             <button
               type="button"
-              onClick={() => handleModeChange("login")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "login"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              onClick={() => {
+                setMode("login");
+                setError("");
+                setSuccess("");
+                setFullName("");
+                setPhoneNumber("");
+                setGender("");
+                setBirthYear("");
+                setBloodType("");
+              }}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
-              Login
+              Đăng nhập
             </button>
             <button
               type="button"
-              onClick={() => handleModeChange("register")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "register"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              onClick={() => {
+                setMode("register");
+                setError("");
+                setSuccess("");
+              }}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register"
+                ? "text-red-600 border-b-2 border-red-600"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
-              Register
+              Đăng ký
             </button>
           </div>
 
-          <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
+                <Label htmlFor="fullName">Họ và tên</Label>
                 <Input
                   id="fullName"
-                  name="fullName"
                   type="text"
-                  placeholder="John Doe"
-                  value={formik.values.fullName}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.fullName && formik.errors.fullName
-                      ? "border-red-500"
-                      : ""
-                  }
+                  placeholder="Nguyễn Văn A"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  maxLength={200}
+                  required
                 />
-                {formik.touched.fullName && formik.errors.fullName && (
-                  <p className="text-xs text-red-600">
-                    {formik.errors.fullName}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500">Tối đa 200 ký tự</p>
               </div>
             )}
 
+            {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
                 placeholder="email@example.com"
-                value={formik.values.email}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={
-                  formik.touched.email && formik.errors.email
-                    ? "border-red-500"
-                    : ""
-                }
+                value={email}
+                onChange={(e) => setEmail(e.target.value)} 
+                maxLength={255}
+                required
               />
-              {formik.touched.email && formik.errors.email && (
-                <p className="text-xs text-red-600">{formik.errors.email}</p>
+              {mode === "register" && (
+                <p className="text-xs text-gray-500">Tối đa 255 ký tự</p>
               )}
             </div>
 
+            {/* Phone Number - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
+                <Label htmlFor="phoneNumber">Số điện thoại</Label>
                 <Input
                   id="phoneNumber"
-                  name="phoneNumber"
                   type="tel"
                   placeholder="0901234567"
-                  value={formik.values.phoneNumber}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.phoneNumber && formik.errors.phoneNumber
-                      ? "border-red-500"
-                      : ""
-                  }
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  maxLength={30}
                 />
-                {formik.touched.phoneNumber && formik.errors.phoneNumber && (
-                  <p className="text-xs text-red-600">
-                    {formik.errors.phoneNumber}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500">Tùy chọn (tối đa 30 ký tự)</p>
               </div>
             )}
 
+            {/* Gender - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">Giới tính</Label>
                 <Select
                   id="gender"
-                  name="gender"
-                  value={formik.values.gender}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.gender && formik.errors.gender
-                      ? "border-red-500"
-                      : ""
-                  }
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
                 >
-                  <option value="">Select gender (optional)</option>
+                  <option value="">Chọn giới tính (tùy chọn)</option>
                   {GENDER_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </Select>
-                {formik.touched.gender && formik.errors.gender && (
-                  <p className="text-xs text-red-600">{formik.errors.gender}</p>
-                )}
               </div>
             )}
 
+            {/* Birth Year - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
-                <Label htmlFor="birthYear">Birth Year <span className="text-red-500">*</span></Label>
+                <Label htmlFor="birthYear">Năm sinh</Label>
                 <Input
                   id="birthYear"
-                  name="birthYear"
                   type="number"
                   placeholder="1990"
-                  value={formik.values.birthYear}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.birthYear && formik.errors.birthYear
-                      ? "border-red-500"
-                      : ""
-                  }
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value)}
+                  min={minBirthYear}
+                  max={maxBirthYear}
                 />
-                {formik.touched.birthYear && formik.errors.birthYear && (
-                  <p className="text-xs text-red-600">
-                    {formik.errors.birthYear}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500">
+                  Tùy chọn ({minBirthYear} - {maxBirthYear})
+                </p>
               </div>
             )}
 
+            {/* Blood Type - Only for register */}
             {mode === "register" && (
               <div className="space-y-2">
-                <Label htmlFor="bloodType">Blood Type <span className="text-red-500">*</span></Label>
+                <Label htmlFor="bloodType">Nhóm máu</Label>
                 <Select
                   id="bloodType"
-                  name="bloodType"
-                  value={formik.values.bloodType}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.bloodType && formik.errors.bloodType
-                      ? "border-red-500"
-                      : ""
-                  }
+                  value={bloodType}
+                  onChange={(e) => setBloodType(e.target.value)}
                 >
-                  <option value="">Select blood type</option>
+                  <option value="">Chọn nhóm máu (tùy chọn)</option>
                   {BLOOD_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
                   ))}
                 </Select>
-                {formik.touched.bloodType && formik.errors.bloodType && (
-                  <p className="text-xs text-red-600">
-                    {formik.errors.bloodType}
-                  </p>
-                )}
               </div>
             )}
 
+            {/* Password */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+              <Label htmlFor="password">Mật khẩu</Label>
               <Input
                 id="password"
-                name="password"
                 type="password"
                 placeholder="••••••••"
-                value={formik.values.password}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={
-                  formik.touched.password && formik.errors.password
-                    ? "border-red-500"
-                    : ""
-                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
-              {formik.touched.password && formik.errors.password && (
-                <p className="text-xs text-red-600">{formik.errors.password}</p>
-              )}
             </div>
 
+            {/* Error message */}
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
                 {error}
               </div>
             )}
 
+            {/* Success message */}
             {success && (
               <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
                 {success}
               </div>
             )}
 
+            {/* Submit button */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
             >
-              {loading
-                ? "Processing..."
-                : mode === "login"
-                ? "Login"
-                : "Register"}
+              {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
             </Button>
           </form>
 
+          {/* Demo info */}
           <div className="mt-6 pt-6 border-t">
             <p className="text-xs text-gray-600 mb-2">
-              Demo: Use email with "staff" to access admin page
+              Demo: Dùng email có "staff" để vào trang quản lý
             </p>
             <p className="text-xs text-gray-500">
-              Example: staff@example.com / member@example.com
+              VD: staff@example.com / member@example.com
             </p>
           </div>
         </div>
