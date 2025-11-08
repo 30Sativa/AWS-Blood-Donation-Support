@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar } from "lucide-react";
+import { User, Mail, Phone, Calendar, MapPin, Droplet } from "lucide-react";
 import { profileService } from "@/services/profileService";
 
 const GENDER_OPTIONS = [
@@ -12,45 +12,46 @@ const GENDER_OPTIONS = [
   { value: "Other", label: "Orther" },
 ];
 
-// Helper function để decode JWT token và lấy userId
+const BLOOD_TYPE_OPTIONS = [
+  { value: "O-", label: "O-" },
+  { value: "O+", label: "O+" },
+  { value: "A-", label: "A-" },
+  { value: "A+", label: "A+" },
+  { value: "B-", label: "B-" },
+  { value: "B+", label: "B+" },
+  { value: "AB-", label: "AB-" },
+  { value: "AB+", label: "AB+" },
+];
+
 const getUserIdFromToken = (): number | null => {
   try {
-    // Thử lấy userId từ localStorage trước (nếu đã lưu khi login)
     const savedUserId = localStorage.getItem("userId");
     if (savedUserId) {
       const userId = Number(savedUserId);
       if (!isNaN(userId)) return userId;
     }
 
-    // Nếu không có, thử decode từ JWT token
     const token = localStorage.getItem("token");
     if (!token) return null;
 
-    // JWT token có format: header.payload.signature
     const payload = token.split(".")[1];
     if (!payload) return null;
 
     const decoded = JSON.parse(atob(payload));
     
-    // Debug: log để xem token có gì
-    // eslint-disable-next-line no-console
-    console.log("Decoded JWT token:", decoded);
-    
-    // Thử các field phổ biến cho userId và convert sang number
     const userId = 
       decoded.userId || 
       decoded.user_id || 
       decoded.UserId || 
       decoded.sub || 
       decoded.id || 
-      decoded.nameid || // ASP.NET thường dùng nameid
+      decoded.nameid ||
       decoded.unique_name ||
       null;
     
     if (userId) {
       const numUserId = Number(userId);
       if (!isNaN(numUserId)) {
-        // Lưu vào localStorage để dùng lần sau
         localStorage.setItem("userId", String(numUserId));
         return numUserId;
       }
@@ -58,7 +59,6 @@ const getUserIdFromToken = (): number | null => {
     
     return null;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("Error decoding token:", error);
     return null;
   }
@@ -71,6 +71,8 @@ export function AccountSettings() {
     phone: "",
     dateOfBirth: "",
     gender: "",
+    address: "",
+    bloodType: "",
   });
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -78,14 +80,12 @@ export function AccountSettings() {
   const [success, setSuccess] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
 
-  // Load profile khi component mount
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setLoadingProfile(true);
         setError("");
         
-        // Lấy userId từ token
         const currentUserId = getUserIdFromToken();
         if (!currentUserId) {
           setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
@@ -95,12 +95,10 @@ export function AccountSettings() {
 
         setUserId(currentUserId);
 
-        // Load profile từ API
         const response = await profileService.getProfile(currentUserId);
         if (response.success && response.data) {
           const profile = response.data;
           
-          // Convert birthYear thành dateOfBirth (YYYY-MM-DD format)
           const birthDate = profile.birthYear 
             ? `${profile.birthYear}-01-01` 
             : "";
@@ -111,6 +109,8 @@ export function AccountSettings() {
             phone: profile.phoneNumber || "",
             dateOfBirth: birthDate,
             gender: profile.gender || "",
+            address: profile.address || "",
+            bloodType: profile.bloodType || "",
           });
         }
       } catch (err) {
@@ -126,7 +126,6 @@ export function AccountSettings() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error khi user bắt đầu nhập
     if (error) setError("");
     if (success) setSuccess("");
   };
@@ -144,12 +143,10 @@ export function AccountSettings() {
     setSuccess("");
 
     try {
-      // Convert dateOfBirth thành birthYear
       const birthYear = formData.dateOfBirth 
         ? new Date(formData.dateOfBirth).getFullYear()
         : undefined;
 
-      // Chuẩn bị data theo format API
       const updateData = {
         id: userId,
         email: formData.email,
@@ -157,14 +154,14 @@ export function AccountSettings() {
         fullName: formData.name,
         birthYear: birthYear,
         gender: formData.gender || undefined,
-        // roleCode và isActive có thể không cần gửi nếu API tự xử lý
+        address: formData.address || undefined,
+        bloodType: formData.bloodType || undefined,
       };
 
       const response = await profileService.updateProfile(userId, updateData);
       
       if (response.success) {
         setSuccess("Cập nhật thông tin thành công!");
-        // Reload profile sau 1.5s
         setTimeout(() => {
           window.location.reload();
         }, 1500);
@@ -186,21 +183,17 @@ export function AccountSettings() {
         <p className="text-gray-600 mt-1">Setting and changing personal information</p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           {error}
         </div>
       )}
 
-      {/* Success Message */}
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
           {success}
         </div>
       )}
-
-      {/* Account Settings Form */}
       <div className="flex justify-center">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-3xl">
         {loadingProfile ? (
@@ -209,7 +202,6 @@ export function AccountSettings() {
           </div>
         ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name Field */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <User className="w-5 h-5 text-gray-600" />
@@ -227,7 +219,6 @@ export function AccountSettings() {
             />
           </div>
 
-          {/* Email Field */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-gray-600" />
@@ -246,9 +237,7 @@ export function AccountSettings() {
             />
           </div>
 
-          {/* Phone and Gender - Same Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Phone Field */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Phone className="w-5 h-5 text-gray-600" />
@@ -267,7 +256,6 @@ export function AccountSettings() {
               />
             </div>
 
-            {/* Gender Field */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-gray-600" />
@@ -292,7 +280,6 @@ export function AccountSettings() {
             </div>
           </div>
 
-          {/* Date of Birth Field */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gray-600" />
@@ -314,7 +301,46 @@ export function AccountSettings() {
             </div>
           </div>
 
-          {/* Update Button */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-gray-600" />
+                <Label htmlFor="address" className="text-black">
+                  Address
+                </Label>
+              </div>
+              <Input
+                id="address"
+                placeholder="Enter your address"
+                value={formData.address}
+                onChange={(e) => handleInputChange("address", e.target.value)}
+                className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Droplet className="w-5 h-5 text-gray-600" />
+                <Label htmlFor="bloodType" className="text-black">
+                  Blood Type
+                </Label>
+              </div>
+              <Select
+                id="bloodType"
+                value={formData.bloodType}
+                onChange={(e) => handleInputChange("bloodType", e.target.value)}
+                className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500"
+              >
+                <option value="">Choose blood type</option>
+                {BLOOD_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
           <div className="pt-4 flex justify-center">
             <Button
               type="submit"
