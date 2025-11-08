@@ -20,7 +20,7 @@ type FormDraft = {
   introduction: IntroductionSection[];
   authorId: number | null;
   isPublished: boolean;
-  publishedAt: string | null;   // ISO
+  publishedAt: string | null; // ISO
   tagIds: number[];
   imageFile: File | null;
 };
@@ -67,7 +67,9 @@ export default function ManageBlog() {
     if (!query) return posts;
     const q = query.toLowerCase();
     return posts.filter((p) => {
-      const intro = p.introduction?.some((s) => s.title.toLowerCase().includes(q) || s.content.toLowerCase().includes(q));
+      const intro = p.introduction?.some(
+        (s) => s.title?.toLowerCase().includes(q) || s.content?.toLowerCase().includes(q)
+      );
       const tagsText = p.tags?.some((t) => t.tagName.toLowerCase().includes(q) || t.tagSlug.toLowerCase().includes(q));
       return (
         p.title.toLowerCase().includes(q) ||
@@ -104,20 +106,24 @@ export default function ManageBlog() {
 
   function closeDialog() {
     setOpen(false);
+    setSaving(false);
   }
 
   async function handleSave() {
     setSaving(true);
     try {
-      if (!draft.title || !draft.slug || !draft.authorId) {
-        alert("Title, Slug and Author are required");
+      // auto slug nếu để trống
+      const slug = draft.slug?.trim() || makeSlug(draft.title);
+
+      if (!draft.title || !slug || !draft.authorId) {
+        alert("Title, Slug và Author là bắt buộc");
         return;
       }
 
       if (mode === "create") {
         const input: CreateBlogPostInput = {
           title: draft.title,
-          slug: draft.slug,
+          slug,
           introduction: draft.introduction,
           excerpt: draft.excerpt || null,
           authorId: draft.authorId,
@@ -131,10 +137,10 @@ export default function ManageBlog() {
       } else {
         const updated = await updateBlogPost(draft.postId!, {
           title: draft.title,
-          slug: draft.slug,
+          slug,
           introduction: draft.introduction,
           excerpt: draft.excerpt || null,
-          authorId: draft.authorId,
+          authorId: draft.authorId!,
           isPublished: draft.isPublished,
           publishedAt: draft.publishedAt,
           tagIds: draft.tagIds,
@@ -201,7 +207,12 @@ export default function ManageBlog() {
       <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="relative max-w-xl w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search posts, slugs, tags..." className="pl-9 bg-white" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search posts, slugs, tags..."
+            className="pl-9 bg-white"
+          />
         </div>
         <Button onClick={openCreate} className="self-start sm:self-auto">
           <Plus className="h-4 w-4 mr-2" /> New Post
@@ -213,6 +224,7 @@ export default function ManageBlog() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14 text-center">STT</TableHead> {/* NEW */}
               <TableHead className="w-[34%]">Title</TableHead>
               <TableHead>Author</TableHead>
               <TableHead>Published</TableHead>
@@ -224,13 +236,14 @@ export default function ManageBlog() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-neutral-500">
+                <TableCell colSpan={7} className="py-10 text-center text-neutral-500">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filtered.length ? (
-              filtered.map((p) => (
+              filtered.map((p, i) => (
                 <TableRow key={p.postId} className="hover:bg-neutral-50">
+                  <TableCell className="text-center">{i + 1}</TableCell> {/* NEW */}
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-8 w-8 rounded object-cover" /> : null}
@@ -262,7 +275,7 @@ export default function ManageBlog() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-neutral-500">
+                <TableCell colSpan={7} className="py-10 text-center text-neutral-500">
                   No posts match your search.
                 </TableCell>
               </TableRow>
@@ -270,20 +283,20 @@ export default function ManageBlog() {
           </TableBody>
         </Table>
       </Card>
-      {/* Helper panel – Prepare the lesson */}
-<Card className="mt-6">
-  <CardHeader>
-    <CardTitle className="text-base">Prepare the lesson</CardTitle>
-  </CardHeader>
-  <CardContent className="text-sm text-neutral-600 space-y-1">
-    <p className="font-medium text-neutral-800">Prepare the lesson</p>
-    <p>Select a lesson to edit or click "Create new lesson".</p>
-    <p className="text-xs text-neutral-500">
-      BR-02: There is a version history for restoration (hint: connect to DB/CMS to save history).
-    </p>
-  </CardContent>
-</Card>
 
+      {/* Helper panel – Prepare the lesson */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base">Prepare the lesson</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-neutral-600 space-y-1">
+          <p className="font-medium text-neutral-800">Prepare the lesson</p>
+          <p>Select a lesson to edit or click "Create new lesson".</p>
+          <p className="text-xs text-neutral-500">
+            BR-02: There is a version history for restoration (hint: connect to DB/CMS to save history).
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Create/Edit dialog */}
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : closeDialog())}>
@@ -295,23 +308,44 @@ export default function ManageBlog() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label htmlFor="title">Title</Label>
-              <Input id="title" value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))} />
+              <Input
+                id="title"
+                value={draft.title}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    title: e.target.value,
+                    slug: d.slug || makeSlug(e.target.value),
+                  }))
+                }
+              />
             </div>
 
             <div className="col-span-2">
               <Label htmlFor="slug">Slug</Label>
-              <Input id="slug" value={draft.slug} onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))} placeholder="my-post-slug" />
+              <Input
+                id="slug"
+                value={draft.slug}
+                onChange={(e) => setDraft((d) => ({ ...d, slug: e.target.value }))}
+                placeholder="my-post-slug"
+              />
             </div>
 
             <div className="col-span-2">
               <Label htmlFor="excerpt">Excerpt</Label>
-              <Input id="excerpt" value={draft.excerpt} onChange={(e) => setDraft((d) => ({ ...d, excerpt: e.target.value }))} />
+              <Input
+                id="excerpt"
+                value={draft.excerpt}
+                onChange={(e) => setDraft((d) => ({ ...d, excerpt: e.target.value }))}
+              />
             </div>
 
             <div className="col-span-2">
               <div className="flex items-start justify-between">
                 <Label>Introduction Sections</Label>
-                <Button variant="secondary" size="sm" onClick={addSection}>Add Section</Button>
+                <Button variant="secondary" size="sm" onClick={addSection}>
+                  Add Section
+                </Button>
               </div>
 
               <div className="mt-2 space-y-3">
@@ -358,7 +392,9 @@ export default function ManageBlog() {
                 id="authorId"
                 type="number"
                 value={draft.authorId ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, authorId: e.target.value ? Number(e.target.value) : null }))}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, authorId: e.target.value ? Number(e.target.value) : null }))
+                }
                 placeholder="e.g. 42"
               />
             </div>
@@ -420,7 +456,9 @@ export default function ManageBlog() {
           </div>
 
           <DialogFooter className="mt-4">
-            <Button variant="secondary" onClick={closeDialog}>Cancel</Button>
+            <Button variant="secondary" onClick={closeDialog}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </Button>
@@ -435,4 +473,13 @@ function toLocalInput(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function makeSlug(s: string) {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
 }

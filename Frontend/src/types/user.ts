@@ -1,14 +1,17 @@
-export type UserStatus = "Active" | "Disabled";
-export type UserRole = "Guest" | "Member" | "Staff" | "Admin";
+export type UserRole = "Admin" | "Staff" | "Member" | "Guest";
 
-export interface UserItem {
+export type UserItem = {
   userId: number;
   fullName: string;
   email: string;
-  role: UserRole;        
-  status: UserStatus;
-  createdAt?: string;
-  updatedAt?: string;
+  role: UserRole;
+  status: "Active" | "Disabled";
 
+  phoneNumber?: string | null;
+  gender?: string | null;
+  birthYear?: number | null;
+
+  createdAt?: string | null;
+  updatedAt?: string | null;
   hasDonorProfile?: boolean;
-}
+};
