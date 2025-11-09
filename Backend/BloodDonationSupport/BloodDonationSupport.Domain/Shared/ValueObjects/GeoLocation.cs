@@ -20,6 +20,7 @@ namespace BloodDonationSupport.Domain.Shared.ValueObjects
             Longitude = longitude;
         }
 
+        
         public static GeoLocation Create(double latitude, double longitude)
         {
             if (latitude < -90 || latitude > 90)

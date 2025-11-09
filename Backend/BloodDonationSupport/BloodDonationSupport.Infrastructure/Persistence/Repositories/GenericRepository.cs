@@ -28,7 +28,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         public virtual async Task<bool> ExistsAsync(Expression<Func<TEntity, bool>> predicate)
         {
-            return await _dbset.AnyAsync(predicate);
+            return await _dbset.AsNoTracking().AnyAsync(predicate);
         }
 
         public virtual async Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)

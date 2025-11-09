@@ -1,5 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Donors.Entities;
+using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Domain.Users.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
@@ -33,7 +34,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 IsReady = domainEntity.IsReady,
                 CreatedAt = domainEntity.CreatedAt,
                 UpdatedAt = domainEntity.UpdatedAt,
-                LocationUpdatedAt = domainEntity.LocationUpdatedAt
+                LocationUpdatedAt = domainEntity.LocationUpdatedAt,
+
+                // ✅ Map GeoLocation sang 2 cột latitude / longitude
+                Latitude = domainEntity.LastKnownLocation?.Latitude,
+                Longitude = domainEntity.LastKnownLocation?.Longitude
             };
 
             await _context.Donors.AddAsync(entity);
@@ -54,7 +59,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            // optional - depends if domain predicate conversion is needed
+            // ⚙️ Đơn giản hóa — để GenericRepository xử lý thực sự
             return await _context.Donors.AnyAsync();
         }
 
@@ -63,7 +68,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<IEnumerable<DonorDomain>> FindAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            // this would require a mapper, but for now return simple projection
             var donors = await _context.Donors.AsNoTracking().ToListAsync();
             return donors.Select(MapToDomain);
         }
@@ -83,7 +87,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         public async Task<(IEnumerable<DonorDomain> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
         {
             var query = _context.Donors.AsNoTracking();
-
             var totalCount = await query.CountAsync();
 
             var donors = await query
@@ -124,11 +127,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         {
             if (id is long donorId)
             {
-                var entity = await _context.Donors.AsNoTracking().FirstOrDefaultAsync(d => d.DonorId == donorId);
-                if (entity == null)
-                    return null;
+                var entity = await _context.Donors.AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.DonorId == donorId);
 
-                return MapToDomain(entity);
+                return entity == null ? null : MapToDomain(entity);
             }
             return null;
         }
@@ -162,6 +164,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             donor.NextEligibleDate = domainEntity.NextEligibleDate;
             donor.TravelRadiusKm = domainEntity.TravelRadiusKm;
             donor.UpdatedAt = DateTime.UtcNow;
+            donor.LocationUpdatedAt = domainEntity.LocationUpdatedAt;
+
+            // ✅ Cập nhật vị trí (GeoLocation)
+            if (domainEntity.LastKnownLocation != null)
+            {
+                donor.Latitude = domainEntity.LastKnownLocation.Latitude;
+                donor.Longitude = domainEntity.LastKnownLocation.Longitude;
+            }
 
             _context.Donors.Update(donor);
         }
@@ -179,7 +189,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 travelRadiusKm: entity.TravelRadiusKm,
                 nextEligibleDate: entity.NextEligibleDate,
                 isReady: entity.IsReady,
-                lastKnownLocation: null,
+                // ✅ Map GeoLocation từ DB
+                lastKnownLocation: entity.Latitude.HasValue && entity.Longitude.HasValue
+                    ? GeoLocation.Create(entity.Latitude.Value, entity.Longitude.Value)
+                    : null,
                 locationUpdatedAt: entity.LocationUpdatedAt,
                 createdAt: entity.CreatedAt,
                 updatedAt: entity.UpdatedAt
@@ -190,7 +203,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         {
             var donor = MapToDomain(entity);
 
-            // Optional: hydrate user and bloodType relationships
             if (entity.User != null)
             {
                 var email = new Domain.Users.ValueObjects.Email(entity.User.Email);

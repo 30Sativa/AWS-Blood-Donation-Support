@@ -1,4 +1,6 @@
-﻿using BloodDonationSupport.Application.Features.Donors.Queries;
+﻿using BloodDonationSupport.Application.Features.Donors.Commands;
+using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
+using BloodDonationSupport.Application.Features.Donors.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -40,6 +42,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
                 return NotFound();
             }
             return Ok(result);
+        }
+
+        // [POST] api/donors/register (Register a new donor)
+        [HttpPost("register")]
+        public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)
+        {
+            var result = await _mediator.Send(new RegisterDonorCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
         }
     }
 }
