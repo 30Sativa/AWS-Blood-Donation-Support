@@ -27,6 +27,10 @@
 
   <ItemGroup>
 
+    <Folder Include="Features\Donors\Commands\" />
+
+    <Folder Include="Features\Donors\DTOs\Request\" />
+
     <Folder Include="Features\Users\Events\" />
   </ItemGroup>
 

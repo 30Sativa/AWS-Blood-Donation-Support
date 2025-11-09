@@ -1,0 +1,57 @@
+﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Responses;
+using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
+using BloodDonationSupport.Domain.Donors.Entities;
+using MediatR;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BloodDonationSupport.Application.Features.Donors.Queries
+{
+    public class GetDonorByIdQueryHandler : IRequestHandler<GetDonorByIdQuery, BaseResponse<DonorDetail>>
+    {
+        private readonly IDonorRepository _donorRepository; 
+
+        public GetDonorByIdQueryHandler(IDonorRepository donorRepository)
+        {
+            _donorRepository = donorRepository;
+        }
+
+
+        public async Task<BaseResponse<DonorDetail>> Handle(GetDonorByIdQuery request, CancellationToken cancellationToken)
+        {
+            var donor = await _donorRepository.GetByIdWithRelationsAsync(request.DonorId);
+            if(donor == null)
+            {
+                return BaseResponse<DonorDetail>.FailureResponse("Donor not found");
+            }
+            var dto = new DonorDetail
+            {
+                DonorId = donor.Id,
+                FullName = donor.User?.Profile?.FullName,
+                BloodGroup = donor.BloodType != null
+                    ? $"{donor.BloodType.Abo}{donor.BloodType.Rh}"
+                    : null,
+                IsReady = donor.IsReady,
+                NextEligibleDate = donor.NextEligibleDate,
+                CreatedAt = donor.CreatedAt,
+                UpdatedAt = donor.UpdatedAt,
+                Address = donor.AddressId.HasValue
+                    ? $"Address #{donor.AddressId}" // (sau này sẽ map Address entity)
+                    : null,
+                Availabilities = donor.Availabilities?
+                    .Select(a => $"Thứ {a.Weekday}: {a.TimeFromMin}-{a.TimeToMin}")
+                    .ToList(),
+                HealthConditions = donor.HealthConditions?
+                    .Select(h => $"Condition #{h.ConditionId}")
+                    .ToList(),
+                LastKnownLocation = donor.LastKnownLocation?.ToString()
+            };
+            return BaseResponse<DonorDetail>.SuccessResponse(dto, "Donor details retrieved successfully.");
+
+        }
+    }
+}

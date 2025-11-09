@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Posts.Events
 {
-    public class PostPublishedEvent : IDomainEvent
+    public sealed class PostPublishedEvent : IDomainEvent
     {
         public long PostId { get; }
         public string Title { get; }
