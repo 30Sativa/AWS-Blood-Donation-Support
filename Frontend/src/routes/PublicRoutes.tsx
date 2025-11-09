@@ -88,7 +88,6 @@ const routes = createBrowserRouter([
     { index: true, element: <Navigate to="accounts" replace /> },
     { path: "accounts", element: <ManageAccounts /> },
     { path: "manage-blog", element: <ManageBlog /> },
-    // ⭐️ ĐÃ SỬA LỖI: Xóa chữ "Giao tiếp"
     { path: "reports", element: <div>Reports</div> }, 
     { path: "*", element: <Navigate to="accounts" replace /> },
   ],
