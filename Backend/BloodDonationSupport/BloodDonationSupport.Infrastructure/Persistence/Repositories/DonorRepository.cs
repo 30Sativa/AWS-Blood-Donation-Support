@@ -1,4 +1,4 @@
-﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Domain.Users.Entities;
@@ -41,7 +41,39 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 Longitude = domainEntity.LastKnownLocation?.Longitude
             };
 
+            // Add Donor entity first
             await _context.Donors.AddAsync(entity);
+            
+            // Save to get the generated DonorId (required before adding related entities)
+            await _context.SaveChangesAsync();
+            
+            // Now add related entities with the DonorId
+            // Add Availabilities
+            foreach (var availability in domainEntity.Availabilities)
+            {
+                var availabilityEntity = new DonorAvailability
+                {
+                    DonorId = entity.DonorId,
+                    Weekday = availability.Weekday,
+                    TimeFromMin = availability.TimeFromMin,
+                    TimeToMin = availability.TimeToMin
+                };
+                await _context.Set<DonorAvailability>().AddAsync(availabilityEntity);
+            }
+            
+            // Add Health Conditions
+            foreach (var healthCondition in domainEntity.HealthConditions)
+            {
+                var healthConditionEntity = new DonorHealthCondition
+                {
+                    DonorId = entity.DonorId,
+                    ConditionId = healthCondition.ConditionId
+                };
+                await _context.Set<DonorHealthCondition>().AddAsync(healthConditionEntity);
+            }
+            
+            // Update the domain entity's ID so it matches the database
+            domainEntity.GetType().GetProperty("Id")?.SetValue(domainEntity, entity.DonorId);
         }
 
         // =========================
