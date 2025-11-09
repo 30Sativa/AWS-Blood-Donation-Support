@@ -40,7 +40,7 @@ export const profileService = {
   },
 
   /**
-   * Cập nhật thông tin user
+   * Cập nhật thông tin profile của user
    * PUT /api/Users/{id}
    */
   async updateProfile(

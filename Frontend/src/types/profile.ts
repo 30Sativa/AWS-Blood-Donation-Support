@@ -20,15 +20,16 @@ export interface UserProfileResponse {
 
 export interface UpdateProfileRequest {
   id?: number;
+  fullName?: string;
   email?: string;
   phoneNumber?: string;
-  fullName?: string;
   birthYear?: number;
   gender?: string;
   roleCode?: string;
   isActive?: boolean;
   address?: string;
   bloodType?: string;
+  privacyPhoneVisibleToStaffOnly?: boolean;
 }
 
 export interface ProfileError {

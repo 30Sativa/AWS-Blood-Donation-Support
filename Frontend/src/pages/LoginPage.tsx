@@ -22,7 +22,6 @@ const GENDER_OPTIONS = [
   { value: "Other", label: "Other" },
 ];
 
-// Get current year for birth year validation
 const currentYear = new Date().getFullYear();
 
 const loginSchema = Yup.object().shape({

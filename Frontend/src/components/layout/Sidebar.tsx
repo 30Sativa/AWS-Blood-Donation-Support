@@ -1,15 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import {
-  UserPlus,
-  UserCheck,
-  History,
-  Bell,
-  AlertCircle,
-  BarChart3,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface SidebarItem {
@@ -24,17 +15,9 @@ interface SidebarProps {
   initialCollapsed?: boolean;
 }
 
-const defaultMemberItems: SidebarItem[] = [
-  { path: "/member/register-donation", icon: UserPlus, label: "Register Donation" },
-  { path: "/member/health-check", icon: UserCheck, label: "Health Check" },
-  { path: "/member/history", icon: History, label: "History" },
-  { path: "/member/notifications", icon: Bell, label: "Notifications" },
-  { path: "/member/sos", icon: AlertCircle, label: "SOS" },
-  { path: "/member/dashboard", icon: BarChart3, label: "Dashboard" },
-  { path: "/member/settings", icon: Settings, label: "Account Settings" },
-];
-
-export default function Sidebar({ items = defaultMemberItems, onCollapsedChange, initialCollapsed = true }: SidebarProps) {
+// Sidebar is now role-agnostic: pass `items` from callers (Member/Admin/Staff).
+// Default to an empty array so callers must explicitly provide the menu for each role.
+export default function Sidebar({ items = [], onCollapsedChange, initialCollapsed = true }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(initialCollapsed);
