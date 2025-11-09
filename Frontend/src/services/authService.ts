@@ -17,7 +17,7 @@ export const authService = {
     const loginUrl = `${API_BASE_URL}/api/Users/login`;
     console.log("Login URL:", loginUrl);
     console.log("API_BASE_URL:", API_BASE_URL);
-    
+
     try {
       const response = await fetch(loginUrl, {
         method: "POST",
@@ -27,24 +27,37 @@ export const authService = {
         body: JSON.stringify(credentials),
       });
 
-      // Parse raw response and normalize to AuthResponse shape
-      const raw = await handleResponse<Record<string, unknown>>(response);
+      // Backend returns BaseResponse<LoginResponse>
+      const raw = await handleResponse<Record<string, any>>(response);
 
-      // Try common locations for tokens depending on backend shape
-      const token = (raw?.token
-        || (raw?.data as Record<string, unknown>)?.accessToken
-        || (raw?.data as Record<string, unknown>)?.access_token
-        || raw?.accessToken
-        || raw?.access_token) as string | undefined;
+      const data = (raw.data ?? raw) as Record<string, any>;
 
-      const user = (raw?.user || (raw?.data as Record<string, unknown>)?.user || (raw?.data as Record<string, unknown>)?.userInfo) as AuthResponse['user'] | undefined;
+      const token =
+        data.accessToken ??
+        data.access_token ??
+        raw.token ??
+        raw.accessToken ??
+        raw.access_token;
+
+      const user =
+        (data.user ?? raw.user ?? data.userInfo) as AuthResponse["user"];
+
+      const roles = (data.roles ?? raw.roles) as string[] | undefined;
 
       return {
         token,
+        refreshToken: data.refreshToken ?? data.refresh_token,
+        expiresIn:
+          typeof data.expiresIn === "number"
+            ? data.expiresIn
+            : typeof data.expires_in === "number"
+              ? data.expires_in
+              : undefined,
         user,
-        message: raw?.message as string | undefined,
-        success: raw?.success as boolean | undefined,
-      } as AuthResponse;
+        roles,
+        message: raw.message as string | undefined,
+        success: raw.success as boolean | undefined,
+      };
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof TypeError && error.message.includes("fetch")) {
@@ -52,7 +65,7 @@ export const authService = {
           `Không thể kết nối đến server. Vui lòng kiểm tra:\n` +
           `1. Backend có đang chạy không?\n` +
           `2. URL backend: ${API_BASE_URL}\n` +
-          `3. Endpoint: /api/Users/login`
+          `3. Endpoint: /api/Users/login`,
         );
       }
       throw error;
@@ -60,7 +73,9 @@ export const authService = {
   },
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/Users/register`, {
+    const url = `${API_BASE_URL}/api/Users/register`;
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -68,17 +83,35 @@ export const authService = {
       body: JSON.stringify(userData),
     });
 
-    // Normalize register response similarly
-    const raw = await handleResponse<Record<string, unknown>>(response);
+    // Backend also returns BaseResponse<Something>
+    const raw = await handleResponse<Record<string, any>>(response);
+    const data = (raw.data ?? raw) as Record<string, any>;
 
-    const token = (raw?.token || (raw?.data as Record<string, unknown>)?.accessToken || (raw?.data as Record<string, unknown>)?.access_token || raw?.accessToken) as string | undefined;
-    const user = (raw?.user || (raw?.data as Record<string, unknown>)?.user || (raw?.data as Record<string, unknown>)?.userInfo) as AuthResponse['user'] | undefined;
+    const token =
+      data.accessToken ??
+      data.access_token ??
+      raw.token ??
+      raw.accessToken ??
+      raw.access_token;
+
+    const user =
+      (data.user ?? raw.user ?? data.userInfo) as AuthResponse["user"];
+
+    const roles = (data.roles ?? raw.roles) as string[] | undefined;
 
     return {
       token,
+      refreshToken: data.refreshToken ?? data.refresh_token,
+      expiresIn:
+        typeof data.expiresIn === "number"
+          ? data.expiresIn
+          : typeof data.expires_in === "number"
+            ? data.expires_in
+            : undefined,
       user,
-message: raw?.message as string | undefined,
-      success: raw?.success as boolean | undefined,
-    } as AuthResponse;
+      roles,
+      message: raw.message as string | undefined,
+      success: raw.success as boolean | undefined,
+    };
   },
 };

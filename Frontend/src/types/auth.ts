@@ -13,13 +13,21 @@ export interface RegisterRequest {
   password: string; // Will be hashed on backend
 }
 
+export interface AuthResponseUser {
+  id: string | number;
+  email: string;
+  fullName?: string;
+  role?: string;
+}
+
 export interface AuthResponse {
   token?: string;
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-  };
+  refreshToken?: string;
+  expiresIn?: number;
+  user?: AuthResponseUser;
+
+  roles?: string[];
+
   message?: string;
   success?: boolean;
 }
@@ -28,4 +36,3 @@ export interface AuthError {
   message: string;
   errors?: Record<string, string[]>;
 }
-
