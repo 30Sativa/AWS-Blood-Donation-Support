@@ -1,24 +1,5 @@
+import apiClient from "@/services/axios";
 import type { UserProfileResponse, UpdateProfileRequest } from "@/types/profile";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://13.239.7.174";
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-    }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
-
-function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
-}
 
 export const profileService = {
   /**
@@ -27,14 +8,17 @@ export const profileService = {
    */
   async getProfile(userId: number): Promise<UserProfileResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Users/${userId}/profile`, {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
-
-      return await handleResponse<UserProfileResponse>(response);
-    } catch (error) {
+      // Axios tự động thêm token qua interceptor
+      // Axios tự parse JSON và trả về response.data
+      const response = await apiClient.get<UserProfileResponse>(
+        `/api/Users/${userId}/profile`
+      );
+      
+      // response.data đã là UserProfileResponse (có success, message, data)
+      return response.data;
+    } catch (error: any) {
       console.error("Get profile error:", error);
+      // Axios interceptor đã throw Error với message từ backend
       throw error;
     }
   },
@@ -48,15 +32,18 @@ export const profileService = {
     data: UpdateProfileRequest
   ): Promise<UserProfileResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/Users/${userId}`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      });
-
-      return await handleResponse<UserProfileResponse>(response);
-    } catch (error) {
+      // Axios tự động thêm token qua interceptor
+      // Axios tự parse JSON và trả về response.data
+      const response = await apiClient.put<UserProfileResponse>(
+        `/api/Users/${userId}`,
+        data
+      );
+      
+      // response.data đã là UserProfileResponse (có success, message, data)
+      return response.data;
+    } catch (error: any) {
       console.error("Update profile error:", error);
+      // Axios interceptor đã throw Error với message từ backend
       throw error;
     }
   },

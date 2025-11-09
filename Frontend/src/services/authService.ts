@@ -1,71 +1,66 @@
+import apiClient from "@/services/axios";
 import type { LoginRequest, RegisterRequest, AuthResponse } from "@/types/auth";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://13.239.7.174";
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-    }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
-  }
-  return response.json();
+// Type cho response từ backend (BaseResponse<LoginResponse>)
+interface BackendLoginResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: {
+      id: number;
+      email: string;
+      fullname: string;
+      cognitoUserId: string;
+    };
+    roles: string[];
+  };
 }
 
 export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const loginUrl = `${API_BASE_URL}/api/Users/login`;
-    console.log("Login URL:", loginUrl);
-    console.log("API_BASE_URL:", API_BASE_URL);
-
     try {
-      const response = await fetch(loginUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
+      // Gọi API login (không cần token, interceptor sẽ không thêm nếu chưa có)
+      const response = await apiClient.post<BackendLoginResponse>(
+        "/api/Users/login",
+        credentials
+      );
+      
+      const backendData = response.data;
 
-      // Backend returns BaseResponse<LoginResponse>
-      const raw = await handleResponse<Record<string, any>>(response);
+      // Nếu backend trả về error (success: false) nhưng status 200
+      if (!backendData.success || !backendData.data) {
+        throw new Error(backendData.message || "Login failed");
+      }
 
-      const data = (raw.data ?? raw) as Record<string, any>;
+      const { accessToken, user, roles } = backendData.data;
 
-      const token =
-        data.accessToken ??
-        data.access_token ??
-        raw.token ??
-        raw.accessToken ??
-        raw.access_token;
-
-      const user =
-        (data.user ?? raw.user ?? data.userInfo) as AuthResponse["user"];
-
-      const roles = (data.roles ?? raw.roles) as string[] | undefined;
-
+      // Map sang AuthResponse format (giữ nguyên để LoginPage.tsx không cần sửa)
       return {
-        token,
-        refreshToken: data.refreshToken ?? data.refresh_token,
-        expiresIn:
-          typeof data.expiresIn === "number"
-            ? data.expiresIn
-            : typeof data.expires_in === "number"
-              ? data.expires_in
-              : undefined,
-        user,
-        roles,
-        message: raw.message as string | undefined,
-        success: raw.success as boolean | undefined,
-      };
-    } catch (error) {
+        token: accessToken,
+        refreshToken: backendData.data.refreshToken,
+        expiresIn: backendData.data.expiresIn,
+        user: {
+          id: String(user.id),
+          email: user.email,
+          fullName: user.fullname,
+        },
+        roles: roles,
+        message: backendData.message,
+        success: backendData.success,
+      } as AuthResponse;
+    } catch (error: any) {
       console.error("Login error:", error);
-      if (error instanceof TypeError && error.message.includes("fetch")) {
+      
+      // Xử lý lỗi network
+      if (error.message?.includes("Network Error") || error.code === "ECONNABORTED" || error.message?.includes("không thể kết nối")) {
         throw new Error(
           `Không thể kết nối đến server. Vui lòng kiểm tra:\n` +
           `1. Backend có đang chạy không?\n` +
-          `2. URL backend: ${API_BASE_URL}\n` +
-          `3. Endpoint: /api/Users/login`,
+          `2. URL backend: ${apiClient.defaults.baseURL}\n` +
+          `3. Endpoint: /api/Users/login`
         );
       }
       throw error;
@@ -73,45 +68,39 @@ export const authService = {
   },
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const url = `${API_BASE_URL}/api/Users/register`;
+    try {
+      // Gọi API register (không cần token)
+      const response = await apiClient.post<BackendLoginResponse>(
+        "/api/Users/register",
+        userData
+      );
+      
+      const backendData = response.data;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    });
+      // Nếu backend trả về error (success: false) nhưng status 200
+      if (!backendData.success || !backendData.data) {
+        throw new Error(backendData.message || "Registration failed");
+      }
 
-    // Backend also returns BaseResponse<Something>
-    const raw = await handleResponse<Record<string, any>>(response);
-    const data = (raw.data ?? raw) as Record<string, any>;
+      const { accessToken, user, roles } = backendData.data;
 
-    const token =
-      data.accessToken ??
-      data.access_token ??
-      raw.token ??
-      raw.accessToken ??
-      raw.access_token;
-
-    const user =
-      (data.user ?? raw.user ?? data.userInfo) as AuthResponse["user"];
-
-    const roles = (data.roles ?? raw.roles) as string[] | undefined;
-
-    return {
-      token,
-      refreshToken: data.refreshToken ?? data.refresh_token,
-      expiresIn:
-        typeof data.expiresIn === "number"
-          ? data.expiresIn
-          : typeof data.expires_in === "number"
-            ? data.expires_in
-            : undefined,
-      user,
-      roles,
-      message: raw.message as string | undefined,
-      success: raw.success as boolean | undefined,
-    };
+      // Map sang AuthResponse format (giữ nguyên để LoginPage.tsx không cần sửa)
+      return {
+        token: accessToken,
+        refreshToken: backendData.data.refreshToken,
+        expiresIn: backendData.data.expiresIn,
+        user: {
+          id: String(user.id),
+          email: user.email,
+          fullName: user.fullname,
+        },
+        roles: roles,
+        message: backendData.message,
+        success: backendData.success,
+      } as AuthResponse;
+    } catch (error: any) {
+      console.error("Register error:", error);
+      throw error;
+    }
   },
 };
