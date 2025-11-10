@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, RefreshCcw } from "lucide-react";
 import { getUsersPaged, getUser, deleteUser } from "@/services/userService";
 import type { UserItem } from "@/types/user";
 import UserDetailsDialog from "@/components/admin/UserDetailsDialog";
@@ -51,7 +51,7 @@ export default function ManageAccounts() {
   // New user dialog
   const [newOpen, setNewOpen] = useState(false);
 
-  // Debounce search (GIỮ nguyên hoa-thường & dấu)
+  // Debounce search (giữ nguyên khi gõ; normalize khi lọc)
   const [qDebounced, setQDebounced] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(query), 250);
@@ -86,32 +86,42 @@ export default function ManageAccounts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, qDebounced]);
 
-  // STRICT prefix search (case/diacritics-sensitive)
+  // ===================== SEARCH (contains, accent-insensitive, case-insensitive) =====================
   const filtered = useMemo(() => {
-    const q = qDebounced;
+    const q = qDebounced.trim();
     if (!q) return users;
 
-    const startsWith = (val: unknown) =>
-      typeof val === "string"
-        ? val.startsWith(q)
-        : typeof val === "number"
-        ? String(val).startsWith(q)
-        : false;
+    const normalize = (s: unknown) =>
+      typeof s === "string"
+        ? s
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+        : typeof s === "number"
+        ? String(s)
+        : "";
+
+    const terms = normalize(q).split(/\s+/).filter(Boolean);
 
     return users.filter((u) => {
-      return (
-        startsWith(u.fullName) ||
-        startsWith(u.email) ||
-        startsWith(u.role) ||
-        startsWith(u.status) ||
-        startsWith(u.phoneNumber) ||
-        startsWith(u.gender) ||
-        (u.birthYear != null && startsWith(u.birthYear))
-      );
+      const haystack = [
+        u.fullName,
+        u.email,
+        u.role,
+        u.status,
+        u.phoneNumber,
+        u.gender,
+        u.birthYear != null ? String(u.birthYear) : "",
+      ]
+        .map(normalize)
+        .join(" ");
+
+      return terms.every((t) => haystack.includes(t));
     });
   }, [users, qDebounced]);
+  // ==================================================================================================
 
-  // Cắt trang khi search (client-side)
+  // Cắt trang khi search
   const startIndex = (pageNumber - 1) * pageSize;
   const pagesForView = qDebounced ? Math.max(1, Math.ceil(filtered.length / pageSize)) : totalPages;
 
@@ -147,6 +157,12 @@ export default function ManageAccounts() {
     }
   }
 
+  // Nhận user sau khi lưu từ EditAccountDialog và cập nhật bảng ngay
+  const handleSavedUser = (updated: UserItem) => {
+    setUsers((prev) => prev.map((it) => (it.userId === updated.userId ? updated : it)));
+    setEditOpen(false);
+  };
+
   // Delete
   function askDelete(u: UserItem) {
     setTargetUser(u);
@@ -158,9 +174,11 @@ export default function ManageAccounts() {
     try {
       setDeleting(true);
       await deleteUser(targetUser.userId);
+      // Cập nhật nhanh UI không cần refetch
+      setUsers((prev) => prev.filter((x) => x.userId !== targetUser.userId));
+      setTotalCount((c) => Math.max(0, c - 1));
       setConfirmOpen(false);
       setTargetUser(null);
-      await load();
     } catch {
       setConfirmOpen(false);
       setTargetUser(null);
@@ -171,35 +189,39 @@ export default function ManageAccounts() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-1">Admin</h1>
-
       <Card className="mt-6 rounded-2xl">
-        <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-[220px]">
-            <CardTitle className="text-xl">Manage Accounts</CardTitle>
-            <p className="text-sm text-neutral-500">
-              Manage users in real-time. Follow business rules and keep clear audit logs.
-            </p>
+        <CardHeader className="gap-4">
+          <div>
+            <CardTitle className="text-3xl font-bold">Manager User</CardTitle>
+            <p className="text-sm text-neutral-500 mt-1">Manage and edit users in the system.</p>
           </div>
-
-          <div className="flex-1 flex justify-center">
-            <div className="relative w-full max-w-md">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="relative w-full sm:max-w-xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input
-                placeholder="Search (prefix, case-sensitive)…"
+                placeholder="Search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 rounded-xl"
+                className="w-full pl-9 h-11 rounded-xl"
               />
             </div>
-          </div>
-
-          {/* Nút New User canh phải */}
-          <div className="min-w-[140px] flex justify-end">
-            <Button className="rounded-lg gap-2" onClick={() => setNewOpen(true)}>
-              <Plus className="h-4 w-4" />
-              New User
-            </Button>
+            <div className="flex items-center gap-3 shrink-0">
+              <Button
+                variant="secondary"
+                className="rounded-xl h-11 bg-white hover:bg-neutral-50 border"
+                onClick={load}
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              <Button
+                className="rounded-xl h-11 px-4 bg-slate-900 text-white hover:bg-slate-800"
+                onClick={() => setNewOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New User
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -297,7 +319,7 @@ export default function ManageAccounts() {
                 : qDebounced
                 ? `Found ${filtered.length} result${filtered.length === 1 ? "" : "s"}`
                 : totalCount > 0
-                ? `Showing ${startIndex + 1}–${Math.min(startIndex + users.length, totalCount)} of ${totalCount}`
+                ? `Showing ${startIndex + 1}–${Math.min(startIndex + paged.length, totalCount)} of ${totalCount}`
                 : ""}
             </div>
 
@@ -354,10 +376,7 @@ export default function ManageAccounts() {
         open={editOpen}
         onOpenChange={setEditOpen}
         user={editUser}
-        onSaved={async () => {
-          setEditOpen(false);
-          await load();
-        }}
+        onSaved={handleSavedUser} // <-- cập nhật bảng ngay, không refetch
       />
 
       {/* Create */}
@@ -366,7 +385,6 @@ export default function ManageAccounts() {
         onOpenChange={setNewOpen}
         onCreated={async () => {
           setNewOpen(false);
-          // Sau khi tạo, về trang 1 để dễ thấy user mới (tùy BE sắp xếp)
           if (pageNumber !== 1) setPageNumber(1);
           await load();
         }}

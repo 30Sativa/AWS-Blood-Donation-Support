@@ -13,37 +13,18 @@ import {
   X,
 } from "lucide-react";
 import { updateUser } from "@/services/userService";
-import type { UserItem } from "@/types/user";
+import type { UserItem, UserRole } from "@/types/user";
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   user: UserItem | null;
-  onSaved: () => void | Promise<void>;
+  /** Trả về user đã cập nhật để parent update ngay bảng */
+  onSaved: (updated: UserItem) => void | Promise<void>;
 };
 
 const BLOOD_TYPES = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
 type BloodType = (typeof BLOOD_TYPES)[number];
-
-// Map label ↔ code cho role
-const roleLabelToCode = (label: string): "ADMIN" | "STAFF" | "MEMBER" | "GUEST" => {
-  const map: Record<string, "ADMIN" | "STAFF" | "MEMBER" | "GUEST"> = {
-    Admin: "ADMIN",
-    Staff: "STAFF",
-    Member: "MEMBER",
-    Guest: "GUEST",
-  };
-  return map[label] ?? "MEMBER";
-};
-const roleCodeToLabel = (code?: string): "Admin" | "Staff" | "Member" | "Guest" => {
-  const map: Record<string, "Admin" | "Staff" | "Member" | "Guest"> = {
-    ADMIN: "Admin",
-    STAFF: "Staff",
-    MEMBER: "Member",
-    GUEST: "Guest",
-  };
-  return map[code ?? ""] ?? "Member";
-};
 
 export default function EditAccountDialog({ open, onOpenChange, user, onSaved }: Props) {
   const [fullName, setFullName] = React.useState("");
@@ -51,21 +32,21 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
   const [birthYear, setBirthYear] = React.useState<string>("");
   const [gender, setGender] = React.useState<"" | "Male" | "Female" | "Other">("");
   const [bloodType, setBloodType] = React.useState<BloodType>("");
-  const [roleLabel, setRoleLabel] = React.useState<"Admin" | "Staff" | "Member" | "Guest">("Member");
+  // Role Title Case để hợp với UserRole & userService tự convert
+  const [roleLabel, setRoleLabel] = React.useState<UserRole>("Member");
 
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // đồng bộ data khi mở
+  // Đồng bộ data khi mở
   React.useEffect(() => {
     if (!open || !user) return;
     setFullName(user.fullName ?? "");
-    setPhoneNumber((user as any).phoneNumber ?? "");
-    setBirthYear((user as any).birthYear ? String((user as any).birthYear) : "");
-    setGender(((user as any).gender as any) ?? "");
-    setBloodType(((user as any).bloodType as any) ?? "");
-    // user.role đã là dạng label "Admin/Staff/Member/Guest"
-    setRoleLabel(user.role ? (user.role as any) : "Member");
+    setPhoneNumber(user.phoneNumber ?? "");
+    setBirthYear(user.birthYear ? String(user.birthYear) : "");
+    setGender((user.gender as any) ?? "");
+    setBloodType((user.bloodType as any) ?? "");
+    setRoleLabel((user.role as UserRole) ?? "Member");
     setError(null);
     setSaving(false);
   }, [open, user]);
@@ -93,20 +74,18 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
     setSaving(true);
     setError(null);
     try {
-      const roleCode = roleLabelToCode(roleLabel);
-      await updateUser(user.userId, {
+      // Gửi role dạng Title Case; userService sẽ tự convert & xử lý đa-Shape + bóc {data}
+      const updated = await updateUser(user.userId, {
         fullName: fullName.trim(),
+        email: user.email, // nhiều BE yêu cầu gửi lại email khi update
         phoneNumber: phoneNumber.trim() || null,
         birthYear: birthYear ? Number(birthYear) : null,
         gender: (gender || undefined) as any,
-        bloodType: bloodType || undefined,
-        // Gửi đủ các biến thể role để tương thích nhiều backend
-        role: roleCode,
-        roleCode: roleCode,
-        roleName: roleLabel,
+        bloodType: (bloodType || undefined) as any,
+        role: roleLabel,
       } as any);
 
-      await onSaved();
+      await onSaved(updated); // <-- trả updated cho parent cập nhật bảng ngay
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message ?? "Failed to save changes.");
@@ -139,6 +118,7 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Nguyễn Văn A"
                 className="rounded-xl"
+                disabled={saving}
               />
             }
           />
@@ -153,6 +133,7 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="+84 123 456 789"
                 className="rounded-xl"
+                disabled={saving}
               />
             }
           />
@@ -168,6 +149,7 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
                 onChange={(e) => setBirthYear(e.target.value.replace(/[^\d]/g, ""))}
                 placeholder="2001"
                 className="rounded-xl"
+                disabled={saving}
               />
             }
           />
@@ -181,6 +163,7 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
                 className="w-full rounded-xl border px-3 py-2 text-sm"
                 value={gender}
                 onChange={(e) => setGender(e.target.value as any)}
+                disabled={saving}
               >
                 <option value="">(Not set)</option>
                 <option value="Male">Male</option>
@@ -199,6 +182,7 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
                 className="w-full rounded-xl border px-3 py-2 text-sm"
                 value={bloodType}
                 onChange={(e) => setBloodType(e.target.value as BloodType)}
+                disabled={saving}
               >
                 {BLOOD_TYPES.map((t) => (
                   <option key={t || "(empty)"} value={t}>
@@ -217,7 +201,8 @@ export default function EditAccountDialog({ open, onOpenChange, user, onSaved }:
               <select
                 className="w-full rounded-xl border px-3 py-2 text-sm"
                 value={roleLabel}
-                onChange={(e) => setRoleLabel(e.target.value as any)}
+                onChange={(e) => setRoleLabel(e.target.value as UserRole)}
+                disabled={saving}
               >
                 <option value="Admin">Admin</option>
                 <option value="Staff">Staff</option>
