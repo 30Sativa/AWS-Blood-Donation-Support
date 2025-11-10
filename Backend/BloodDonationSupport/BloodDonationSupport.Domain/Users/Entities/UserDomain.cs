@@ -69,5 +69,10 @@ namespace BloodDonationSupport.Domain.Users.Entities
         {
             PhoneNumber = phone;
         }
+
+        public void SetProfile(UserProfileDomain profile)
+        {
+            Profile = profile;
+        }
     }
 }

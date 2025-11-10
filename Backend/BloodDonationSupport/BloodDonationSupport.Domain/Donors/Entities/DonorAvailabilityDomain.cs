@@ -16,8 +16,9 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         private DonorAvailability() { } // For EF Core
 
-        private DonorAvailability(byte weekday, short from, short to)
+        private DonorAvailability(long donorId, byte weekday, short from, short to)
         {
+            DonorId = donorId;
             Weekday = weekday;
             TimeFromMin = from;
             TimeToMin = to;
@@ -25,9 +26,15 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         public static DonorAvailability Create(byte weekday, short from, short to)
         {
-            return new DonorAvailability(weekday, from, to);
+            return new DonorAvailability(0, weekday, from, to);
         }
 
-
+        public static DonorAvailability Rehydrate(long id, long donorId, byte weekday, short from, short to)
+        {
+            return new DonorAvailability(donorId, weekday, from, to)
+            {
+                Id = id
+            };
+        }
     }
 }

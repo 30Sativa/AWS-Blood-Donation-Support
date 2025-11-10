@@ -5,6 +5,7 @@ using BloodDonationSupport.Domain.Users.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Linq.Expressions;
 using DonorDomain = BloodDonationSupport.Domain.Donors.Entities.DonorDomain;
 
@@ -260,22 +261,68 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         {
             var donor = MapToDomain(entity);
 
+            // Map User với Profile
             if (entity.User != null)
             {
                 var email = new Domain.Users.ValueObjects.Email(entity.User.Email);
-                donor.SetUser(Domain.Users.Entities.UserDomain.Rehydrate(
+                var userDomain = Domain.Users.Entities.UserDomain.Rehydrate(
                     entity.User.UserId,
                     email,
                     entity.User.CognitoUserId,
                     entity.User.PhoneNumber,
                     entity.User.IsActive,
                     entity.User.CreatedAt
-                ));
+                );
+
+                // Map UserProfile nếu có
+                if (entity.User.UserProfile != null)
+                {
+                    var profile = Domain.Users.Entities.UserProfileDomain.Rehydrate(
+                        entity.User.UserProfile.UserId,
+                        entity.User.UserProfile.FullName,
+                        entity.User.UserProfile.BirthYear,
+                        entity.User.UserProfile.Gender,
+                        entity.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
+                    );
+                    userDomain.SetProfile(profile);
+                }
+
+                donor.SetUser(userDomain);
             }
 
+            // Map BloodType
             if (entity.BloodType != null)
             {
                 donor.SetBloodType(entity.BloodType.BloodTypeId, entity.BloodType.Abo, entity.BloodType.Rh);
+            }
+
+            // Map Availabilities
+            if (entity.DonorAvailabilities != null && entity.DonorAvailabilities.Any())
+            {
+                foreach (var availability in entity.DonorAvailabilities)
+                {
+                    var availabilityDomain = Domain.Donors.Entities.DonorAvailability.Rehydrate(
+                        availability.AvailabilityId,
+                        availability.DonorId,
+                        availability.Weekday,
+                        availability.TimeFromMin,
+                        availability.TimeToMin
+                    );
+                    donor.AddAvailability(availabilityDomain);
+                }
+            }
+
+            // Map HealthConditions
+            if (entity.DonorHealthConditions != null && entity.DonorHealthConditions.Any())
+            {
+                foreach (var healthCondition in entity.DonorHealthConditions)
+                {
+                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Create(
+                        healthCondition.DonorId,
+                        healthCondition.ConditionId
+                    );
+                    donor.AddHealthCondition(healthConditionDomain);
+                }
             }
 
             return donor;
