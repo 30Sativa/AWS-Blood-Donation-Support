@@ -340,5 +340,26 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return donor;
         }
+
+
+        // =========================
+        // NOT IMPLEMENTED
+        // =========================
+        
+        public async Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId)
+        {
+            var entity = await _context.Donors
+        .Include(d => d.DonorAvailabilities)
+        .Include(d => d.DonorHealthConditions)
+        .FirstOrDefaultAsync(d => d.DonorId == donorId);
+
+            if (entity == null)
+                return null;
+
+            // Map EF entity sang Domain aggregate
+            var donor = MapToDomain(entity);
+
+            return donor;
+        }
     }
 }

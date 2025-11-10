@@ -13,5 +13,6 @@ namespace BloodDonationSupport.Application.Common.Interfaces
     {
         Task<(IEnumerable<DonorDomain> Items, int TotalCount)> GetPagedWithRelationsAsync(int pageNumber, int pageSize);
         Task<DonorDomain?> GetByIdWithRelationsAsync(long donorId);
+        Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId);
     }
 }
