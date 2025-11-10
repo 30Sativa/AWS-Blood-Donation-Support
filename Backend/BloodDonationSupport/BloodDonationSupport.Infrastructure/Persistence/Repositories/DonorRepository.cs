@@ -204,6 +204,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 .Include(d => d.BloodType)
                 .Include(d => d.DonorAvailabilities)
                 .Include(d => d.DonorHealthConditions)
+                    .ThenInclude(h => h.Condition)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(d => d.DonorId == donorId);
 
@@ -317,9 +318,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             {
                 foreach (var healthCondition in entity.DonorHealthConditions)
                 {
-                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Create(
+                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Rehydrate(
                         healthCondition.DonorId,
-                        healthCondition.ConditionId
+                        healthCondition.ConditionId,
+                        healthCondition.Condition?.ConditionName
                     );
                     donor.AddHealthCondition(healthConditionDomain);
                 }
