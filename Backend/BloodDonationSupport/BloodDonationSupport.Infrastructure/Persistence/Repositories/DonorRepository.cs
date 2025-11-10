@@ -40,7 +40,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 Latitude = domainEntity.LastKnownLocation?.Latitude,
                 Longitude = domainEntity.LastKnownLocation?.Longitude
             };
-
+            
             // Add Donor entity first
             await _context.Donors.AddAsync(entity);
             
@@ -103,7 +103,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var donors = await _context.Donors.AsNoTracking().ToListAsync();
             return donors.Select(MapToDomain);
         }
-
         // =========================
         // GET ALL
         // =========================
