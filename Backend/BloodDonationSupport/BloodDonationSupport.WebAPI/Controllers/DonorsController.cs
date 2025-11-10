@@ -43,7 +43,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             }
             return Ok(result);
         }
-
+        //fix
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
         public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)
