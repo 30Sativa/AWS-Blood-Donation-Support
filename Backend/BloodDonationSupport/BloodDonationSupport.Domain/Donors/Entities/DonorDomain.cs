@@ -26,6 +26,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public DateTime? LocationUpdatedAt { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
+        public string? AddressDisplay { get; private set; }
 
 
         // ✅Navigation Properties
@@ -64,6 +65,11 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         {
             AddressId = addressId;
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetAddressDisplay(string? addressDisplay)
+        {
+            AddressDisplay = addressDisplay;
         }
 
         public void MarkReady(bool ready)

@@ -201,6 +201,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var entity = await _context.Donors
                 .Include(d => d.User)
                     .ThenInclude(u => u.UserProfile)
+                .Include(d => d.Address)
                 .Include(d => d.BloodType)
                 .Include(d => d.DonorAvailabilities)
                 .Include(d => d.DonorHealthConditions)
@@ -295,6 +296,16 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             if (entity.BloodType != null)
             {
                 donor.SetBloodType(entity.BloodType.BloodTypeId, entity.BloodType.Abo, entity.BloodType.Rh);
+            }
+
+            // Map Address display
+            if (entity.Address != null)
+            {
+                var display = !string.IsNullOrWhiteSpace(entity.Address.NormalizedAddress)
+                    ? entity.Address.NormalizedAddress
+                    : string.Join(", ", new[] { entity.Address.Line1, entity.Address.District, entity.Address.City, entity.Address.Province }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                donor.SetAddressDisplay(string.IsNullOrWhiteSpace(display) ? null : display);
             }
 
             // Map Availabilities

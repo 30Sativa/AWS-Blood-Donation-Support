@@ -39,9 +39,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                 NextEligibleDate = donor.NextEligibleDate,
                 CreatedAt = donor.CreatedAt,
                 UpdatedAt = donor.UpdatedAt,
-                Address = donor.AddressId.HasValue
-                    ? $"Address #{donor.AddressId}" // (sau này sẽ map Address entity)
-                    : null,
+                Address = donor.AddressDisplay,
                 Availabilities = donor.Availabilities?
                     .Select(a => $"{ToVietnameseDay(a.Weekday)}: {MinutesToString(a.TimeFromMin)} - {MinutesToString(a.TimeToMin)}")
                     .ToList(),
