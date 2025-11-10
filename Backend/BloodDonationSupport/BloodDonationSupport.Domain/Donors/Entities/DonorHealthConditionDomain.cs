@@ -7,19 +7,19 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Donors.Entities
 {
-    public class DonorHealthCondition : BaseEntity<(long DonorId, int ConditionId)>
+    public class DonorHealthConditionDomain : BaseEntity<(long DonorId, int ConditionId)>
     {
         public long DonorId => Id.DonorId;
         public int ConditionId => Id.ConditionId;
 
-        private DonorHealthCondition() { } // EF Core cần
+        private DonorHealthConditionDomain() { } // EF Core cần
 
-        private DonorHealthCondition(long donorId, int conditionId)
+        private DonorHealthConditionDomain(long donorId, int conditionId)
         {
             Id = (donorId, conditionId);
         }
 
-        public static DonorHealthCondition Create(long donorId, int conditionId)
+        public static DonorHealthConditionDomain Create(long donorId, int conditionId)
             => new(donorId, conditionId);
     }
 }

@@ -6,7 +6,6 @@ using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using DonorDomain = BloodDonationSupport.Domain.Donors.Entities.DonorDomain;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -51,14 +50,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             // Add Availabilities
             foreach (var availability in domainEntity.Availabilities)
             {
-                var availabilityEntity = new DonorAvailability
+                var availabilityEntity = new Models.DonorAvailability
                 {
                     DonorId = entity.DonorId,
                     Weekday = availability.Weekday,
                     TimeFromMin = availability.TimeFromMin,
                     TimeToMin = availability.TimeToMin
                 };
-                await _context.Set<DonorAvailability>().AddAsync(availabilityEntity);
+                await _context.Set<Models.DonorAvailability>().AddAsync(availabilityEntity);
             }
             
             // Add Health Conditions

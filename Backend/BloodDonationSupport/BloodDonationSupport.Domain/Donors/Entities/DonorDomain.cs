@@ -14,7 +14,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
     public class DonorDomain : AggregateRoot<long>
     {
         private readonly List<DonorAvailability> _availabilities = new();
-        private readonly List<DonorHealthCondition> _healthConditions = new();
+        private readonly List<DonorHealthConditionDomain> _healthConditions = new();
 
         public long UserId { get; private set; }
         public int? BloodTypeId { get; private set; }
@@ -34,7 +34,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         // ✅Navigation domain collections
         public IReadOnlyCollection<DonorAvailability> Availabilities => _availabilities.AsReadOnly();
-        public IReadOnlyCollection<DonorHealthCondition> HealthConditions => _healthConditions.AsReadOnly();
+        public IReadOnlyCollection<DonorHealthConditionDomain> HealthConditions => _healthConditions.AsReadOnly();
 
         private DonorDomain() { } // EF cần constructor rỗng
 
@@ -110,7 +110,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         public void ClearAvailabilities() => _availabilities.Clear();
 
-        public void AddHealthCondition(DonorHealthCondition condition)
+        public void AddHealthCondition(DonorHealthConditionDomain condition)
         {
             if (!_healthConditions.Any(c => c.ConditionId == condition.ConditionId))
                 _healthConditions.Add(condition);
@@ -162,7 +162,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             DateTime createdAt,
             DateTime? updatedAt,
             IEnumerable<DonorAvailability> availabilities,
-            IEnumerable<DonorHealthCondition> healthConditions)
+            IEnumerable<DonorHealthConditionDomain> healthConditions)
         {
             var donor = Rehydrate(id, userId, bloodTypeId, addressId, travelRadiusKm, nextEligibleDate, isReady,
                                   lastKnownLocation, locationUpdatedAt, createdAt, updatedAt);

@@ -79,7 +79,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             {
                 foreach(var condId in reg.HealthConditionIds)
                 {
-                    donor.AddHealthCondition(DonorHealthCondition.Create(0,condId));
+                    donor.AddHealthCondition(DonorHealthConditionDomain.Create(0,condId));
                 }
             }
             //save to db
