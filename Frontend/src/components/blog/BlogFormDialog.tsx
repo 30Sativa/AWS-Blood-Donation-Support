@@ -83,7 +83,7 @@ export function BlogFormDialog({
         tagIds,
       });
     } catch (e) {
-      alert("Không thể tải thông tin bài viết. Vui lòng thử lại.");
+      alert("Unable to load the article information. Please try again..");
       onClose();
     } finally {
       setLoading(false);
@@ -92,12 +92,12 @@ export function BlogFormDialog({
 
   async function handleSave() {
     if (!draft.title || !draft.slug || !draft.authorId) {
-      alert("Tiêu đề, Slug và Tác giả là bắt buộc");
+      alert("Title, Slug, and Author are required");
       return;
     }
 
     if (!draft.content) {
-      alert("Nội dung là bắt buộc");
+      alert("Content is required");
       return;
     }
 
@@ -123,7 +123,7 @@ slug: draft.slug,
       await onSave(input);
       onClose();
     } catch (e) {
-      alert("Lỗi khi lưu bài viết. Vui lòng thử lại.");
+      alert("Error saving the post. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -142,15 +142,15 @@ slug: draft.slug,
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Tạo bài viết mới" : "Chỉnh sửa bài viết"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? "Create new post" : "Edit post"}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
-          <div className="py-10 text-center text-neutral-500">Đang tải thông tin bài viết...</div>
+          <div className="py-10 text-center text-neutral-500">Loading article information...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Label htmlFor="title">Tiêu đề *</Label>
+              <Label htmlFor="title">Title *</Label>
               <Input
                 id="title"
                 value={draft.title}
@@ -169,12 +169,12 @@ slug: draft.slug,
             </div>
 
             <div className="col-span-2">
-              <Label htmlFor="excerpt">Tóm tắt</Label>
+              <Label htmlFor="excerpt">Summary</Label>
               <Input
                 id="excerpt"
                 value={draft.excerpt}
                 onChange={(e) => setDraft((d) => ({ ...d, excerpt: e.target.value }))}
-                placeholder="Tóm tắt ngắn gọn về bài viết"
+                placeholder="A brief summary of the article"
               />
             </div>
 
@@ -185,12 +185,12 @@ slug: draft.slug,
                 className="w-full min-h-[300px] rounded-md border border-input bg-background p-3 text-sm"
                 value={draft.content}
                 onChange={(e) => setDraft((d) => ({ ...d, content: e.target.value }))}
-                placeholder="Nhập nội dung bài viết..."
+                placeholder="Enter the article content..."
               />
             </div>
 
             <div>
-              <Label htmlFor="authorId">ID Tác giả *</Label>
+              <Label htmlFor="authorId">Author ID *</Label>
               <Input
                 id="authorId"
                 type="number"
@@ -239,7 +239,7 @@ authorId: e.target.value ? Number(e.target.value) : null,
                     }))
                   }
                 />
-                <span className="text-sm">Đã xuất bản</span>
+                <span className="text-sm">Published </span>
               </label>
             </div>
           </div>
@@ -247,10 +247,10 @@ authorId: e.target.value ? Number(e.target.value) : null,
 
         <DialogFooter className="mt-4">
           <Button variant="secondary" onClick={onClose}>
-            Hủy
+            Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving || loading}>
-            {saving ? "Đang lưu..." : "Lưu"}
+            {saving ? "saving ..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -17,7 +17,7 @@ export function BlogActions({ post, onView, onEdit, onDelete }: BlogActionsProps
         size="icon"
         onClick={() => onView(post)}
         className="h-8 w-8"
-        title="Xem chi tiết"
+        title="View Details"
       >
         <Eye className="h-4 w-4" />
       </Button>
@@ -26,7 +26,7 @@ export function BlogActions({ post, onView, onEdit, onDelete }: BlogActionsProps
         size="icon"
         onClick={() => onEdit(post)}
         className="h-8 w-8"
-        title="Chỉnh sửa"
+        title="Edit"
       >
         <Edit3 className="h-4 w-4" />
       </Button>
@@ -35,7 +35,7 @@ export function BlogActions({ post, onView, onEdit, onDelete }: BlogActionsProps
         size="icon"
         onClick={() => onDelete(post.id)}
         className="h-8 w-8 text-destructive hover:text-destructive"
-        title="Xóa"
+        title="Delete"
       >
         <Trash2 className="h-4 w-4" />
       </Button>

@@ -25,7 +25,7 @@ export function BlogSearchBar({
         <Input
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Tìm kiếm bài viết, slug, tags..."
+          placeholder="Search posts, slugs, tags..."
           className="pl-9 bg-white"
         />
       </div>
@@ -37,10 +37,10 @@ export function BlogSearchBar({
           className="self-start sm:self-auto"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "Đang tải..." : "Làm mới"}
+          {refreshing ? "Loading..." : "Refreshing"}
         </Button>
         <Button onClick={onCreate} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" /> Tạo bài viết mới
+          <Plus className="h-4 w-4 mr-2" /> Create new blog
         </Button>
       </div>
     </div>

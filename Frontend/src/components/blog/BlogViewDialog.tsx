@@ -18,11 +18,11 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chi tiết bài viết</DialogTitle>
+          <DialogTitle>Article details</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label className="text-sm font-semibold">Tiêu đề</Label>
+            <Label className="text-sm font-semibold">Title</Label>
             <p className="text-lg font-medium">{post.title}</p>
           </div>
           <div>
@@ -31,13 +31,13 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
           </div>
           {post.excerpt && (
             <div>
-              <Label className="text-sm font-semibold">Tóm tắt</Label>
+              <Label className="text-sm font-semibold">summary</Label>
               <p className="text-sm">{post.excerpt}</p>
             </div>
           )}
           {post.content && (
             <div>
-              <Label className="text-sm font-semibold">Nội dung</Label>
+              <Label className="text-sm font-semibold">Content</Label>
               <div className="mt-2 p-4 bg-neutral-50 rounded-lg">
                 <pre className="whitespace-pre-wrap text-sm">{post.content}</pre>
               </div>
@@ -45,24 +45,24 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-semibold">Tác giả</Label>
+              <Label className="text-sm font-semibold">Author</Label>
               <p className="text-sm">{post.authorName ?? `ID: ${post.authorId ?? "N/A"}`}</p>
             </div>
             <div>
-              <Label className="text-sm font-semibold">Trạng thái</Label>
+              <Label className="text-sm font-semibold">Status</Label>
               <p className="text-sm">
                 <span
                   className={
                     post.isPublished ? "text-green-600 font-medium" : "text-neutral-500"
                   }
                 >
-                  {post.isPublished ? "Đã xuất bản" : "Bản nháp"}
+                  {post.isPublished ? "Published" : "Draft"}
                 </span>
               </p>
             </div>
             {post.publishedAt && (
               <div>
-                <Label className="text-sm font-semibold">Ngày xuất bản</Label>
+                <Label className="text-sm font-semibold">published Date</Label>
                 <p className="text-sm">
                   {new Date(post.publishedAt).toLocaleString("vi-VN")}
                 </p>
@@ -70,7 +70,7 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
             )}
             {post.createdAt && (
               <div>
-                <Label className="text-sm font-semibold">Ngày tạo</Label>
+                <Label className="text-sm font-semibold">Date created</Label>
                 <p className="text-sm">{new Date(post.createdAt).toLocaleString("vi-VN")}</p>
               </div>
             )}
@@ -92,7 +92,7 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
           )}
           {post.imageUrl && (
             <div>
-              <Label className="text-sm font-semibold">Hình ảnh</Label>
+              <Label className="text-sm font-semibold">Images</Label>
               <img
                 src={post.imageUrl}
                 alt={post.title}
@@ -103,7 +103,7 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Đóng
+            Cancel
           </Button>
           <Button
             onClick={() => {
@@ -111,7 +111,7 @@ export function BlogViewDialog({ post, open, onOpenChange, onEdit }: BlogViewDia
               onEdit(post);
             }}
           >
-            <Edit3 className="h-4 w-4 mr-2" /> Chỉnh sửa
+            <Edit3 className="h-4 w-4 mr-2" /> Edit
           </Button>
         </DialogFooter>
       </DialogContent>

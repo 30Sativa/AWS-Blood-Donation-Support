@@ -18,11 +18,11 @@ export function BlogTable({ posts, loading, onView, onEdit, onDelete }: BlogTabl
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[34%]">Tiêu đề</TableHead>
-              <TableHead>Ngày xuất bản</TableHead>
-              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-[34%]">Tilte</TableHead>
+              <TableHead>Published date</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Tags</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -43,17 +43,17 @@ export function BlogTable({ posts, loading, onView, onEdit, onDelete }: BlogTabl
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[34%]">Tiêu đề</TableHead>
-              <TableHead>Ngày xuất bản</TableHead>
-              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-[34%]">Title</TableHead>
+              <TableHead>Published Date</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Tags</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow>
               <TableCell colSpan={5} className="py-10 text-center text-neutral-500">
-                Không có bài viết nào.
+              There are no posts.
               </TableCell>
             </TableRow>
           </TableBody>
@@ -67,11 +67,11 @@ export function BlogTable({ posts, loading, onView, onEdit, onDelete }: BlogTabl
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[34%]">Tiêu đề</TableHead>
-            <TableHead>Ngày xuất bản</TableHead>
-            <TableHead>Trạng thái</TableHead>
+            <TableHead className="w-[34%]">Title</TableHead>
+            <TableHead>Published date</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Tags</TableHead>
-            <TableHead className="text-right">Thao tác</TableHead>
+            <TableHead className="text-right">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -103,7 +103,7 @@ export function BlogTable({ posts, loading, onView, onEdit, onDelete }: BlogTabl
                     post.isPublished ? "text-green-600 font-medium" : "text-neutral-500"
                   }
                 >
-                  {post.isPublished ? "Đã xuất bản" : "Bản nháp"}
+                  {post.isPublished ? "Published" : "Draft"}
                 </span>
               </TableCell>
               <TableCell className="text-sm text-neutral-700">

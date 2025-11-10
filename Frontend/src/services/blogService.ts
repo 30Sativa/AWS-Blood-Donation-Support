@@ -84,6 +84,11 @@ export async function updateBlogPost(id: number, input: UpdateBlogPostInput): Pr
     if (input.excerpt !== undefined && input.excerpt !== null && input.excerpt !== "") {
       requestBody.excerpt = input.excerpt;
     }
+    if (input.excerpt !== undefined) {
+      requestBody.excerpt = (input.excerpt === null || input.excerpt.trim() === "") 
+        ? null 
+        : input.excerpt.trim();
+    }
     if (input.authorId !== undefined) requestBody.authorId = input.authorId;
     if (input.isPublished !== undefined) requestBody.isPublished = input.isPublished;
     if (input.tagNames !== undefined) requestBody.tagNames = input.tagNames;
