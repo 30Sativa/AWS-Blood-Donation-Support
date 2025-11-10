@@ -21,24 +21,22 @@ export interface UserItem {
   createdAt?: string;
   updatedAt?: string;
 
-  // các field profile (có thể BE không trả thì để optional)
   phoneNumber?: string | null;
   gender?: Gender;
   birthYear?: number | null;
-  bloodType?: BloodType;     // ⬅️ NEW
+  bloodType?: BloodType;     
 
   hasDonorProfile?: boolean;
 }
 
-/* (Tuỳ chọn) dùng chung cho form tạo/cập nhật */
 export type CreateUserPayload = {
   fullName: string;
   email: string;
-  role?: "ADMIN" | "STAFF" | "MEMBER" | "GUEST"; // chú ý: code role gửi lên BE dạng UPPER_CASE
+  role?: "ADMIN" | "STAFF" | "MEMBER" | "GUEST"; 
   phoneNumber?: string | null;
   gender?: Gender;
   birthYear?: number | null;
-  bloodType?: BloodType;     // ⬅️ NEW
+  bloodType?: BloodType;     
 };
 
 export type UpdateUserPayload = Partial<CreateUserPayload> & {
