@@ -91,21 +91,33 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            // chỉ hỗ trợ predicate dạng: d => d.UserId == x
-            // extract giá trị userId từ Expression (đơn giản hoá)
-            var body = predicate.Body.ToString();
-
-            // Trường hợp cụ thể: check donor theo userId
-            if (body.Contains("UserId"))
+            if (predicate.Body is BinaryExpression binaryExpr && binaryExpr.Left is MemberExpression left)
             {
-                // lấy ra userId từ biểu thức
-                var userId = Convert.ToInt64(
-                    ((ConstantExpression)((BinaryExpression)predicate.Body).Right).Value);
+                if (left.Member.Name == nameof(DonorDomain.UserId))
+                {
+                    object? value = null;
 
-                return await _context.Donors.AnyAsync(d => d.UserId == userId);
+                    // Trường hợp 1: So sánh trực tiếp với hằng số (vd: d => d.UserId == 5)
+                    if (binaryExpr.Right is ConstantExpression constExpr)
+                    {
+                        value = constExpr.Value;
+                    }
+                    // Trường hợp 2: So sánh với biến (vd: d => d.UserId == userId)
+                    else if (binaryExpr.Right is MemberExpression memberExpr)
+                    {
+                        // Lấy giá trị thật từ closure
+                        var objectMember = Expression.Convert(memberExpr, typeof(object));
+                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
+                        var getter = getterLambda.Compile();
+                        value = getter();
+                    }
+
+                    if (value is long userId)
+                        return await _context.Donors.AnyAsync(d => d.UserId == userId);
+                }
             }
 
-            // fallback (không tìm thấy)
+            // fallback
             return false;
         }
 
