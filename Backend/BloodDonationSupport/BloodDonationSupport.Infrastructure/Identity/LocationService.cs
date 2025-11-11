@@ -21,7 +21,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _httpClient = new HttpClient();
 
             _region = configuration["AWS:Region"] ?? "ap-southeast-2";
-            _apiKey = configuration["AWS:LocationApiKey"] ?? throw new Exception("Missing AWS Location API key");
+            _apiKey = configuration["AWS:LocationApiKey"]
+                      ?? throw new Exception("Missing AWS Location API key");
         }
 
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
@@ -35,7 +36,9 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 {
                     d.DonorId,
                     FullName = d.User.UserProfile.FullName,
-                    BloodGroup = d.BloodType != null ? $"{d.BloodType.Abo} {d.BloodType.Rh}" : "Unknown",
+                    BloodGroup = d.BloodType != null
+                        ? $"{d.BloodType.Abo} {d.BloodType.Rh}"
+                        : "Unknown",
                     AddressDisplay = d.Address != null
                         ? $"{d.Address.Line1}, {d.Address.District}, {d.Address.City}"
                         : "Chưa có địa chỉ",
@@ -48,34 +51,40 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // URL API mới (không cần Route Calculator)
-            var apiUrl = $"https://routes.geo.{_region}.amazonaws.com/v2/routes/calculate";
+            // ✅ Endpoint mới (Route Matrix V2)
+            var apiUrl = $"https://routes.geo.{_region}.amazonaws.com/v2/routes/calculate/matrix";
 
-            var requestBody = new
+            var body = new
             {
-                DeparturePosition = new[] { longitude, latitude },
-                DestinationPositions = donors
-                    .Select(d => new[] { d.Longitude ?? 0, d.Latitude ?? 0 })
-                    .ToArray(),
-                TravelMode = "Car"
+                travelMode = "Car",
+                departures = new[] { new { position = new[] { longitude, latitude } } },
+                destinations = donors.Select(d => new
+                {
+                    position = new[] { d.Longitude ?? 0, d.Latitude ?? 0 }
+                }).ToArray()
             };
 
             var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
             request.Headers.Add("X-Amz-Api-Key", _apiKey);
-            request.Content = JsonContent.Create(requestBody);
+            request.Content = JsonContent.Create(body);
 
             var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
 
-            var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"AWS Routes V2 error ({response.StatusCode}): {content}");
+
+            using var doc = JsonDocument.Parse(content);
+            var matrix = doc.RootElement.GetProperty("routeMatrix");
 
             var results = new List<NearbyDonorResponse>();
-            var routes = json.RootElement.GetProperty("Routes");
-
-            int i = 0;
-            foreach (var route in routes.EnumerateArray())
+            for (int i = 0; i < matrix.GetArrayLength(); i++)
             {
-                var distanceKm = route.GetProperty("Distance").GetDouble() / 1000;
+                var cell = matrix[i][0];
+                if (cell.ValueKind == JsonValueKind.Null || !cell.TryGetProperty("distance", out var dist))
+                    continue;
+
+                var distanceKm = dist.GetDouble() / 1000;
                 if (distanceKm <= radiusKm)
                 {
                     var d = donors[i];
@@ -92,7 +101,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
                         IsReady = true
                     });
                 }
-                i++;
             }
 
             Console.WriteLine($"[AWS V2] Found {results.Count} donors within {radiusKm} km.");
