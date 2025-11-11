@@ -56,6 +56,36 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
+            // Prefilter to avoid AWS RouteMatrix 400 km constraint from origin to any destination
+            // Use a quick Haversine estimation to keep only donors within 400 km of the request point
+            const double awsMaxKm = 400.0;
+            double ToRadians(double deg) => deg * Math.PI / 180.0;
+            double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+            {
+                const double earthRadiusKm = 6371.0;
+                var dLat = ToRadians(lat2 - lat1);
+                var dLon = ToRadians(lon2 - lon1);
+                var a =
+                    Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+                return earthRadiusKm * c;
+            }
+
+            var prefiltered = donors
+                .Select(d => new
+                {
+                    Donor = d,
+                    ApproxKm = HaversineKm(latitude, longitude, d.Latitude ?? 0, d.Longitude ?? 0)
+                })
+                .Where(x => x.ApproxKm <= awsMaxKm) // ensure compatibility with AWS limitation
+                .Select(x => x.Donor)
+                .ToList();
+
+            if (!prefiltered.Any())
+                return new List<NearbyDonorResponse>();
+
             // ✅ Use AWS SDK CalculateRouteMatrix (SigV4)
             var req = new CalculateRouteMatrixRequest
             {
@@ -65,7 +95,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 {
                     new List<double> { longitude, latitude } // [lng, lat]
                 },
-                DestinationPositions = donors
+                DestinationPositions = prefiltered
                     .Select(d => new List<double> { d.Longitude ?? 0, d.Latitude ?? 0 })
                     .ToList()
             };
@@ -83,7 +113,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 var distanceKm = (cell.Distance.Value) / 1000.0;
                 if (distanceKm <= radiusKm)
                 {
-                    var d = donors[i];
+                    var d = prefiltered[i];
                     results.Add(new NearbyDonorResponse
                     {
                         DonorId = d.DonorId,
