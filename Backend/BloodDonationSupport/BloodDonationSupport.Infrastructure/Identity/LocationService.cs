@@ -1,6 +1,9 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
+using Amazon;
+using Amazon.LocationService;
+using Amazon.LocationService.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
@@ -11,21 +14,20 @@ namespace BloodDonationSupport.Infrastructure.Identity
     public class LocationService : ILocationService
     {
         private readonly AppDbContext _context;
-        private readonly HttpClient _httpClient;
         private readonly string _region;
-        private readonly string _apiKey;
         private readonly string _routeCalculatorName;
+        private readonly IAmazonLocationService _locationClient;
 
         public LocationService(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
-            _httpClient = new HttpClient();
 
             _region = configuration["AWS:Region"] ?? "ap-southeast-2";
-            _apiKey = configuration["AWS:LocationApiKey"]
-                      ?? throw new Exception("Missing AWS Location API key");
             _routeCalculatorName = configuration["AWS:LocationRouteCalculatorName"]
                       ?? throw new Exception("Missing AWS Location Route Calculator name");
+
+            // Use AWS SDK (SigV4) instead of API Key to avoid authorization issues
+            _locationClient = new AmazonLocationServiceClient(RegionEndpoint.GetBySystemName(_region));
         }
 
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
@@ -54,43 +56,31 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // ✅ Amazon Location Routes V2 - Calculate Route Matrix (calculator required)
-            // Docs: POST https://routes.geo.{region}.amazonaws.com/routes/v2/matrix/calculators/{CalculatorName}
-            var apiUrl = $"https://routes.geo.{_region}.amazonaws.com/routes/v2/matrix/calculators/{_routeCalculatorName}";
-
-            var body = new
+            // ✅ Use AWS SDK CalculateRouteMatrix (SigV4)
+            var req = new CalculateRouteMatrixRequest
             {
-                travelMode = "Car",
-                departures = new[] { new { position = new[] { longitude, latitude } } },
-                destinations = donors.Select(d => new
+                CalculatorName = _routeCalculatorName,
+                TravelMode = TravelMode.Car,
+                DeparturePositions = new List<List<double>>
                 {
-                    position = new[] { d.Longitude ?? 0, d.Latitude ?? 0 }
-                }).ToArray()
+                    new List<double> { longitude, latitude } // [lng, lat]
+                },
+                DestinationPositions = donors
+                    .Select(d => new List<double> { d.Longitude ?? 0, d.Latitude ?? 0 })
+                    .ToList()
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl)
-            {
-                Content = JsonContent.Create(body)
-            };
-            request.Headers.Add("X-Amz-Api-Key", _apiKey);
-
-            var response = await _httpClient.SendAsync(request);
-            var content = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"AWS Routes V2 error ({response.StatusCode}): {content}");
-
-            using var doc = JsonDocument.Parse(content);
-            var matrix = doc.RootElement.GetProperty("routeMatrix");
+            var resp = await _locationClient.CalculateRouteMatrixAsync(req);
+            var matrix = resp.RouteMatrix; // List<List<RouteMatrixEntry>>
 
             var results = new List<NearbyDonorResponse>();
-            for (int i = 0; i < matrix.GetArrayLength(); i++)
+            for (int i = 0; i < matrix.Count; i++)
             {
                 var cell = matrix[i][0];
-                if (cell.ValueKind == JsonValueKind.Null || !cell.TryGetProperty("distance", out var dist))
+                if (cell == null || cell.Distance == null)
                     continue;
 
-                var distanceKm = dist.GetDouble() / 1000;
+                var distanceKm = (cell.Distance.Value) / 1000.0;
                 if (distanceKm <= radiusKm)
                 {
                     var d = donors[i];
