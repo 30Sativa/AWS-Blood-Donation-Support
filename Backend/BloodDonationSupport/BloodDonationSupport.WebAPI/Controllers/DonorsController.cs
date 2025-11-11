@@ -68,5 +68,13 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new UpdateReadyStatusCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        // [GET] api/donors/nearby (Get nearby donors)
+        [HttpGet("nearby")]
+        public async Task<IActionResult> GetNearbyDonors([FromQuery] GetNearbyDonorsRequest request)
+        {
+            var result = await _mediator.Send(new GetNearbyDonorsQuery(request));
+            return result.Success ? Ok(result) : NotFound(result);
+        }
     }
 }

@@ -37,6 +37,7 @@ namespace BloodDonationSupport.Domain.Shared.ValueObjects
             yield return Longitude;
         }
 
+
         public override string ToString() => $"{Latitude},{Longitude}";
     }
 }
