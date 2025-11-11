@@ -39,10 +39,10 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             }
 
             // Cập nhật DB
-             _donorRepository.Update(donor);
-            await _unitOfWork.SaveChangesAsync();
+            _donorRepository.Update(donor);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return BaseResponse<string>. SuccessResponse("Availability updated successfully.");
+            return BaseResponse<string>.SuccessResponse("Availability updated successfully.");
         }
     }
 }

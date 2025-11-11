@@ -217,7 +217,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public void Update(DonorDomain domainEntity)
         {
-            var donor = _context.Donors.FirstOrDefault(d => d.DonorId == domainEntity.Id);
+            var donor = _context.Donors
+                .Include(d => d.DonorAvailabilities)
+                .Include(d => d.DonorHealthConditions)
+                .FirstOrDefault(d => d.DonorId == domainEntity.Id);
             if (donor == null) return;
 
             donor.IsReady = domainEntity.IsReady;
@@ -231,6 +234,23 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             {
                 donor.Latitude = domainEntity.LastKnownLocation.Latitude;
                 donor.Longitude = domainEntity.LastKnownLocation.Longitude;
+            }
+
+            // ✅ Cập nhật Availabilities
+            // Xóa tất cả availabilities cũ
+            _context.Set<Models.DonorAvailability>().RemoveRange(donor.DonorAvailabilities);
+            
+            // Thêm availabilities mới từ domain
+            foreach (var availability in domainEntity.Availabilities)
+            {
+                var availabilityEntity = new Models.DonorAvailability
+                {
+                    DonorId = donor.DonorId,
+                    Weekday = availability.Weekday,
+                    TimeFromMin = availability.TimeFromMin,
+                    TimeToMin = availability.TimeToMin
+                };
+                _context.Set<Models.DonorAvailability>().Add(availabilityEntity);
             }
 
             _context.Donors.Update(donor);
@@ -349,15 +369,44 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         public async Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId)
         {
             var entity = await _context.Donors
-        .Include(d => d.DonorAvailabilities)
-        .Include(d => d.DonorHealthConditions)
-        .FirstOrDefaultAsync(d => d.DonorId == donorId);
+                .Include(d => d.DonorAvailabilities)
+                .Include(d => d.DonorHealthConditions)
+                .FirstOrDefaultAsync(d => d.DonorId == donorId);
 
             if (entity == null)
                 return null;
 
             // Map EF entity sang Domain aggregate
             var donor = MapToDomain(entity);
+
+            // Map Availabilities
+            if (entity.DonorAvailabilities != null && entity.DonorAvailabilities.Any())
+            {
+                foreach (var availability in entity.DonorAvailabilities)
+                {
+                    var availabilityDomain = Domain.Donors.Entities.DonorAvailability.Rehydrate(
+                        availability.AvailabilityId,
+                        availability.DonorId,
+                        availability.Weekday,
+                        availability.TimeFromMin,
+                        availability.TimeToMin
+                    );
+                    donor.AddAvailability(availabilityDomain);
+                }
+            }
+
+            // Map HealthConditions
+            if (entity.DonorHealthConditions != null && entity.DonorHealthConditions.Any())
+            {
+                foreach (var healthCondition in entity.DonorHealthConditions)
+                {
+                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Create(
+                        healthCondition.DonorId,
+                        healthCondition.ConditionId
+                    );
+                    donor.AddHealthCondition(healthConditionDomain);
+                }
+            }
 
             return donor;
         }
