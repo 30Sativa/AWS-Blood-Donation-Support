@@ -14,6 +14,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         private readonly HttpClient _httpClient;
         private readonly string _region;
         private readonly string _apiKey;
+        private readonly string _routeCalculatorName;
 
         public LocationService(AppDbContext context, IConfiguration configuration)
         {
@@ -23,6 +24,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _region = configuration["AWS:Region"] ?? "ap-southeast-2";
             _apiKey = configuration["AWS:LocationApiKey"]
                       ?? throw new Exception("Missing AWS Location API key");
+            _routeCalculatorName = configuration["AWS:LocationRouteCalculatorName"]
+                      ?? throw new Exception("Missing AWS Location Route Calculator name");
         }
 
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
@@ -51,8 +54,9 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // ✅ Endpoint mới (Route Matrix V2)
-            var apiUrl = $"https://routes.geo.{_region}.amazonaws.com/v2/routes/calculate/matrix";
+            // ✅ Amazon Location Routes V2 - Calculate Route Matrix (calculator required)
+            // Docs: POST https://routes.geo.{region}.amazonaws.com/routes/v2/matrix/calculators/{CalculatorName}
+            var apiUrl = $"https://routes.geo.{_region}.amazonaws.com/routes/v2/matrix/calculators/{_routeCalculatorName}";
 
             var body = new
             {
@@ -64,9 +68,11 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 }).ToArray()
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl)
+            {
+                Content = JsonContent.Create(body)
+            };
             request.Headers.Add("X-Amz-Api-Key", _apiKey);
-            request.Content = JsonContent.Create(body);
 
             var response = await _httpClient.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
