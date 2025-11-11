@@ -59,5 +59,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new UpdateAvailabilityCommand(id, request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        // [PUT] api/donors/{id}/ready-status (Update donor ready status)
+        [HttpPut("{id:long}/ready-status")]
+        public async Task<IActionResult> UpdateReadyStatus(long id, [FromBody] UpdateReadyStatusRequest request)
+        {
+            request.DonorId = id;
+            var result = await _mediator.Send(new UpdateReadyStatusCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }
