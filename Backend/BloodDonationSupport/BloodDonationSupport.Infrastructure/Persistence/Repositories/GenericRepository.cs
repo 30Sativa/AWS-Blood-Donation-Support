@@ -49,7 +49,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
-            
+
             return (items, totalCount);
         }
 

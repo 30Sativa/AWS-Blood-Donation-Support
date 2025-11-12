@@ -109,6 +109,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
                 return NotFound(result);
             return Ok(result);
         }
+
         // [GET] api/users/profile (Get all users with profile)
         [HttpGet("profile")]
         public async Task<IActionResult> GetAllUserWithProfile([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
@@ -116,6 +117,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new GetAllUsersWithProfilesQuery(pageNumber, pageSize));
             return Ok(result);
         }
+
         //  [POST] api/users/refresh-token (Cognito Refresh Token)
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
@@ -127,7 +129,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
             return Ok(result);
         }
-        
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand request)
         {
@@ -142,13 +144,11 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
-
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
         {
             var result = await _mediator.Send(new ConfirmEmailCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
-
     }
 }

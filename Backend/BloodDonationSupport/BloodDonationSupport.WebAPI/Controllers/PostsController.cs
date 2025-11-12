@@ -1,11 +1,7 @@
-﻿using BloodDonationSupport.Application.Common.Responses;
-using BloodDonationSupport.Application.Features.Posts.Commands;
+﻿using BloodDonationSupport.Application.Features.Posts.Commands;
 using BloodDonationSupport.Application.Features.Posts.DTOs.Request;
-using BloodDonationSupport.Application.Features.Posts.DTOs.Response;
 using BloodDonationSupport.Application.Features.Posts.Queries;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers

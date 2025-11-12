@@ -39,6 +39,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IPostTagRepository, PostTagRepository>();
             services.AddScoped<IDonorRepository, DonorRepository>();
             services.AddScoped<ILocationService, LocationService>();
+            services.AddScoped<IRequestRepository, RequestRepository>();
             // HttpContext accessor (lifetime managed by framework)
             services.AddHttpContextAccessor();
 

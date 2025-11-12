@@ -1,30 +1,23 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
-using BloodDonationSupport.Domain.Donors.Entities;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Queries
 {
     public class GetDonorByIdQueryHandler : IRequestHandler<GetDonorByIdQuery, BaseResponse<DonorDetail>>
     {
-        private readonly IDonorRepository _donorRepository; 
+        private readonly IDonorRepository _donorRepository;
 
         public GetDonorByIdQueryHandler(IDonorRepository donorRepository)
         {
             _donorRepository = donorRepository;
         }
 
-
         public async Task<BaseResponse<DonorDetail>> Handle(GetDonorByIdQuery request, CancellationToken cancellationToken)
         {
             var donor = await _donorRepository.GetByIdWithRelationsAsync(request.DonorId);
-            if(donor == null)
+            if (donor == null)
             {
                 return BaseResponse<DonorDetail>.FailureResponse("Donor not found");
             }
@@ -49,7 +42,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                 LastKnownLocation = donor.LastKnownLocation?.ToString()
             };
             return BaseResponse<DonorDetail>.SuccessResponse(dto, "Donor details retrieved successfully.");
-
         }
 
         private static string ToVietnameseDay(byte weekday)

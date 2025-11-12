@@ -17,10 +17,11 @@ namespace BloodDonationSupport.Domain.Users.Entities
         private readonly List<string> _roles = new();
 
         public UserProfileDomain? Profile { get; private set; }
+
         private UserDomain()
         { } // For EF Core
 
-        private UserDomain(Email email, string cognitoUserId, string? phone) 
+        private UserDomain(Email email, string cognitoUserId, string? phone)
         {
             Email = email;
             CognitoUserId = cognitoUserId;

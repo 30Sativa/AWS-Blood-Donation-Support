@@ -1,16 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
+﻿namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
 {
     public class ConfirmResetPasswordRequest
     {
         public string Email { get; set; }
         public string NewPassword { get; set; }
         public string ConfirmationCode { get; set; }
-
     }
 }

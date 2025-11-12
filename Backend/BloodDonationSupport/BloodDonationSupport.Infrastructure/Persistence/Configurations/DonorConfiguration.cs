@@ -64,7 +64,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasColumnName("longitude")
                    .HasColumnType("DECIMAL(9,6)");
 
-
             // Foreign keys
             builder.HasOne(d => d.User)
                    .WithOne(u => u.Donor)

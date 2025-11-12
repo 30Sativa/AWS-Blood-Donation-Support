@@ -1,18 +1,13 @@
-﻿using BloodDonationSupport.Application.Common.Models;
-using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
-using BloodDonationSupport.Domain.Donors.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using BloodDonationSupport.Domain.Donors.Entities;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
     public interface IDonorRepository : IGenericRepository<DonorDomain>
     {
         Task<(IEnumerable<DonorDomain> Items, int TotalCount)> GetPagedWithRelationsAsync(int pageNumber, int pageSize);
+
         Task<DonorDomain?> GetByIdWithRelationsAsync(long donorId);
+
         Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId);
     }
 }

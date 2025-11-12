@@ -25,5 +25,4 @@ public partial class Post
     public virtual User Author { get; set; } = null!;
 
     public virtual ICollection<PostTag> Tags { get; set; } = new List<PostTag>();
-
 }

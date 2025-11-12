@@ -1,9 +1,4 @@
 ﻿using BloodDonationSupport.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Donors.Entities
 {
@@ -13,7 +8,8 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public int ConditionId => Id.ConditionId;
         public string? ConditionName { get; private set; }
 
-        private DonorHealthConditionDomain() { } // EF Core cần
+        private DonorHealthConditionDomain()
+        { } // EF Core cần
 
         private DonorHealthConditionDomain(long donorId, int conditionId, string? conditionName = null)
         {

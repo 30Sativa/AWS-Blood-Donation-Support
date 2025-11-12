@@ -1,10 +1,5 @@
 ﻿using BloodDonationSupport.Application.Features.Donors.Queries;
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Validators
 {
@@ -19,5 +14,4 @@ namespace BloodDonationSupport.Application.Features.Donors.Validators
                 .LessThanOrEqualTo(100).WithMessage("Page size must be less than or equal to 100.");
         }
     }
-
 }

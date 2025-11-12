@@ -1,13 +1,11 @@
-﻿using BloodDonationSupport.Application.Common.Interfaces;
-using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
-using BloodDonationSupport.Infrastructure.Persistence.Contexts;
-using Amazon;
+﻿using Amazon;
 using Amazon.LocationService;
 using Amazon.LocationService.Model;
+using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
+using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace BloodDonationSupport.Infrastructure.Identity
 {

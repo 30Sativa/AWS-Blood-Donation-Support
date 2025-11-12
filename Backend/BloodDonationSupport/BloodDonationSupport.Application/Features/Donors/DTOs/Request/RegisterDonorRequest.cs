@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
+﻿namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
 {
     public class RegisterDonorRequest
     {
@@ -13,15 +7,18 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
 
         // --- Thông tin hồ sơ hiến máu ---
         public int? BloodTypeId { get; set; }
+
         public long? AddressId { get; set; }
 
         // --- Phạm vi & vị trí ---
         public decimal TravelRadiusKm { get; set; } = 10;
+
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
 
         // --- Trạng thái & điều kiện ---
         public bool IsReady { get; set; } = false;
+
         public DateOnly? NextEligibleDate { get; set; }
 
         // --- Lịch rảnh hiến máu (optional) ---
@@ -39,4 +36,3 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
         public short TimeToMin { get; set; }
     }
 }
-

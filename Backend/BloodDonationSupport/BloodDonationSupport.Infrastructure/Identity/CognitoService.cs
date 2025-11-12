@@ -108,7 +108,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
         }
 
-
         // LOGIN
         public async Task<AuthTokens?> LoginAsync(string email, string password)
         {
@@ -194,10 +193,10 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 throw new Exception($"Failed to refresh token: {ex.Message}");
             }
         }
-           
 
         public Task<bool?> ValidationTokenAsync(string accessToken) =>
             throw new NotImplementedException();
+
         // UPDATE USER
         public async Task UpdateUserAsync(string cognitoUserId, string? newEmail, string? newPhoneNumber)
         {

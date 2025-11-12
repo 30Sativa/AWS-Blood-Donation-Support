@@ -4,7 +4,6 @@ using BloodDonationSupport.Domain.Posts.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using Models = BloodDonationSupport.Infrastructure.Persistence.Models;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {

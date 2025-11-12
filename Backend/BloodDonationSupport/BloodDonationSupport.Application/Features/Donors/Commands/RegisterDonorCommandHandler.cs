@@ -4,11 +4,6 @@ using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Commands
 {
@@ -24,10 +19,10 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             _donorRepository = donorRepository;
             _userRepository = userRepository;
         }
+
         public async Task<BaseResponse<RegisterDonorResponse>> Handle(RegisterDonorCommand request, CancellationToken cancellationToken)
         {
             var reg = request.request;
-
 
             //check user exists
             var user = await _userRepository.GetByIdAsync(reg.UserId);
@@ -44,20 +39,19 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             //create donor domain
             var donor = Domain.Donors.Entities.DonorDomain.Create(reg.UserId, reg.TravelRadiusKm);
 
-
-            if(reg.BloodTypeId.HasValue)
+            if (reg.BloodTypeId.HasValue)
             {
-                 donor.SetBloodType(reg.BloodTypeId.Value);
+                donor.SetBloodType(reg.BloodTypeId.Value);
             }
-            if(reg.AddressId.HasValue)
+            if (reg.AddressId.HasValue)
             {
                 donor.SetAddress(reg.AddressId.Value);
             }
-            if(reg.Latitude.HasValue && reg.Longitude.HasValue)
+            if (reg.Latitude.HasValue && reg.Longitude.HasValue)
             {
                 donor.UpdateLocation(GeoLocation.Create(reg.Latitude.Value, reg.Longitude.Value));
             }
-            if(reg.NextEligibleDate.HasValue)
+            if (reg.NextEligibleDate.HasValue)
             {
                 donor.UpdateEligibility(reg.NextEligibleDate.Value);
             }
@@ -66,20 +60,20 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
                 donor.MarkReady(reg.IsReady);
             }
             //add availabilities
-            if(reg.Availabilities != null && reg.Availabilities.Any())
+            if (reg.Availabilities != null && reg.Availabilities.Any())
             {
-                foreach(var availDto in reg.Availabilities)
+                foreach (var availDto in reg.Availabilities)
                 {
                     donor.AddAvailability(DonorAvailability.Create(availDto.Weekday, availDto.TimeFromMin, availDto.TimeToMin));
                 }
             }
 
             //add health conditions
-            if(reg.HealthConditionIds != null && reg.HealthConditionIds.Any())
+            if (reg.HealthConditionIds != null && reg.HealthConditionIds.Any())
             {
-                foreach(var condId in reg.HealthConditionIds)
+                foreach (var condId in reg.HealthConditionIds)
                 {
-                    donor.AddHealthCondition(DonorHealthConditionDomain.Create(0,condId));
+                    donor.AddHealthCondition(DonorHealthConditionDomain.Create(0, condId));
                 }
             }
             //save to db
@@ -113,7 +107,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             };
 
             return BaseResponse<RegisterDonorResponse>.SuccessResponse(response, "Donor registered successfully.");
-
         }
     }
 }

@@ -1,9 +1,4 @@
 ﻿using BloodDonationSupport.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Donors.Entities
 {
@@ -14,7 +9,8 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public short TimeFromMin { get; private set; }
         public short TimeToMin { get; private set; }
 
-        private DonorAvailability() { } // EF Core
+        private DonorAvailability()
+        { } // EF Core
 
         private DonorAvailability(long donorId, byte weekday, short from, short to)
         {
@@ -53,4 +49,3 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public override string ToString() => $"Thứ {Weekday}: {TimeFromMin}-{TimeToMin}";
     }
 }
-

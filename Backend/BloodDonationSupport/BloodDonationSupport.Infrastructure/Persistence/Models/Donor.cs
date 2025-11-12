@@ -26,7 +26,6 @@ public partial class Donor
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 
-
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
     public virtual BloodType? BloodType { get; set; }

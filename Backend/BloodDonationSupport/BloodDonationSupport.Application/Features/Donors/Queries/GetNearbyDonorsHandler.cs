@@ -2,11 +2,6 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Queries
 {
@@ -18,6 +13,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
         {
             _locationService = locationService;
         }
+
         public async Task<BaseResponse<List<NearbyDonorResponse>>> Handle(GetNearbyDonorsQuery request, CancellationToken cancellationToken)
         {
             var donors = await _locationService.GetNearbyDonorsAsync(request.Request.Latitude, request.Request.Longitude, request.Request.RadiusKm);

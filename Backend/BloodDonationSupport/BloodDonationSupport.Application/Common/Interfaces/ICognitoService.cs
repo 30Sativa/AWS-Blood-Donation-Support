@@ -17,11 +17,9 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task DeleteUserAsync(string cognitoUserId);
 
         Task<bool> ForgotPasswordAsync(string email);
+
         Task<bool> ConfirmForgotPasswordAsync(string email, string confirmationCode, string newPassword);
 
         Task<bool> ConfirmEmailAsync(string email, string confirmationCode);
-
-
-
     }
 }

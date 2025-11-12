@@ -17,5 +17,5 @@ namespace BloodDonationSupport.Domain.Donors.Events
             Location = location;
             UpdatedAt = DateTime.UtcNow;
         }
-    }   
+    }
 }

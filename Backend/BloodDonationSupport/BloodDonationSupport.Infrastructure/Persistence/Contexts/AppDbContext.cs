@@ -37,6 +37,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
 
         // Blogging
         public virtual DbSet<Post> Posts { get; set; }
+
         public virtual DbSet<PostTag> PostTags { get; set; }
 
         #endregion DbSets

@@ -1,13 +1,9 @@
 ﻿using BloodDonationSupport.Domain.Common;
-using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Donors.Events;
 using BloodDonationSupport.Domain.Donors.Rules;
 using BloodDonationSupport.Domain.Shared.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Domain.Users.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace BloodDonationSupport.Domain.Donors.Entities
 {
@@ -28,16 +24,18 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public DateTime? UpdatedAt { get; private set; }
         public string? AddressDisplay { get; private set; }
 
-
         // ✅Navigation Properties
         public UserDomain? User { get; private set; }
+
         public BloodType? BloodType { get; private set; }
 
         // ✅Navigation domain collections
         public IReadOnlyCollection<DonorAvailability> Availabilities => _availabilities.AsReadOnly();
+
         public IReadOnlyCollection<DonorHealthConditionDomain> HealthConditions => _healthConditions.AsReadOnly();
 
-        private DonorDomain() { } // EF cần constructor rỗng
+        private DonorDomain()
+        { } // EF cần constructor rỗng
 
         // Constructor gốc khi khởi tạo domain mới
         private DonorDomain(long userId, decimal travelRadiusKm)
