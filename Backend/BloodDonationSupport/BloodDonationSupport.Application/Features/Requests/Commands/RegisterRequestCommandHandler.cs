@@ -4,6 +4,7 @@ using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Domain.Requests.Entities;
 using BloodDonationSupport.Domain.Requests.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace BloodDonationSupport.Application.Features.Requests.Commands
 {
@@ -12,30 +13,44 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRequestRepository _requestRepository;
         private readonly IUserRepository _userRepository;
+        private readonly ILogger<RegisterRequestCommandHandler> _logger;
 
-        public RegisterRequestCommandHandler(IUnitOfWork unitOfWork, IRequestRepository requestRepository, IUserRepository userRepository)
+        public RegisterRequestCommandHandler(
+            IUnitOfWork unitOfWork,
+            IRequestRepository requestRepository,
+            IUserRepository userRepository,
+            ILogger<RegisterRequestCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _requestRepository = requestRepository;
             _userRepository = userRepository;
+            _logger = logger;
         }
 
         public async Task<BaseResponse<RegisterRequestResponse>> Handle(RegisterRequestCommand request, CancellationToken cancellationToken)
         {
             var dto = request.request;
 
-            //check if requester user exists
+            // ====== 1️⃣ Log DTO đầu vào ======
+            _logger.LogInformation("🧩 RegisterRequest started: User={UserId}, BloodType={BloodTypeId}, Component={ComponentId}, Address={AddressId}",
+                dto.RequesterUserId, dto.BloodTypeId, dto.ComponentId, dto.DeliveryAddressId);
+
+            // ====== 2️⃣ Kiểm tra người dùng ======
             var user = await _userRepository.GetByIdAsync(dto.RequesterUserId);
             if (user == null)
             {
-                return BaseResponse<RegisterRequestResponse>.FailureResponse("Requester user not found.");
+                _logger.LogWarning("❌ Requester user not found: {UserId}", dto.RequesterUserId);
+                return BaseResponse<RegisterRequestResponse>.FailureResponse($"Requester user {dto.RequesterUserId} not found.");
             }
 
-            //parse urgency(string -> enum)
+            // ====== 3️⃣ Parse urgency ======
             if (!Enum.TryParse(dto.Urgency, true, out UrgencyLevel urgency))
+            {
                 urgency = UrgencyLevel.NORMAL;
+                _logger.LogWarning("⚠️ Invalid urgency string '{Urgency}', fallback to NORMAL", dto.Urgency);
+            }
 
-            //create new request domain
+            // ====== 4️⃣ Tạo domain entity ======
             var newRequest = RequestDomain.Create(
                 dto.RequesterUserId,
                 urgency,
@@ -47,19 +62,26 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 dto.ClinicalNotes
             );
 
-            //add to db
-            await _requestRepository.AddAsync(newRequest);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // Get the generated RequestId from repository
-            var requestId = await _requestRepository.GetLatestRequestIdByRequesterIdAsync(dto.RequesterUserId);
-            if (requestId.HasValue && requestId.Value > 0)
+            // ====== 5️⃣ SaveChanges có try/catch để log lỗi thật ======
+            try
             {
-                // Update domain entity with the generated RequestId
-                newRequest.GetType().GetProperty("Id")?.SetValue(newRequest, requestId.Value);
+                await _requestRepository.AddAsync(newRequest);
+                _logger.LogInformation("💾 RequestDomain added to DbContext, saving...");
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                var fullError = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "❌ EF Save Error: {Error}", fullError);
+                Console.WriteLine($"❌ EF Save Error: {fullError}");
+                return BaseResponse<RegisterRequestResponse>.FailureResponse("Save failed: " + fullError);
             }
 
-            //prepare response dto
+            // ====== 6️⃣ Nếu cần, log ID sinh ra ======
+            var requestId = newRequest.Id;
+            _logger.LogInformation("✅ Request saved successfully with ID={RequestId}", requestId);
+
+            // ====== 7️⃣ Chuẩn bị response ======
             var response = new RegisterRequestResponse
             {
                 RequestId = newRequest.Id,
@@ -72,6 +94,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 CreatedAt = newRequest.CreatedAt
             };
 
+            _logger.LogInformation("🎉 Request registration completed successfully for user {UserId}", dto.RequesterUserId);
             return BaseResponse<RegisterRequestResponse>.SuccessResponse(response, "Request registered successfully.");
         }
     }
