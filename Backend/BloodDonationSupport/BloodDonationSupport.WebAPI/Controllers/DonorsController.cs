@@ -2,7 +2,6 @@
 using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
 using BloodDonationSupport.Application.Features.Donors.Queries;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -24,8 +23,8 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDonorStatus([FromQuery] int pagenumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _mediator.Send(new GetAllDonorsQuery(pagenumber,pageSize));
-            if(result == null)
+            var result = await _mediator.Send(new GetAllDonorsQuery(pagenumber, pageSize));
+            if (result == null)
             {
                 return NotFound();
             }
@@ -43,7 +42,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             }
             return Ok(result);
         }
-       
+
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
         public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)

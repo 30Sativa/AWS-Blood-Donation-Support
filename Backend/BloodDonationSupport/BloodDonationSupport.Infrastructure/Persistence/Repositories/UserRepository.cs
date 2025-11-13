@@ -114,7 +114,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
-            
+
             var items = users.Select(u => UserDomain.Rehydrate(
                 u.UserId,
                 new Email(u.Email),
@@ -123,7 +123,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 u.IsActive,
                 u.CreatedAt
             ));
-            
+
             return (items, totalCount);
         }
 

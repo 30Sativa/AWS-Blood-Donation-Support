@@ -1,11 +1,8 @@
 using BloodDonationSupport.Application.Common.Interfaces;
-using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
-using BloodDonationSupport.Domain.Users.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 using System.Linq.Expressions;
 using DonorDomain = BloodDonationSupport.Domain.Donors.Entities.DonorDomain;
 
@@ -41,13 +38,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 Latitude = domainEntity.LastKnownLocation?.Latitude,
                 Longitude = domainEntity.LastKnownLocation?.Longitude
             };
-            
+
             // Add Donor entity first
             await _context.Donors.AddAsync(entity);
-            
+
             // Save to get the generated DonorId (required before adding related entities)
             await _context.SaveChangesAsync();
-            
+
             // Now add related entities with the DonorId
             // Add Availabilities
             foreach (var availability in domainEntity.Availabilities)
@@ -61,7 +58,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 };
                 await _context.Set<Models.DonorAvailability>().AddAsync(availabilityEntity);
             }
-            
+
             // Add Health Conditions
             foreach (var healthCondition in domainEntity.HealthConditions)
             {
@@ -72,7 +69,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 };
                 await _context.Set<DonorHealthCondition>().AddAsync(healthConditionEntity);
             }
-            
+
             // Update the domain entity's ID so it matches the database
             domainEntity.GetType().GetProperty("Id")?.SetValue(domainEntity, entity.DonorId);
         }
@@ -130,6 +127,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var donors = await _context.Donors.AsNoTracking().ToListAsync();
             return donors.Select(MapToDomain);
         }
+
         // =========================
         // GET ALL
         // =========================
@@ -239,7 +237,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             // ✅ Cập nhật Availabilities
             // Xóa tất cả availabilities cũ
             _context.Set<Models.DonorAvailability>().RemoveRange(donor.DonorAvailabilities);
-            
+
             // Thêm availabilities mới từ domain
             foreach (var availability in domainEntity.Availabilities)
             {
@@ -361,11 +359,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return donor;
         }
 
-
         // =========================
         // NOT IMPLEMENTED
         // =========================
-        
+
         public async Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId)
         {
             var entity = await _context.Donors

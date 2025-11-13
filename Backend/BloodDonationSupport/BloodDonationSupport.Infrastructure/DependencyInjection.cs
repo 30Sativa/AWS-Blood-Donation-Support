@@ -4,7 +4,6 @@ using BloodDonationSupport.Infrastructure.Identity;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Repositories;
 using BloodDonationSupport.Infrastructure.Persistence.UnitOfWork;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +31,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
-            services.AddScoped<IRoleRepository, RoleRepository>(); 
+            services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IPostRepository, PostRepository>();

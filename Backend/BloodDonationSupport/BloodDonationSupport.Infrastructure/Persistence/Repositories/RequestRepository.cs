@@ -38,10 +38,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
 
             await _context.Requests.AddAsync(entity);
-            await _context.SaveChangesAsync();
-
-            // Đồng bộ lại ID cho domain
-            domainEntity.GetType().GetProperty("Id")?.SetValue(domainEntity, entity.RequestId);
+            // Note: Don't SaveChanges here - let UnitOfWork manage it
+            // The RequestId will be set after SaveChangesAsync is called in the handler
         }
 
         // =========================
@@ -153,6 +151,34 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             entity.UpdatedAt = DateTime.UtcNow;
 
             _context.Requests.Update(entity);
+        }
+
+        // =========================
+        // GET LATEST REQUEST ID
+        // =========================
+        public async Task<long?> GetLatestRequestIdByRequesterIdAsync(long requesterUserId)
+        {
+            // First try to get from ChangeTracker (for recently added entities)
+            var trackedEntity = _context.ChangeTracker
+                .Entries<Request>()
+                .Where(e => (e.State == EntityState.Added || e.State == EntityState.Unchanged)
+                    && e.Entity.RequesterUserId == requesterUserId)
+                .OrderByDescending(e => e.Entity.CreatedAt)
+                .Select(e => e.Entity)
+                .FirstOrDefault();
+
+            if (trackedEntity != null && trackedEntity.RequestId > 0)
+            {
+                return trackedEntity.RequestId;
+            }
+
+            // Fallback: Query from database
+            var latestRequest = await _context.Requests
+                .Where(r => r.RequesterUserId == requesterUserId)
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            return latestRequest?.RequestId;
         }
 
         // =========================

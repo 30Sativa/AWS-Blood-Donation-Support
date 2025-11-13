@@ -3,11 +3,6 @@ using BloodDonationSupport.Domain.Requests.Enums;
 using BloodDonationSupport.Domain.Requests.Events;
 using BloodDonationSupport.Domain.Requests.Rules;
 using BloodDonationSupport.Domain.Shared.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Requests.Entities
 {
@@ -28,7 +23,8 @@ namespace BloodDonationSupport.Domain.Requests.Entities
         // Navigation (optional)
         public BloodType? BloodType { get; private set; }
 
-        private RequestDomain() { } // EF
+        private RequestDomain()
+        { } // EF
 
         private RequestDomain(
             long requesterUserId,
@@ -122,6 +118,5 @@ namespace BloodDonationSupport.Domain.Requests.Entities
                 UpdatedAt = updatedAt
             };
         }
-
     }
 }

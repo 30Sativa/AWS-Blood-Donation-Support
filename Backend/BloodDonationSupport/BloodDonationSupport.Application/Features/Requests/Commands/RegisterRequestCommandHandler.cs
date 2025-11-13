@@ -4,11 +4,6 @@ using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Domain.Requests.Entities;
 using BloodDonationSupport.Domain.Requests.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Commands
 {
@@ -18,7 +13,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
         private readonly IRequestRepository _requestRepository;
         private readonly IUserRepository _userRepository;
 
-
         public RegisterRequestCommandHandler(IUnitOfWork unitOfWork, IRequestRepository requestRepository, IUserRepository userRepository)
         {
             _unitOfWork = unitOfWork;
@@ -26,14 +20,13 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             _userRepository = userRepository;
         }
 
-
         public async Task<BaseResponse<RegisterRequestResponse>> Handle(RegisterRequestCommand request, CancellationToken cancellationToken)
         {
             var dto = request.request;
 
             //check if requester user exists
-            var user =  await _userRepository.GetByIdAsync(dto.RequesterUserId);
-            if(user ==null)
+            var user = await _userRepository.GetByIdAsync(dto.RequesterUserId);
+            if (user == null)
             {
                 return BaseResponse<RegisterRequestResponse>.FailureResponse("Requester user not found.");
             }
@@ -57,6 +50,14 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             //add to db
             await _requestRepository.AddAsync(newRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Get the generated RequestId from repository
+            var requestId = await _requestRepository.GetLatestRequestIdByRequesterIdAsync(dto.RequesterUserId);
+            if (requestId.HasValue && requestId.Value > 0)
+            {
+                // Update domain entity with the generated RequestId
+                newRequest.GetType().GetProperty("Id")?.SetValue(newRequest, requestId.Value);
+            }
 
             //prepare response dto
             var response = new RegisterRequestResponse
