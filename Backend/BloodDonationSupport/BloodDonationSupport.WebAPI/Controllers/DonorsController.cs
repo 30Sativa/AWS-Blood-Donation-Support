@@ -75,5 +75,45 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new GetNearbyDonorsQuery(request));
             return result.Success ? Ok(result) : NotFound(result);
         }
+
+        // [GET] api/donors/search (Search donors with filters)
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchDonors([FromQuery] SearchDonorsRequest request)
+        {
+            var result = await _mediator.Send(new SearchDonorsQuery(request));
+            return Ok(result);
+        }
+
+        // [GET] api/donors/user/{userId} (Get donor by user ID)
+        [HttpGet("user/{userId:long}")]
+        public async Task<IActionResult> GetDonorByUserId(long userId)
+        {
+            var result = await _mediator.Send(new GetDonorByUserIdQuery(userId));
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
+        // [PUT] api/donors/{id} (Update donor profile)
+        [HttpPut("{id:long}")]
+        public async Task<IActionResult> UpdateDonor(long id, [FromBody] UpdateDonorRequest request)
+        {
+            var result = await _mediator.Send(new UpdateDonorCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [PUT] api/donors/{id}/location (Update donor location)
+        [HttpPut("{id:long}/location")]
+        public async Task<IActionResult> UpdateDonorLocation(long id, [FromBody] UpdateDonorLocationRequest request)
+        {
+            var result = await _mediator.Send(new UpdateDonorLocationCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [DELETE] api/donors/{id} (Delete donor)
+        [HttpDelete("{id:long}")]
+        public async Task<IActionResult> DeleteDonor(long id)
+        {
+            var result = await _mediator.Send(new DeleteDonorCommand(id));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }

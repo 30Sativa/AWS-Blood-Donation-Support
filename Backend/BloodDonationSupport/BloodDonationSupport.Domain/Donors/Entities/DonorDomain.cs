@@ -91,6 +91,14 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        public void UpdateTravelRadius(decimal travelRadiusKm)
+        {
+            if (travelRadiusKm < 0)
+                throw new DomainException("Travel radius cannot be negative.");
+            TravelRadiusKm = travelRadiusKm;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void UpdateLocation(GeoLocation location)
         {
             LastKnownLocation = location;

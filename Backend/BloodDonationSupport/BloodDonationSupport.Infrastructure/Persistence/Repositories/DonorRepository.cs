@@ -407,5 +407,66 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return donor;
         }
+
+        // =========================
+        // GET BY USER ID
+        // =========================
+        public async Task<DonorDomain?> GetByUserIdAsync(long userId)
+        {
+            var entity = await _context.Donors
+                .Include(d => d.User)
+                    .ThenInclude(u => u.UserProfile)
+                .Include(d => d.BloodType)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            return entity == null ? null : MapToDomainWithRelations(entity);
+        }
+
+        // =========================
+        // SEARCH
+        // =========================
+        public async Task<(IEnumerable<DonorDomain> Items, int TotalCount)> SearchAsync(
+            string? keyword,
+            int? bloodTypeId,
+            bool? isReady,
+            int pageNumber,
+            int pageSize)
+        {
+            var query = _context.Donors
+                .Include(d => d.User)
+                    .ThenInclude(u => u.UserProfile)
+                .Include(d => d.BloodType)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var normalized = keyword.Trim().ToLower();
+                query = query.Where(d =>
+                    (d.User != null && d.User.UserProfile != null && 
+                     EF.Functions.Like(d.User.UserProfile.FullName.ToLower(), $"%{normalized}%")) ||
+                    (d.User != null && EF.Functions.Like(d.User.Email.ToLower(), $"%{normalized}%")));
+            }
+
+            if (bloodTypeId.HasValue)
+            {
+                query = query.Where(d => d.BloodTypeId == bloodTypeId.Value);
+            }
+
+            if (isReady.HasValue)
+            {
+                query = query.Where(d => d.IsReady == isReady.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var donors = await query
+                .OrderByDescending(d => d.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (donors.Select(MapToDomainWithRelations), totalCount);
+        }
     }
 }

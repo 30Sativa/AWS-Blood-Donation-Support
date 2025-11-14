@@ -9,5 +9,14 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<DonorDomain?> GetByIdWithRelationsAsync(long donorId);
 
         Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId);
+
+        Task<DonorDomain?> GetByUserIdAsync(long userId);
+
+        Task<(IEnumerable<DonorDomain> Items, int TotalCount)> SearchAsync(
+            string? keyword,
+            int? bloodTypeId,
+            bool? isReady,
+            int pageNumber,
+            int pageSize);
     }
 }
