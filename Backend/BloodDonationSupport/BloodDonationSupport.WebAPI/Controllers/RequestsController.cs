@@ -70,7 +70,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             if (request == null)
                 return BadRequest("Request body cannot be null.");
 
-            var result = await _mediator.Send(new UpdateRequestStatusCommand(request));
+            var result = await _mediator.Send(new UpdateRequestStatusCommand(id,request));
 
             if (!result.Success)
             {
