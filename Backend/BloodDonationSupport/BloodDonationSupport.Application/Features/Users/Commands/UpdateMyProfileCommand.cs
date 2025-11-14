@@ -2,6 +2,7 @@ using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
+using BloodDonationSupport.Domain.Users.Entities;
 using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
