@@ -140,9 +140,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Include(r => r.Component)
                 .Include(r => r.DeliveryAddress)
                 .Where(r => r.Status == "REQUESTED"
-                            && r.DeliveryAddress != null
-                            && r.DeliveryAddress.Latitude != null
-                            && r.DeliveryAddress.Longitude != null)
+                            && r.Latitude != null
+                            && r.Longitude != null)
                 .Select(r => new
                 {
                     r.RequestId,
@@ -158,15 +157,15 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     r.QuantityUnits,
                     r.NeedBeforeUtc,
                     r.CreatedAt,
-                    Latitude = r.DeliveryAddress.Latitude,
-                    Longitude = r.DeliveryAddress.Longitude
+                    Latitude = r.Latitude,   
+                    Longitude = r.Longitude    
                 })
                 .ToListAsync();
 
             if (!requests.Any())
                 return new List<NearbyRequestResponse>();
 
-            // Prefilter bằng Haversine (tối ưu AWS gọi)
+            // Prefilter bằng Haversine
             double ToRadians(double deg) => deg * Math.PI / 180.0;
             double HaversineKm(double lat1, double lon1, double lat2, double lon2)
             {
@@ -203,6 +202,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
             return results;
         }
+
 
     }
 }
