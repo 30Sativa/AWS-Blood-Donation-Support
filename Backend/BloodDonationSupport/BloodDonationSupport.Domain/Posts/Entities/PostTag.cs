@@ -19,6 +19,12 @@ namespace BloodDonationSupport.Domain.Posts.Entities
             TagSlug = slug;
         }
 
+        public void Update(string name, string slug)
+        {
+            TagName = name;
+            TagSlug = slug;
+        }
+
         // ✅ Factory dùng khi đọc từ DB
         public static PostTag Rehydrate(int id, string tagName, string tagSlug)
         {

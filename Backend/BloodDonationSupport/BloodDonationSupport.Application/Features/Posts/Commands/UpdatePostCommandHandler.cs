@@ -34,7 +34,7 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
             //xử lí tags
             post.ClearTags();
 
-            if (dto.TagNames == null || dto.TagNames.Any())
+            if (dto.TagNames == null || !dto.TagNames.Any())
             {
                 return BaseResponse<PostResponse>.FailureResponse("TagNames cannot be null or empty.");
             }
@@ -53,7 +53,7 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
                 post.AddTag(tag);
             }
 
-            if (dto.IsPublished && dto.IsPublished)
+            if (dto.IsPublished && !post.IsPublished)
             {
                 post.Publish();
             }
