@@ -240,5 +240,90 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                          .Select(ur => ur.Role.RoleCode)
                          .ToListAsync();
         }
+
+        public async Task UpdateUserRolesAsync(long userId, IEnumerable<string> roleCodes)
+        {
+            var user = await _context.Users.FindAsync(userId)
+                ?? throw new Exception($"User with ID {userId} not found.");
+
+            var normalizedCodes = roleCodes?
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Select(code => code.ToUpperInvariant())
+                .Distinct()
+                .ToList() ?? new List<string>();
+
+            var currentUserRoles = _context.UserRoles.Where(ur => ur.UserId == userId);
+            _context.UserRoles.RemoveRange(currentUserRoles);
+
+            if (!normalizedCodes.Any())
+                return;
+
+            var roles = await _context.Roles
+                .Where(r => normalizedCodes.Contains(r.RoleCode.ToUpper()))
+                .ToListAsync();
+
+            foreach (var role in roles)
+            {
+                await _context.UserRoles.AddAsync(new UserRole
+                {
+                    UserId = userId,
+                    RoleId = role.RoleId
+                });
+            }
+        }
+
+        public async Task<(IEnumerable<UserDomain> Items, int TotalCount)> SearchAsync(
+            string? keyword,
+            string? roleCode,
+            bool? isActive,
+            int pageNumber,
+            int pageSize)
+        {
+            var query = _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .Include(u => u.UserProfiles)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var normalized = keyword.Trim().ToLower();
+                query = query.Where(u =>
+                    EF.Functions.Like(u.Email.ToLower(), $"%{normalized}%") ||
+                    (!string.IsNullOrEmpty(u.PhoneNumber) && EF.Functions.Like(u.PhoneNumber.ToLower(), $"%{normalized}%")) ||
+                    u.UserProfiles.Any(p => p.FullName != null && EF.Functions.Like(p.FullName.ToLower(), $"%{normalized}%")));
+            }
+
+            if (!string.IsNullOrWhiteSpace(roleCode))
+            {
+                var normalizedRole = roleCode.Trim().ToUpperInvariant();
+                query = query.Where(u => u.UserRoles.Any(ur => ur.Role.RoleCode.ToUpper() == normalizedRole));
+            }
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(u => u.IsActive == isActive.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = users.Select(u =>
+                UserDomain.RehydrateWithRoles(
+                    u.UserId,
+                    new Email(u.Email),
+                    u.CognitoUserId ?? string.Empty,
+                    u.PhoneNumber,
+                    u.IsActive,
+                    u.CreatedAt,
+                    u.UserRoles.Select(ur => ur.Role.RoleCode)));
+
+            return (items, totalCount);
+        }
     }
 }

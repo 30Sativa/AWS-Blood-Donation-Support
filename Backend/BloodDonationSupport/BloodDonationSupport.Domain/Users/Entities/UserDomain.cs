@@ -2,6 +2,7 @@
 using BloodDonationSupport.Domain.Users.Events;
 using BloodDonationSupport.Domain.Users.Rules;
 using BloodDonationSupport.Domain.Users.ValueObjects;
+using System;
 
 namespace BloodDonationSupport.Domain.Users.Entities
 {
@@ -66,9 +67,16 @@ namespace BloodDonationSupport.Domain.Users.Entities
 
         public void Deactivate() => IsActive = false;
 
+        public void Activate() => IsActive = true;
+
         public void UpdatePhone(string? phone)
         {
             PhoneNumber = phone;
+        }
+
+        public void UpdateEmail(Email newEmail)
+        {
+            Email = newEmail ?? throw new ArgumentNullException(nameof(newEmail));
         }
 
         public void SetProfile(UserProfileDomain profile)

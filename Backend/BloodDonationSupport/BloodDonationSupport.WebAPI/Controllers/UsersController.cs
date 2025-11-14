@@ -2,6 +2,7 @@
 using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
 using BloodDonationSupport.Application.Features.Users.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -74,6 +75,57 @@ namespace BloodDonationSupport.WebAPI.Controllers
         {
             var result = await _mediator.Send(new GetAllUsersQuery(pageNumber, pageSize));
             return Ok(result);
+        }
+
+        // [GET] api/users/search (Search users with filters)
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchUsers([FromQuery] SearchUsersRequest request)
+        {
+            var query = new SearchUsersQuery(
+                request.Keyword,
+                request.RoleCode,
+                request.IsActive,
+                request.PageNumber,
+                request.PageSize);
+
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+
+        // [GET] api/users/me (Get current user profile)
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUserProfile()
+        {
+            var result = await _mediator.Send(new GetCurrentUserProfileQuery());
+            return result.Success ? Ok(result) : Unauthorized(result);
+        }
+
+        // [PUT] api/users/me/profile (Update own profile)
+        [HttpPut("me/profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileRequest request)
+        {
+            var result = await _mediator.Send(new UpdateMyProfileCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [POST] api/users/change-password
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var result = await _mediator.Send(new ChangePasswordCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [POST] api/users/change-email
+        [HttpPost("change-email")]
+        [Authorize]
+        public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailRequest request)
+        {
+            var result = await _mediator.Send(new ChangeEmailCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
         }
 
         // [GET] api/users/{id} (Admin Get user by Id)
@@ -149,6 +201,33 @@ namespace BloodDonationSupport.WebAPI.Controllers
         {
             var result = await _mediator.Send(new ConfirmEmailCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [PUT] api/users/{id}/roles
+        [HttpPut("{id:long}/roles")]
+        [Authorize]
+        public async Task<IActionResult> UpdateUserRoles(long id, [FromBody] UpdateUserRolesRequest request)
+        {
+            var result = await _mediator.Send(new UpdateUserRolesCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [PUT] api/users/{id}/status
+        [HttpPut("{id:long}/status")]
+        [Authorize]
+        public async Task<IActionResult> UpdateUserStatus(long id, [FromBody] UpdateUserStatusRequest request)
+        {
+            var result = await _mediator.Send(new UpdateUserStatusCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [GET] api/users/{id}/audit-logs
+        [HttpGet("{id:long}/audit-logs")]
+        [Authorize]
+        public async Task<IActionResult> GetUserAuditLogs(long id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _mediator.Send(new GetUserAuditLogsQuery(id, pageNumber, pageSize));
+            return Ok(result);
         }
     }
 }

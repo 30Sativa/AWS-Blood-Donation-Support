@@ -305,5 +305,25 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 return false;
             }
         }
+
+        public async Task SetUserPasswordAsync(string cognitoUserId, string newPassword, bool permanent = true)
+        {
+            try
+            {
+                var request = new AdminSetUserPasswordRequest
+                {
+                    UserPoolId = _userPoolId,
+                    Username = cognitoUserId,
+                    Password = newPassword,
+                    Permanent = permanent
+                };
+
+                await _client.AdminSetUserPasswordAsync(request);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"❌ Failed to update password: {ex.Message}");
+            }
+        }
     }
 }

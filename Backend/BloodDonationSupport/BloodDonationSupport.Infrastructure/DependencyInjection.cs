@@ -32,6 +32,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IPostRepository, PostRepository>();
@@ -39,6 +40,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IDonorRepository, DonorRepository>();
             services.AddScoped<ILocationService, LocationService>();
             services.AddScoped<IRequestRepository, RequestRepository>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
             // HttpContext accessor (lifetime managed by framework)
             services.AddHttpContextAccessor();
 

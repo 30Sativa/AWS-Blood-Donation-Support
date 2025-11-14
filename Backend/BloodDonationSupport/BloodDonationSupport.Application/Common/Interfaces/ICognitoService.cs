@@ -21,5 +21,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<bool> ConfirmForgotPasswordAsync(string email, string confirmationCode, string newPassword);
 
         Task<bool> ConfirmEmailAsync(string email, string confirmationCode);
+
+        Task SetUserPasswordAsync(string cognitoUserId, string newPassword, bool permanent = true);
     }
 }
