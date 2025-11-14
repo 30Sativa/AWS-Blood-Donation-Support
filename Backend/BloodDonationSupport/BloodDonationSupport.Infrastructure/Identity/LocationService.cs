@@ -3,6 +3,7 @@ using Amazon.LocationService;
 using Amazon.LocationService.Model;
 using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
+using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -128,6 +129,105 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
 
             Console.WriteLine($"[AWS V2] Found {results.Count} donors within {radiusKm} km.");
+            return results.OrderBy(x => x.DistanceKm).ToList();
+        }
+
+        public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm)
+        {
+            var requests = await _context.Requests
+        .Include(r => r.RequesterUser).ThenInclude(u => u.UserProfile)
+        .Include(r => r.BloodType)
+        .Include(r => r.Component)
+        .Include(r => r.DeliveryAddress)
+        .Where(r => r.Status == "REQUESTED" && r.DeliveryAddress != null && r.DeliveryAddress.Latitude != null && r.DeliveryAddress.Longitude != null)
+        .Select(r => new
+        {
+            r.RequestId,
+            r.RequesterUserId,
+            FullName = r.RequesterUser.UserProfile.FullName,
+            BloodGroup = r.BloodType != null ? $"{r.BloodType.Abo} {r.BloodType.Rh}" : "Unknown",
+            ComponentName = r.Component.ComponentName,
+            AddressDisplay = $"{r.DeliveryAddress.Line1}, {r.DeliveryAddress.District}, {r.DeliveryAddress.City}",
+            Urgency = r.Urgency,
+            Status = r.Status,
+            r.DeliveryAddress.Latitude,
+            r.DeliveryAddress.Longitude
+        })
+        .ToListAsync();
+
+            if (!requests.Any())
+                return new List<NearbyRequestResponse>();
+
+            // Prefilter 400 km limit (AWS constraint)
+            const double awsMaxKm = 400.0;
+            double ToRadians(double deg) => deg * Math.PI / 180.0;
+            double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+            {
+                const double R = 6371.0;
+                var dLat = ToRadians(lat2 - lat1);
+                var dLon = ToRadians(lon2 - lon1);
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                        Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+                return R * c;
+            }
+
+            var prefiltered = requests
+                .Select(r => new
+                {
+                    Req = r,
+                    ApproxKm = HaversineKm(latitude, longitude, r.Latitude ?? 0, r.Longitude ?? 0)
+                })
+                .Where(x => x.ApproxKm <= awsMaxKm)
+                .Select(x => x.Req)
+                .ToList();
+
+            if (!prefiltered.Any())
+                return new List<NearbyRequestResponse>();
+
+            // AWS RouteMatrix (SigV4)
+            var req = new Amazon.LocationService.Model.CalculateRouteMatrixRequest
+            {
+                CalculatorName = _routeCalculatorName,
+                TravelMode = Amazon.LocationService.TravelMode.Car,
+                DeparturePositions = new List<List<double>> { new List<double> { longitude, latitude } },
+                DestinationPositions = prefiltered
+                    .Select(r => new List<double> { r.Longitude ?? 0, r.Latitude ?? 0 })
+                    .ToList()
+            };
+
+            var resp = await _locationClient.CalculateRouteMatrixAsync(req);
+            var matrix = resp.RouteMatrix;
+
+            var results = new List<NearbyRequestResponse>();
+            for (int i = 0; i < matrix.Count; i++)
+            {
+                var cell = matrix[i][0];
+                if (cell?.Distance == null) continue;
+
+                var distanceKm = cell.Distance.Value / 1000.0;
+                if (distanceKm <= radiusKm)
+                {
+                    var r = prefiltered[i];
+                    results.Add(new NearbyRequestResponse
+                    {
+                        RequestId = r.RequestId,
+                        RequesterUserId = r.RequesterUserId,
+                        FullName = r.FullName,
+                        BloodGroup = r.BloodGroup,
+                        ComponentName = r.ComponentName,
+                        AddressDisplay = r.AddressDisplay,
+                        Urgency = r.Urgency,
+                        Status = r.Status,
+                        Latitude = r.Latitude,
+                        Longitude = r.Longitude,
+                        DistanceKm = distanceKm
+                    });
+                }
+            }
+
+            Console.WriteLine($"[AWS Location] Found {results.Count} requests within {radiusKm} km.");
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
     }

@@ -84,11 +84,10 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [GET] api/requests/nearby (find nearby blood requests)
         // =====================================================
         [HttpGet("nearby")]
-        public async Task<IActionResult> GetNearbyRequests([FromQuery] double lat, [FromQuery] double lng, [FromQuery] double radiusKm = 10)
+        public async Task<IActionResult> GetNearbyRequests(GetNearbyRequestsRequest request)
         {
-            // (Tạm thời placeholder – sau sẽ implement query dùng AWS Location)
-            _logger.LogInformation("📍 Finding nearby requests at ({Lat}, {Lng}) radius {Radius}km", lat, lng, radiusKm);
-            return Ok("GetNearbyRequests placeholder — TODO: implement with LocationService.");
+            var result = await _mediator.Send(new GetNearbyRequestsQuery(request));
+            return result == null ? NotFound() : Ok(result);
         }
     }
 }

@@ -39,7 +39,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             var user = await _userRepository.GetByIdAsync(dto.RequesterUserId);
             if (user == null)
             {
-                _logger.LogWarning("❌ Requester user not found: {UserId}", dto.RequesterUserId);
                 return BaseResponse<RegisterRequestResponse>.FailureResponse($"Requester user {dto.RequesterUserId} not found.");
             }
 
@@ -47,7 +46,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             if (!Enum.TryParse(dto.Urgency, true, out UrgencyLevel urgency))
             {
                 urgency = UrgencyLevel.NORMAL;
-                _logger.LogWarning("⚠️ Invalid urgency string '{Urgency}', fallback to NORMAL", dto.Urgency);
             }
 
             // ====== 4️⃣ Tạo domain entity ======
@@ -66,7 +64,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             try
             {
                 await _requestRepository.AddAsync(newRequest);
-                _logger.LogInformation("💾 RequestDomain added to DbContext, saving...");
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -79,7 +76,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
 
             // ====== 6️⃣ Nếu cần, log ID sinh ra ======
             var requestId = newRequest.Id;
-            _logger.LogInformation("✅ Request saved successfully with ID={RequestId}", requestId);
+
 
             // ====== 7️⃣ Chuẩn bị response ======
             var response = new RegisterRequestResponse
@@ -94,7 +91,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 CreatedAt = newRequest.CreatedAt
             };
 
-            _logger.LogInformation("🎉 Request registration completed successfully for user {UserId}", dto.RequesterUserId);
             return BaseResponse<RegisterRequestResponse>.SuccessResponse(response, "Request registered successfully.");
         }
     }

@@ -21,6 +21,8 @@ public partial class Address
     public string? PlaceId { get; set; }
 
     public decimal? ConfidenceScore { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
