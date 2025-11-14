@@ -84,7 +84,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [GET] api/requests/nearby (find nearby blood requests)
         // =====================================================
         [HttpGet("nearby")]
-        public async Task<IActionResult> GetNearbyRequests(GetNearbyRequestsRequest request)
+        public async Task<IActionResult> GetNearbyRequests([FromQuery]GetNearbyRequestsRequest request)
         {
             var result = await _mediator.Send(new GetNearbyRequestsQuery(request));
             return result == null ? NotFound() : Ok(result);
