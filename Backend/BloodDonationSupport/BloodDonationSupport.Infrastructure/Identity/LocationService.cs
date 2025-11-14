@@ -138,7 +138,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Include(r => r.RequesterUser).ThenInclude(u => u.UserProfile)
                 .Include(r => r.BloodType)
                 .Include(r => r.Component)
-                .Include(r => r.DeliveryAddress)
                 .Where(r => r.Status == "REQUESTED"
                             && r.Latitude != null
                             && r.Longitude != null)
@@ -147,25 +146,22 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     r.RequestId,
                     r.RequesterUserId,
                     FullName = r.RequesterUser.UserProfile.FullName,
-                    BloodGroup = r.BloodType != null
-                        ? $"{r.BloodType.Abo} {r.BloodType.Rh}"
-                        : "Unknown",
+                    BloodGroup = r.BloodType != null ? $"{r.BloodType.Abo} {r.BloodType.Rh}" : "Unknown",
                     Component = r.Component.ComponentName,
-                    AddressDisplay = $"{r.DeliveryAddress.Line1}, {r.DeliveryAddress.District}, {r.DeliveryAddress.City}",
+                    AddressDisplay = $"{r.Latitude}, {r.Longitude}",
                     r.Status,
                     r.Urgency,
                     r.QuantityUnits,
                     r.NeedBeforeUtc,
                     r.CreatedAt,
-                    Latitude = r.Latitude,   
-                    Longitude = r.Longitude    
+                    r.Latitude,
+                    r.Longitude
                 })
                 .ToListAsync();
 
             if (!requests.Any())
                 return new List<NearbyRequestResponse>();
 
-            // Prefilter bằng Haversine
             double ToRadians(double deg) => deg * Math.PI / 180.0;
             double HaversineKm(double lat1, double lon1, double lat2, double lon2)
             {
@@ -185,7 +181,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     RequestId = r.RequestId,
                     FullName = r.FullName,
                     BloodGroup = r.BloodGroup,
-                    Component = r.Component,
+                    ComponentName = r.Component,
                     AddressDisplay = r.AddressDisplay,
                     Status = r.Status,
                     Urgency = r.Urgency.ToString(),
@@ -202,6 +198,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
             return results;
         }
+
 
 
     }
