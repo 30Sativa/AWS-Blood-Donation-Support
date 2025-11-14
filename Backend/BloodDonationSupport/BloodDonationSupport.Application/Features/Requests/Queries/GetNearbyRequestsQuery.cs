@@ -10,7 +10,8 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
-    public record GetNearbyRequestsQuery(GetNearbyRequestsRequest request) : IRequest<List<BaseResponse<NearbyRequestResponse>>> { }
+    public record GetNearbyRequestsQuery(GetNearbyRequestsRequest request)
+        : IRequest<BaseResponse<IEnumerable<NearbyRequestResponse>>>;
 
-    
+
 }

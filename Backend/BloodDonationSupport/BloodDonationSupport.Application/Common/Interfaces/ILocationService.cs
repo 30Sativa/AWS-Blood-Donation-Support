@@ -5,8 +5,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
 {
     public interface ILocationService
     {
-        Task<IEnumerable<NearbyDonorResponse>> GetNearbyDonorsAsync(
+        Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
             double latitude, double longitude, double radiusKm);
-        Task<IEnumerable<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm); 
+        Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm); 
     }
 }

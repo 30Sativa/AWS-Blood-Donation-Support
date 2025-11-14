@@ -30,16 +30,17 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
                 request.request.Longitude,
                 request.request.RadiusKm);
 
-            // ✅ Null check
+            //  Null check
             if (nearbyRequests == null || !nearbyRequests.Any())
             {
                 return BaseResponse<IEnumerable<NearbyRequestResponse>>.FailureResponse(
                     "No nearby requests found.");
             }
 
-            // ✅ Success response
+            //  Success response
             return BaseResponse<IEnumerable<NearbyRequestResponse>>.SuccessResponse(
                 nearbyRequests,
                 $"Found {nearbyRequests.Count()} requests within {request.request.RadiusKm} km.");
         }
+    }
 }
