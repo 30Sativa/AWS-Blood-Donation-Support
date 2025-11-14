@@ -1,5 +1,6 @@
 ﻿using BloodDonationSupport.Application.Features.Requests.Commands;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Request;
+using BloodDonationSupport.Application.Features.Requests.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,9 +25,8 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            // (Tạm thời chưa có query handler, bạn sẽ thêm sau)
-            _logger.LogInformation("📦 Fetching requests page {PageNumber}", pageNumber);
-            return Ok("GetAllRequests endpoint placeholder — TODO: implement query handler.");
+            var result = await _mediator.Send(new GetAllRequestsQuery(pageNumber, pageSize));
+            return result == null ? NotFound() : Ok(result);    
         }
 
         // =====================================================
@@ -35,9 +35,8 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetRequestById(long id)
         {
-            // (Tạm thời placeholder)
-            _logger.LogInformation("🔍 Fetching request by ID {RequestId}", id);
-            return Ok($"GetRequestById placeholder for RequestId={id} — TODO: implement query handler.");
+            var result = await _mediator.Send(new GetRequestByIdQuery(id));
+            return result.Success ? Ok(result) : NotFound(result);
         }
 
         // =====================================================
@@ -57,7 +56,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
                 return BadRequest(result);
             }
 
-            _logger.LogInformation("✅ Request registered successfully for user {UserId}", request.RequesterUserId);
             return Ok(result);
         }
 
