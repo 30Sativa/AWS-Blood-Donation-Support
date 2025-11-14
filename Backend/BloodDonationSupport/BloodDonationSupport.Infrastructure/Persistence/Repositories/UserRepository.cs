@@ -282,17 +282,24 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var query = _context.Users
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
-                .Include(u => u.UserProfiles)
+                .Include(u => u.UserProfile)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 var normalized = keyword.Trim().ToLower();
+
                 query = query.Where(u =>
                     EF.Functions.Like(u.Email.ToLower(), $"%{normalized}%") ||
-                    (!string.IsNullOrEmpty(u.PhoneNumber) && EF.Functions.Like(u.PhoneNumber.ToLower(), $"%{normalized}%")) ||
-                    u.UserProfiles.Any(p => p.FullName != null && EF.Functions.Like(p.FullName.ToLower(), $"%{normalized}%")));
+                    (!string.IsNullOrEmpty(u.PhoneNumber) &&
+                        EF.Functions.Like(u.PhoneNumber.ToLower(), $"%{normalized}%")) ||
+                    (
+                        u.UserProfile.FullName != null &&
+                        EF.Functions.Like(u.UserProfile.FullName.ToLower(), $"%{normalized}%")
+                    )
+                );
             }
+
 
             if (!string.IsNullOrWhiteSpace(roleCode))
             {
