@@ -77,13 +77,18 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
             _userRepository.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Get roles from database
+            var roles = await _userRepository.GetRolesByUserIdAsync(user.Id);
+
             var response = new UserWithProfileResponse
             {
                 UserId = user.Id,
                 Email = user.Email.Value,
                 PhoneNumber = user.PhoneNumber,
+                CognitoUserId = user.CognitoUserId,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
+                Roles = roles.ToList(),
                 FullName = profile.FullName,
                 BirthYear = profile.BirthYear,
                 Gender = profile.Gender,

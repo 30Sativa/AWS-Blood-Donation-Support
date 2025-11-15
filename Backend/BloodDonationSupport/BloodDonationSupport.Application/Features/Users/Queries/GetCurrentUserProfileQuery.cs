@@ -40,14 +40,19 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             }
 
             var profile = await _userProfileRepository.GetByUserIdAsync(user.Id);
+            
+            // Get roles from database
+            var roles = await _userRepository.GetRolesByUserIdAsync(user.Id);
 
             var dto = new UserWithProfileResponse
             {
                 UserId = user.Id,
                 Email = user.Email.Value,
                 PhoneNumber = user.PhoneNumber,
+                CognitoUserId = user.CognitoUserId,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
+                Roles = roles.ToList(),
                 FullName = profile?.FullName,
                 BirthYear = profile?.BirthYear,
                 Gender = profile?.Gender,
