@@ -57,9 +57,39 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = true,
             ValidateAudience = false,
             ValidateLifetime = true,
-            ValidateIssuerSigningKey = true
+            ValidateIssuerSigningKey = true,
+            RoleClaimType = "cognito:groups" // AWS Cognito groups = roles
         };
     });
+
+// =========================================================
+// 🛡️ AUTHORIZATION POLICIES
+// =========================================================
+builder.Services.AddAuthorization(options =>
+{
+    // Admin có quyền làm mọi thứ user làm được
+    options.AddPolicy("AdminOrUser", policy =>
+        policy.RequireAssertion(context =>
+            context.User.IsInRole("ADMIN") || 
+            context.User.IsInRole("MEMBER") || 
+            context.User.IsInRole("STAFF")));
+
+    // Chỉ Admin
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("ADMIN"));
+
+    // Admin hoặc Staff
+    options.AddPolicy("AdminOrStaff", policy =>
+        policy.RequireAssertion(context =>
+            context.User.IsInRole("ADMIN") || 
+            context.User.IsInRole("STAFF")));
+
+    // User (Member) hoặc Admin
+    options.AddPolicy("UserOrAdmin", policy =>
+        policy.RequireAssertion(context =>
+            context.User.IsInRole("MEMBER") || 
+            context.User.IsInRole("ADMIN")));
+});
 
 // =========================================================
 // ⚙️ WEB HOST CONFIG

@@ -2,6 +2,7 @@
 using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
 using BloodDonationSupport.Application.Features.Donors.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -21,6 +22,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/donors (Get all donors with pagination)
         [HttpGet]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetDonorStatus([FromQuery] int pagenumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetAllDonorsQuery(pagenumber, pageSize));
@@ -33,6 +35,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/donors/{id} (Get donor by Id)
         [HttpGet("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetDonorById(long id)
         {
             var result = await _mediator.Send(new GetDonorByIdQuery(id));
@@ -45,6 +48,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)
         {
             var result = await _mediator.Send(new RegisterDonorCommand(request));
@@ -53,6 +57,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/donors/{id}/availability (Update donor availability)
         [HttpPut("{id:long}/availability")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> UpdateAvailability(long id, [FromBody] UpdateAvailabilityRequest request)
         {
             var result = await _mediator.Send(new UpdateAvailabilityCommand(id, request));
@@ -61,6 +66,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/donors/{id}/ready-status (Update donor ready status)
         [HttpPut("{id:long}/ready-status")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> UpdateReadyStatus(long id, [FromBody] UpdateReadyStatusRequest request)
         {
             request.DonorId = id;
@@ -78,6 +84,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/donors/search (Search donors with filters)
         [HttpGet("search")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> SearchDonors([FromQuery] SearchDonorsRequest request)
         {
             var result = await _mediator.Send(new SearchDonorsQuery(request));
@@ -86,6 +93,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/donors/user/{userId} (Get donor by user ID)
         [HttpGet("user/{userId:long}")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> GetDonorByUserId(long userId)
         {
             var result = await _mediator.Send(new GetDonorByUserIdQuery(userId));
@@ -94,6 +102,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/donors/{id} (Update donor profile)
         [HttpPut("{id:long}")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> UpdateDonor(long id, [FromBody] UpdateDonorRequest request)
         {
             var result = await _mediator.Send(new UpdateDonorCommand(id, request));
@@ -102,6 +111,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/donors/{id}/location (Update donor location)
         [HttpPut("{id:long}/location")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> UpdateDonorLocation(long id, [FromBody] UpdateDonorLocationRequest request)
         {
             var result = await _mediator.Send(new UpdateDonorLocationCommand(id, request));
@@ -110,6 +120,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [DELETE] api/donors/{id} (Delete donor)
         [HttpDelete("{id:long}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteDonor(long id)
         {
             var result = await _mediator.Send(new DeleteDonorCommand(id));

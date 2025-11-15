@@ -2,6 +2,7 @@
 using BloodDonationSupport.Application.Features.Posts.DTOs.Request;
 using BloodDonationSupport.Application.Features.Posts.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -21,6 +22,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [POST] api/posts
         [HttpPost]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> CreatePost([FromBody] CreatePostRequest request)
         {
             var result = await _mediator.Send(new CreatePostCommand(request));
@@ -29,6 +31,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/posts/{id}
         [HttpPut("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> UpdatePost(long id, [FromBody] CreatePostRequest request)
         {
             var result = await _mediator.Send(new UpdatePostCommand(id, request));
@@ -45,6 +48,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/posts/search
         [HttpGet("search")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> SearchPosts([FromQuery] SearchPostsRequest request)
         {
             var query = new SearchPostsQuery(
@@ -79,6 +83,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/posts/{id}
         [HttpGet("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetPostById(long id)
         {
             var result = await _mediator.Send(new GetPostByIdQuery(id));
@@ -87,6 +92,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [DELETE] api/posts/{id}
         [HttpDelete("{id:long}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeletePost(long id)
         {
             var result = await _mediator.Send(new DeletePostCommand(id));
@@ -103,6 +109,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [POST] api/posts/tags
         [HttpPost("tags")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> CreateTag([FromBody] CreateTagRequest request)
         {
             var result = await _mediator.Send(new CreateTagCommand(request));
@@ -111,6 +118,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/posts/tags/{id}
         [HttpPut("tags/{id:int}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> UpdateTag(int id, [FromBody] UpdateTagRequest request)
         {
             var result = await _mediator.Send(new UpdateTagCommand(id, request));
@@ -119,6 +127,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [DELETE] api/posts/tags/{id}
         [HttpDelete("tags/{id:int}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteTag(int id)
         {
             var result = await _mediator.Send(new DeleteTagCommand(id));

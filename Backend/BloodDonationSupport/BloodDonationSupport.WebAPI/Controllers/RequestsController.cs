@@ -2,6 +2,7 @@
 using BloodDonationSupport.Application.Features.Requests.DTOs.Request;
 using BloodDonationSupport.Application.Features.Requests.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -23,6 +24,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [GET] api/requests (get all requests with pagination)
         // =====================================================
         [HttpGet]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetAllRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetAllRequestsQuery(pageNumber, pageSize));
@@ -33,6 +35,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [GET] api/requests/{id} (get single request by ID)
         // =====================================================
         [HttpGet("{id:long}")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> GetRequestById(long id)
         {
             var result = await _mediator.Send(new GetRequestByIdQuery(id));
@@ -43,6 +46,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [POST] api/requests/register (register new request)
         // =====================================================
         [HttpPost("register")]
+        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> RegisterRequest([FromBody] RegisterRequest request)
         {
             if (request == null)
@@ -63,6 +67,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [PUT] api/requests/{id}/status (update request status)
         // =====================================================
         [HttpPut("{id:long}/status")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> UpdateRequestStatus(long id, [FromBody] UpdateRequestStatusRequest request)
         {
             if (request == null)

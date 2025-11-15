@@ -46,6 +46,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         //  [POST] api/users (Admin Create new user)
         [HttpPost]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
             var result = await _mediator.Send(new CreateUserCommand(request));
@@ -58,6 +59,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/users/{id} (Admin Update user)
         [HttpPut("{id:long}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateUser(long id, [FromBody] UpdateUserRequest request)
         {
             request.Id = id;
@@ -71,6 +73,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users (Admin Get all users)
         [HttpGet]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetAllUsersQuery(pageNumber, pageSize));
@@ -79,6 +82,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users/search (Search users with filters)
         [HttpGet("search")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> SearchUsers([FromQuery] SearchUsersRequest request)
         {
             var query = new SearchUsersQuery(
@@ -130,6 +134,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users/{id} (Admin Get user by Id)
         [HttpGet("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetUserById(long id)
         {
             var result = await _mediator.Send(new GetUserByIdQuery(id));
@@ -142,6 +147,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [DELETE] api/users/{id} (Admin Delete user)
         [HttpDelete("{id:long}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteUser(long id)
         {
             var result = await _mediator.Send(new DeleteUserCommand(id));
@@ -154,6 +160,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users/{id}/profile (Get user with profile by Id)
         [HttpGet("{id:long}/profile")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetUserWithProfileById(long id)
         {
             var result = await _mediator.Send(new GetUserWithProfileByIdQuery(id));
@@ -164,6 +171,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users/profile (Get all users with profile)
         [HttpGet("profile")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetAllUserWithProfile([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetAllUsersWithProfilesQuery(pageNumber, pageSize));
@@ -205,7 +213,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/users/{id}/roles
         [HttpPut("{id:long}/roles")]
-        [Authorize]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateUserRoles(long id, [FromBody] UpdateUserRolesRequest request)
         {
             var result = await _mediator.Send(new UpdateUserRolesCommand(id, request));
@@ -214,7 +222,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/users/{id}/status
         [HttpPut("{id:long}/status")]
-        [Authorize]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateUserStatus(long id, [FromBody] UpdateUserStatusRequest request)
         {
             var result = await _mediator.Send(new UpdateUserStatusCommand(id, request));
@@ -223,7 +231,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [GET] api/users/{id}/audit-logs
         [HttpGet("{id:long}/audit-logs")]
-        [Authorize]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetUserAuditLogs(long id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetUserAuditLogsQuery(id, pageNumber, pageSize));
