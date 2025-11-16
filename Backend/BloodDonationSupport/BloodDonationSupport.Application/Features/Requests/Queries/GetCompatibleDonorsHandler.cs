@@ -49,14 +49,60 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
                 request.ComponentId
             );
 
+            // Debug: Log rules found
+            if (!rules.Any())
+            {
+                // No compatibility rules found for this blood type and component
+                return new BaseResponse<CompatibleDonorsResponse>
+                {
+                    Success = true,
+                    Message = $"No compatibility rules found for blood type ID {request.BloodTypeId} and component ID {request.ComponentId}.",
+                    Data = new CompatibleDonorsResponse
+                    {
+                        RequestId = Request.RequestId,
+                        Donors = new List<CompatibleDonorDto>()
+                    }
+                };
+            }
+
             var compatibleTypes = rules
                 .Where(r => _matchingService.IsCompatible(r))
                 .Select(r => r.DonorBloodTypeId)
                 .Distinct()
                 .ToList();
 
+            if (!compatibleTypes.Any())
+            {
+                // No compatible blood types found
+                return new BaseResponse<CompatibleDonorsResponse>
+                {
+                    Success = true,
+                    Message = $"No compatible blood types found for blood type ID {request.BloodTypeId} and component ID {request.ComponentId}.",
+                    Data = new CompatibleDonorsResponse
+                    {
+                        RequestId = Request.RequestId,
+                        Donors = new List<CompatibleDonorDto>()
+                    }
+                };
+            }
+
             // 3) Load donors with these blood types
             var donors = await _donorRepo.GetDonorsByBloodTypesAsync(compatibleTypes);
+
+            if (!donors.Any())
+            {
+                // No donors found with compatible blood types
+                return new BaseResponse<CompatibleDonorsResponse>
+                {
+                    Success = true,
+                    Message = $"No ready donors found with compatible blood types: {string.Join(", ", compatibleTypes)}.",
+                    Data = new CompatibleDonorsResponse
+                    {
+                        RequestId = Request.RequestId,
+                        Donors = new List<CompatibleDonorDto>()
+                    }
+                };
+            }
 
             // 4) Calculate AWS distance + map DTO
             var dtoList = new List<CompatibleDonorDto>();
