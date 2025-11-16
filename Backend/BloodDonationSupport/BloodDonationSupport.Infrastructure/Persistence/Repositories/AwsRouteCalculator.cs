@@ -13,7 +13,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         public AwsRouteCalculator(IAmazonLocationService client, IConfiguration config)
         {
             _client = client;
-            _calculatorName = config["AWS:LocationRouteCalculatorName"]!;
+
+            // Lấy tên calculator từ appsettings.json
+            _calculatorName = config["AWS:LocationRouteCalculatorName"]
+                ?? throw new Exception("Missing AWS:LocationRouteCalculatorName in appsettings.json");
         }
 
         public async Task<double?> CalculateDistanceKmAsync(
@@ -31,16 +34,17 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
                 var response = await _client.CalculateRouteAsync(request);
 
-                // AWS trả về Distance trong Summary
+                // Distance (meters) -> Summary.Distance
                 var distanceMeters = response.Summary?.Distance;
                 if (distanceMeters == null)
                     return null;
 
-                return distanceMeters.Value / 1000.0; // convert to km
+                return distanceMeters.Value / 1000.0; // meters → km
             }
-            catch
+            catch (Exception ex)
             {
-                // Nếu fail → trả về null để logic phía trên skip donor
+                // Nếu có lỗi, trả null → handler sẽ bỏ qua donor đó
+                Console.WriteLine($"AWS Route error: {ex.Message}");
                 return null;
             }
         }
