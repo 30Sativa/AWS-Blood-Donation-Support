@@ -1,4 +1,5 @@
-﻿using BloodDonationSupport.Application.Common.Interfaces;
+﻿using Amazon.LocationService;
+using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Infrastructure.Common.Options;
 using BloodDonationSupport.Infrastructure.Identity;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
@@ -43,6 +44,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IAwsRouteCalculator, AwsRouteCalculator>();
             services.AddScoped<ICompatibilityRepository, CompatibilityRepository>();
+            services.AddAWSService<IAmazonLocationService>();
             // HttpContext accessor (lifetime managed by framework)
             services.AddHttpContextAccessor();
 
