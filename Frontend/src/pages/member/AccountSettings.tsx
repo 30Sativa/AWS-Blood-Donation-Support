@@ -69,7 +69,7 @@ export function AccountSettings() {
     name: "",
     email: "",
     phone: "",
-    dateOfBirth: "",
+    dateOfBirth: "", // Lưu dạng "YYYY-01-01" để tương thích với logic hiện tại
     gender: "",
     address: "",
     bloodType: "",
@@ -143,6 +143,17 @@ export function AccountSettings() {
     setSuccess("");
 
     try {
+      // Validate năm sinh
+      if (formData.dateOfBirth) {
+        const birthYear = new Date(formData.dateOfBirth).getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (birthYear < 1900 || birthYear > currentYear) {
+          setError(`Năm sinh phải từ 1900 đến ${currentYear}`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const birthYear = formData.dateOfBirth 
         ? new Date(formData.dateOfBirth).getFullYear()
         : undefined;
@@ -284,16 +295,37 @@ export function AccountSettings() {
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gray-600" />
               <Label htmlFor="dateOfBirth" className="text-black">
-                Date of birth<span className="text-red-600">*</span>
+                Year of birth<span className="text-red-600">*</span>
               </Label>
             </div>
             <div className="relative">
               <Input
                 id="dateOfBirth"
-                type="date"
-                placeholder="dd/mm/yyyy"
-                value={formData.dateOfBirth}
-                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                type="number"
+                placeholder="YYYY (e.g., 1990)"
+                value={formData.dateOfBirth ? new Date(formData.dateOfBirth).getFullYear() : ""}
+                onChange={(e) => {
+                  const year = e.target.value;
+                  if (year === "") {
+                    handleInputChange("dateOfBirth", "");
+                  } else {
+                    // Cho phép nhập bất kỳ giá trị nào, validate sẽ được kiểm tra khi submit
+                    const yearNum = parseInt(year);
+                    if (!isNaN(yearNum)) {
+                      handleInputChange("dateOfBirth", `${year}-01-01`);
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // Clear error nếu năm hợp lệ
+                  const year = parseInt(e.target.value);
+                  const currentYear = new Date().getFullYear();
+                  if (year && year >= 1900 && year <= currentYear) {
+                    setError(""); // Clear error nếu hợp lệ
+                  }
+                }}
+                min="1900"
+                max={new Date().getFullYear()}
                 required
                 className="w-full pr-10 border-gray-300 focus:border-red-500 focus:ring-red-500"
               />

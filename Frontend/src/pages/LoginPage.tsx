@@ -119,19 +119,36 @@ export default function LoginPage() {
             email: values.email,
             password: values.password,
           });
+
           setSuccess("Login successful!");
           console.log("Login response:", response);
 
           if (response.token && response.user) {
             try {
+              // ✅ Prefer roles from backend: e.g. ["ADMIN", "STAFF"]
+              const backendRoles = response.roles ?? [];
+              const normalizedRoles = backendRoles.map((r) => r.toLowerCase());
+
+              let userRole: "admin" | "staff" | "member";
+
+              if (normalizedRoles.includes("admin")) {
+                userRole = "admin";
+              } else if (normalizedRoles.includes("staff")) {
+                userRole = "staff";
+              } else {
+                // Fallback to email-based inference if no usable backend role
+                const inferredRoleFromEmail = response.user.email.includes("admin")
+                  ? "admin"
+                  : response.user.email.includes("staff")
+                    ? "staff"
+                    : "member";
+
+                userRole = inferredRoleFromEmail;
+              }
+
+              // Save auth info
               localStorage.setItem("token", response.token);
               sessionStorage.setItem("token", response.token);
-
-              const userRole = response.user.email.includes("admin")
-                ? "admin"
-                : response.user.email.includes("staff")
-                ? "staff"
-                : "member";
 
               const userId = response.user.id;
               const userName =
@@ -145,18 +162,21 @@ export default function LoginPage() {
                 localStorage.setItem("userId", String(userId));
               }
 
+              // Update AuthContext
               refreshAuth();
+
+              // ✅ Use role for navigation (admin & staff → admin area)
+              if (userRole === "admin" || userRole === "staff") {
+                navigate("/admin", { replace: true });
+              } else {
+                navigate("/member/dashboard", { replace: true });
+              }
             } catch (e) {
               console.warn("Unable to save token to storage:", e);
             }
           }
-
-          if (response.user?.email.includes("admin")) {
-            navigate("/admin", { replace: true });
-          } else {
-            navigate("/member/dashboard", { replace: true });
-          }
         } else {
+          // register mode
           await authService.register({
             fullName: values.fullName,
             email: values.email,
@@ -166,6 +186,7 @@ export default function LoginPage() {
             bloodType: values.bloodType,
             password: values.password,
           });
+
           setSuccess("Registration successful! Please login.");
           setMode("login");
           formik.resetForm();
@@ -242,22 +263,20 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleModeChange("login")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "login"
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
                   ? "text-red-600 border-b-2 border-red-600"
                   : "text-gray-600 hover:text-gray-900"
-              }`}
+                }`}
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => handleModeChange("register")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                mode === "register"
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register"
                   ? "text-red-600 border-b-2 border-red-600"
                   : "text-gray-600 hover:text-gray-900"
-              }`}
+                }`}
             >
               Register
             </button>
@@ -459,8 +478,8 @@ export default function LoginPage() {
               {loading
                 ? "Processing..."
                 : mode === "login"
-                ? "Login"
-                : "Register"}
+                  ? "Login"
+                  : "Register"}
             </Button>
 
             {/* Forgot password link - Only show in login mode */}

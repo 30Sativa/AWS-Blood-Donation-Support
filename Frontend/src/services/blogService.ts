@@ -1,63 +1,108 @@
-import type { BlogPost, PostTag, CreateBlogPostInput, UpdateBlogPostInput } from "@/types/blog";
+import type { BlogPost, PostTag, CreateBlogPostInput, UpdateBlogPostInput, ApiResponse, PaginatedData } from "@/types/blog";
+import apiClient from "./axios";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-
-function ensureOk(r: Response) {
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r;
+export async function listBlogPosts(pageNumber = 1, pageSize = 10): Promise<BlogPost[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<PaginatedData<BlogPost>>>("/api/Posts", {
+      params: {
+        pageNumber,
+        pageSize,
+      },
+    });
+    return response.data.data.items;
+  } catch (error) {
+    throw error;
+  }
 }
 
-export async function listBlogPosts(): Promise<BlogPost[]> {
-  const r = await fetch(`${API}/posts`);
-  ensureOk(r);
-  return r.json();
+export async function getBlogPostById(id: number): Promise<BlogPost> {
+  try {
+    const response = await apiClient.get<ApiResponse<BlogPost>>(`/api/Posts/${id}`);
+    return response.data.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
 export async function listPostTags(): Promise<PostTag[]> {
-  const r = await fetch(`${API}/tags`);
-  ensureOk(r);
-  return r.json();
+  try {
+    const response = await apiClient.get<ApiResponse<PostTag[]>>("/api/Posts/tags");
+    return response.data.data.map((tag) => ({
+      ...tag,
+      tagId: tag.id,
+    }));
+  } catch (error) {
+    throw error;
+  }
 }
 
 export async function createBlogPost(input: CreateBlogPostInput): Promise<BlogPost> {
-  if (input.imageFile instanceof File) {
-    const form = new FormData();
-    form.append("payload", new Blob([JSON.stringify({ ...input, imageFile: undefined })], { type: "application/json" }));
-    form.append("imageFile", input.imageFile);
-    const r = await fetch(`${API}/posts`, { method: "POST", body: form });
-    ensureOk(r);
-    return r.json();
-  } else {
-    const r = await fetch(`${API}/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    ensureOk(r);
-    return r.json();
+  try {
+    if (!input.title || !input.slug || !input.content) {
+      throw new Error("Title, slug, and content are required");
+    }
+
+    if (!input.authorId) {
+      throw new Error("AuthorId is required");
+    }
+
+    if (!input.tagNames || input.tagNames.length === 0) {
+      throw new Error("At least one tag is required");
+    }
+
+    const requestBody: any = {
+      title: input.title.trim(),
+      slug: input.slug.trim(),
+      content: input.content,
+      authorId: input.authorId,
+      isPublished: input.isPublished,
+      tagNames: input.tagNames.filter((name) => name && name.trim() !== ""),
+    };
+
+    if (input.excerpt !== null && input.excerpt !== undefined && input.excerpt.trim() !== "") {
+      requestBody.excerpt = input.excerpt.trim();
+    } else {
+      requestBody.excerpt = null;
+    }
+
+    const response = await apiClient.post<ApiResponse<BlogPost>>("/api/Posts", requestBody);
+    return response.data.data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw error;
   }
 }
 
-export async function updateBlogPost(postId: number, input: UpdateBlogPostInput): Promise<BlogPost> {
-  if (input.imageFile instanceof File) {
-    const form = new FormData();
-    form.append("payload", new Blob([JSON.stringify({ ...input, imageFile: undefined })], { type: "application/json" }));
-    form.append("imageFile", input.imageFile);
-    const r = await fetch(`${API}/posts/${postId}`, { method: "PUT", body: form });
-    ensureOk(r);
-    return r.json();
-  } else {
-    const r = await fetch(`${API}/posts/${postId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    ensureOk(r);
-    return r.json();
+export async function updateBlogPost(id: number, input: UpdateBlogPostInput): Promise<BlogPost> {
+  try {
+    const requestBody: any = {};
+    if (input.title !== undefined) requestBody.title = input.title;
+    if (input.slug !== undefined) requestBody.slug = input.slug;
+    if (input.content !== undefined) requestBody.content = input.content;
+    if (input.excerpt !== undefined && input.excerpt !== null && input.excerpt !== "") {
+      requestBody.excerpt = input.excerpt;
+    }
+    if (input.excerpt !== undefined) {
+      requestBody.excerpt = (input.excerpt === null || input.excerpt.trim() === "") 
+        ? null 
+        : input.excerpt.trim();
+    }
+    if (input.authorId !== undefined) requestBody.authorId = input.authorId;
+    if (input.isPublished !== undefined) requestBody.isPublished = input.isPublished;
+    if (input.tagNames !== undefined) requestBody.tagNames = input.tagNames;
+const response = await apiClient.put<ApiResponse<BlogPost>>(`/api/Posts/${id}`, requestBody);
+    return response.data.data;
+  } catch (error) {
+    throw error;
   }
 }
 
-export async function deleteBlogPost(postId: number): Promise<void> {
-  const r = await fetch(`${API}/posts/${postId}`, { method: "DELETE" });
-  ensureOk(r);
+export async function deleteBlogPost(id: number): Promise<void> {
+  try {
+    await apiClient.delete(`/api/Posts/${id}`);
+  } catch (error) {
+    throw error;
+  }
 }

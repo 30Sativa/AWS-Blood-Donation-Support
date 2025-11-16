@@ -13,8 +13,7 @@ import Forgotpassword from "@/components/Forgotpassword/Forgotpassword";
 
 // Components & Layouts Protected
 import ProtectedRoute from "./PrivateRoutes"; 
-import { Layout } from "@/components/layout/Layout"; // Layout cho Member
-import { AdminLayout } from "@/components/layout/AdminLayout"; // Layout cho Admin
+import { Layout } from "@/components/layout/Layout"; // Layout chung cho cả Member và Admin
 // Member Pages
 import { BloodDonationHistory } from "@/pages/member/BloodDonationHistory";
 import { RegisterDonation } from "@/pages/member/RegisterDonation";
@@ -89,18 +88,15 @@ const routes = createBrowserRouter([
   path: "/admin",
   element: (
     <ProtectedRoute allowedRoles={["admin", "staff"]}>
-      {/* Sử dụng <AdminLayout /> trực tiếp.
-        Vì AdminLayout.tsx đã có <Outlet /> bên trong,
-        nên cấu hình này là chính xác.
-      */}
-      <AdminLayout /> 
+      <Layout>
+        <Outlet />
+      </Layout>
     </ProtectedRoute>
   ),
   children: [
     { index: true, element: <Navigate to="accounts" replace /> },
     { path: "accounts", element: <ManageAccounts /> },
     { path: "manage-blog", element: <ManageBlog /> },
-    // ⭐️ ĐÃ SỬA LỖI: Xóa chữ "Giao tiếp"
     { path: "reports", element: <div>Reports</div> }, 
     { path: "*", element: <Navigate to="accounts" replace /> },
   ],
