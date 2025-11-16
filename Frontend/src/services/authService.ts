@@ -143,30 +143,29 @@ export const authService = {
   },
 
   async verifyOTP(data: VerifyOTPRequest): Promise<{ message?: string; success?: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/api/Users/confirm-email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: data.email,
-        confirmationCode: data.confirmationCode,
-      }),
-    });
+    try {
+      const response = await apiClient.post<{ success: boolean; message?: string }>(
+        "/api/Users/confirm-email",
+        {
+          email: data.email,
+          confirmationCode: data.confirmationCode,
+        }
+      );
 
-    const raw = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-      success: false,
-    }));
+      const backendData = response.data;
 
-    if (!response.ok || raw.success === false) {
-      throw new Error(raw.message || "Mã xác nhận không hợp lệ hoặc đã hết hạn");
+      if (!backendData.success) {
+        throw new Error(backendData.message || "Mã xác nhận không hợp lệ hoặc đã hết hạn");
+      }
+
+      return {
+        message: backendData.message,
+        success: backendData.success,
+      };
+    } catch (error: any) {
+      console.error("Verify OTP error:", error);
+      throw error;
     }
-
-    return {
-      message: raw?.message as string | undefined,
-      success: raw?.success as boolean | undefined,
-    };
   },
 
   async resetPassword(data: ResetPasswordRequest): Promise<{ message?: string; success?: boolean }> {

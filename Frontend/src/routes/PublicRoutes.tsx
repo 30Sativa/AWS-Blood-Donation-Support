@@ -6,10 +6,11 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 // Components & Layouts Public
 import MainLayout from "../components/layout/MainLayout";
 import AuthLayout from "../components/layout/AuthLayout";
-import HomePage from "../pages/Homepage/homePage";
+import HomePage from "@/pages/Homepage/HomePage";
 import LoginPage from "../pages/LoginPage";
 import Blog from "@/pages/Blog/Blog";
 import Forgotpassword from "@/components/Forgotpassword/Forgotpassword";
+import ConfirmEmail from "@/pages/ConfirmEmail";
 
 // Components & Layouts Protected
 import ProtectedRoute from "./PrivateRoutes"; 
@@ -57,6 +58,14 @@ const routes = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       { index: true, element: <Forgotpassword /> }
+    ],
+  },
+  // --- 2.2. ROUTE CONFIRM EMAIL ---
+  {
+    path: "/confirm-email",
+    element: <AuthLayout />,
+    children: [
+      { index: true, element: <ConfirmEmail /> }
     ],
   },
   

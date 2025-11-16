@@ -9,12 +9,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 type AuthMode = "login" | "register";
-
-const BLOOD_TYPES = [
-  "O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+",
-];
 
 const GENDER_OPTIONS = [
   { value: "Male", label: "Male" },
@@ -72,9 +69,6 @@ const registerSchema = Yup.object().shape({
         );
       }
     ),
-  bloodType: Yup.string()
-    .required("Blood type is required.")
-    .oneOf(BLOOD_TYPES, "Invalid blood type."),
 });
 
 export default function LoginPage() {
@@ -102,7 +96,6 @@ export default function LoginPage() {
       phoneNumber: "",
       gender: "",
       birthYear: "",
-      bloodType: "",
     },
     validationSchema: validationSchema,
     validateOnChange: false,
@@ -181,15 +174,17 @@ export default function LoginPage() {
             fullName: values.fullName,
             email: values.email,
             phoneNumber: values.phoneNumber,
-            gender: values.gender || undefined,
+            gender: values.gender,
             birthYear: parseInt(values.birthYear),
-            bloodType: values.bloodType,
             password: values.password,
           });
 
-          setSuccess("Registration successful! Please login.");
-          setMode("login");
-          formik.resetForm();
+          setSuccess("Registration successful! Please check your email for confirmation code.");
+          
+          // Redirect to confirm email page after 1.5 seconds
+          setTimeout(() => {
+            navigate(`/confirm-email?email=${encodeURIComponent(values.email)}`, { replace: true });
+          }, 1500);
         }
       } catch (err) {
         setError(
@@ -220,12 +215,18 @@ export default function LoginPage() {
     formik.resetForm();
   };
 
+  const { ref: formRef, isVisible: formVisible } = useScrollAnimation({ threshold: 0.1 });
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex flex-col relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-red-200/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-red-200/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse" style={{ animationDelay: '1s' }}></div>
+      
+      <div className="p-6 relative z-10">
         <a
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-all duration-300 hover:gap-3 group"
         >
           <svg
             width="16"
@@ -233,6 +234,7 @@ export default function LoginPage() {
             viewBox="0 0 16 16"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            className="group-hover:-translate-x-1 transition-transform"
           >
             <path
               d="M10 12L6 8L10 4"
@@ -246,37 +248,53 @@ export default function LoginPage() {
         </a>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+      <div className="flex-1 flex items-center justify-center p-6 relative z-10">
+        <div 
+          ref={formRef}
+          className={`w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 transition-all duration-1000 ${
+            formVisible 
+              ? 'opacity-100 translate-y-0 scale-100' 
+              : 'opacity-0 translate-y-10 scale-95'
+          }`}
+        >
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-              <Droplet className="w-6 h-6 text-white" fill="currentColor" />
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 hover:rotate-12 transform group">
+              <Droplet className="w-8 h-8 text-white group-hover:animate-pulse" fill="currentColor" />
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-2">Welcome</h1>
+          <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent">
+            Welcome
+          </h1>
           <p className="text-sm text-gray-600 text-center mb-6">
             Login or create an account to continue
           </p>
 
-          <div className="flex gap-2 mb-6 border-b">
+          <div className="flex gap-2 mb-6 border-b relative">
+            <div 
+              className={`absolute bottom-0 h-0.5 bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-in-out ${
+                mode === "login" ? "left-0 w-1/2" : "left-1/2 w-1/2"
+              }`}
+            ></div>
             <button
               type="button"
               onClick={() => handleModeChange("login")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-                }`}
+              className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 ${
+                mode === "login"
+                  ? "text-red-600 font-semibold scale-105"
+                  : "text-gray-600 hover:text-gray-900 hover:scale-105"
+              }`}
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => handleModeChange("register")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register"
-                  ? "text-red-600 border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-gray-900"
-                }`}
+              className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 ${
+                mode === "register"
+                  ? "text-red-600 font-semibold scale-105"
+                  : "text-gray-600 hover:text-gray-900 hover:scale-105"
+              }`}
             >
               Register
             </button>
@@ -284,8 +302,14 @@ export default function LoginPage() {
 
           <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
+              <div className={`space-y-2 transition-all duration-500 ${
+                mode === "register" 
+                  ? "opacity-100 max-h-96 translate-y-0" 
+                  : "opacity-0 max-h-0 translate-y-[-10px] overflow-hidden"
+              }`}>
+                <Label htmlFor="fullName" className="text-gray-700 font-medium">
+                  Full Name <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="fullName"
                   name="fullName"
@@ -294,14 +318,14 @@ export default function LoginPage() {
                   value={formik.values.fullName}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={
+                  className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     formik.touched.fullName && formik.errors.fullName
-                      ? "border-red-500"
-                      : ""
-                  }
+                      ? "border-red-500 ring-2 ring-red-200"
+                      : "border-gray-300"
+                  }`}
                 />
                 {formik.touched.fullName && formik.errors.fullName && (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-red-600 animate-fade-in">
                     {formik.errors.fullName}
                   </p>
                 )}
@@ -309,7 +333,9 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">
+                Email <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -318,20 +344,26 @@ export default function LoginPage() {
                 value={formik.values.email}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className={
+                className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                   formik.touched.email && formik.errors.email
-                    ? "border-red-500"
-                    : ""
-                }
+                    ? "border-red-500 ring-2 ring-red-200"
+                    : "border-gray-300"
+                }`}
               />
               {formik.touched.email && formik.errors.email && (
-                <p className="text-xs text-red-600">{formik.errors.email}</p>
+                <p className="text-xs text-red-600 animate-fade-in">{formik.errors.email}</p>
               )}
             </div>
 
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
+              <div className={`space-y-2 transition-all duration-500 ${
+                mode === "register" 
+                  ? "opacity-100 max-h-96 translate-y-0" 
+                  : "opacity-0 max-h-0 translate-y-[-10px] overflow-hidden"
+              }`}>
+                <Label htmlFor="phoneNumber" className="text-gray-700 font-medium">
+                  Phone Number <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
@@ -340,14 +372,14 @@ export default function LoginPage() {
                   value={formik.values.phoneNumber}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={
+                  className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     formik.touched.phoneNumber && formik.errors.phoneNumber
-                      ? "border-red-500"
-                      : ""
-                  }
+                      ? "border-red-500 ring-2 ring-red-200"
+                      : "border-gray-300"
+                  }`}
                 />
                 {formik.touched.phoneNumber && formik.errors.phoneNumber && (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-red-600 animate-fade-in">
                     {formik.errors.phoneNumber}
                   </p>
                 )}
@@ -355,19 +387,23 @@ export default function LoginPage() {
             )}
 
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+              <div className={`space-y-2 transition-all duration-500 ${
+                mode === "register" 
+                  ? "opacity-100 max-h-96 translate-y-0" 
+                  : "opacity-0 max-h-0 translate-y-[-10px] overflow-hidden"
+              }`}>
+                <Label htmlFor="gender" className="text-gray-700 font-medium">Gender</Label>
                 <Select
                   id="gender"
                   name="gender"
                   value={formik.values.gender}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={
+                  className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     formik.touched.gender && formik.errors.gender
-                      ? "border-red-500"
-                      : ""
-                  }
+                      ? "border-red-500 ring-2 ring-red-200"
+                      : "border-gray-300"
+                  }`}
                 >
                   <option value="">Select gender (optional)</option>
                   {GENDER_OPTIONS.map((option) => (
@@ -377,14 +413,20 @@ export default function LoginPage() {
                   ))}
                 </Select>
                 {formik.touched.gender && formik.errors.gender && (
-                  <p className="text-xs text-red-600">{formik.errors.gender}</p>
+                  <p className="text-xs text-red-600 animate-fade-in">{formik.errors.gender}</p>
                 )}
               </div>
             )}
 
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="birthYear">Birth Year <span className="text-red-500">*</span></Label>
+              <div className={`space-y-2 transition-all duration-500 ${
+                mode === "register" 
+                  ? "opacity-100 max-h-96 translate-y-0" 
+                  : "opacity-0 max-h-0 translate-y-[-10px] overflow-hidden"
+              }`}>
+                <Label htmlFor="birthYear" className="text-gray-700 font-medium">
+                  Birth Year <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="birthYear"
                   name="birthYear"
@@ -393,52 +435,24 @@ export default function LoginPage() {
                   value={formik.values.birthYear}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  className={
+                  className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     formik.touched.birthYear && formik.errors.birthYear
-                      ? "border-red-500"
-                      : ""
-                  }
+                      ? "border-red-500 ring-2 ring-red-200"
+                      : "border-gray-300"
+                  }`}
                 />
                 {formik.touched.birthYear && formik.errors.birthYear && (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-red-600 animate-fade-in">
                     {formik.errors.birthYear}
                   </p>
                 )}
               </div>
             )}
 
-            {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="bloodType">Blood Type <span className="text-red-500">*</span></Label>
-                <Select
-                  id="bloodType"
-                  name="bloodType"
-                  value={formik.values.bloodType}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  className={
-                    formik.touched.bloodType && formik.errors.bloodType
-                      ? "border-red-500"
-                      : ""
-                  }
-                >
-                  <option value="">Select blood type</option>
-                  {BLOOD_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </Select>
-                {formik.touched.bloodType && formik.errors.bloodType && (
-                  <p className="text-xs text-red-600">
-                    {formik.errors.bloodType}
-                  </p>
-                )}
-              </div>
-            )}
-
             <div className="space-y-2">
-              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">
+                Password <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -447,25 +461,25 @@ export default function LoginPage() {
                 value={formik.values.password}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className={
+                className={`transition-all duration-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                   formik.touched.password && formik.errors.password
-                    ? "border-red-500"
-                    : ""
-                }
+                    ? "border-red-500 ring-2 ring-red-200"
+                    : "border-gray-300"
+                }`}
               />
               {formik.touched.password && formik.errors.password && (
-                <p className="text-xs text-red-600">{formik.errors.password}</p>
+                <p className="text-xs text-red-600 animate-fade-in">{formik.errors.password}</p>
               )}
             </div>
 
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+              <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200 animate-fade-in shadow-sm">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
+              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md border border-green-200 animate-fade-in shadow-sm">
                 {success}
               </div>
             )}
@@ -473,13 +487,17 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white disabled:opacity-50 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg font-semibold py-6"
             >
-              {loading
-                ? "Processing..."
-                : mode === "login"
-                  ? "Login"
-                  : "Register"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : mode === "login" ? "Login" : "Register"}
             </Button>
 
             {/* Forgot password link - Only show in login mode */}
@@ -488,16 +506,19 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/forgot-password")}
-                  className="text-sm text-red-600 hover:text-red-700 hover:underline transition-colors"
+                  className="text-sm text-red-600 hover:text-red-700 hover:underline transition-all duration-300 hover:gap-2 flex items-center justify-center gap-1 mx-auto group"
                 >
-                  Quên mật khẩu?
+                  <span>Quên mật khẩu?</span>
+                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
             )}
             
           </form>
 
-          <div className="mt-6 pt-6 border-t">
+          <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-600 mb-2">
               Demo: Use email with "staff" to access admin page
             </p>

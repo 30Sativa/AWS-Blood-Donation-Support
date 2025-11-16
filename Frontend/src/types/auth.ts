@@ -6,10 +6,9 @@ export interface LoginRequest {
 export interface RegisterRequest {
   fullName: string; // NVARCHAR(200) NOT NULL - max 200 chars
   email: string; // NVARCHAR(255) UNIQUE NOT NULL - max 255 chars
-  phoneNumber?: string; // NVARCHAR(30) NULL - max 30 chars, optional
-  gender?: string; // NVARCHAR(20) NULL - optional (Nam/Nữ/Khác)
-  birthYear?: number; // INT NULL - optional (năm sinh)
-  bloodType?: string; // Mapped to blood_type_id - format: "A+", "B-", etc.
+  phoneNumber: string; // NVARCHAR(30) - required by API
+  gender: string; // NVARCHAR(20) - required by API
+  birthYear: number; // INT - required by API
   password: string; // Will be hashed on backend
 }
 
@@ -35,9 +34,6 @@ export interface AuthResponse {
 export interface AuthError {
   message: string;
   errors?: Record<string, string[]>;
-
-}
-
 }
 
 export interface ForgotPasswordRequest {
