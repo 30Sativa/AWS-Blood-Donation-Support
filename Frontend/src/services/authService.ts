@@ -71,10 +71,10 @@ export const authService = {
     }
   },
 
-  async register(userData: RegisterRequest): Promise<AuthResponse> {
+  async register(userData: RegisterRequest): Promise<{ message?: string; success?: boolean }> {
     try {
       // Gọi API register (không cần token)
-      const response = await apiClient.post<BackendLoginResponse>(
+      const response = await apiClient.post<{ success: boolean; message?: string; data?: any }>(
         "/api/Users/register",
         userData
       );
@@ -82,26 +82,15 @@ export const authService = {
       const backendData = response.data;
 
       // Nếu backend trả về error (success: false) nhưng status 200
-      if (!backendData.success || !backendData.data) {
+      if (!backendData.success) {
         throw new Error(backendData.message || "Registration failed");
       }
 
-      const { accessToken, user, roles } = backendData.data;
-
-      // Map sang AuthResponse format (giữ nguyên để LoginPage.tsx không cần sửa)
+      // Register chỉ trả về success message, không có user data (cần confirm email trước)
       return {
-        token: accessToken,
-        refreshToken: backendData.data.refreshToken,
-        expiresIn: backendData.data.expiresIn,
-        user: {
-          id: String(user.id),
-          email: user.email,
-          fullName: user.fullname,
-        },
-        roles: roles,
-        message: backendData.message,
+        message: backendData.message || "Registration successful! Please check your email for confirmation code.",
         success: backendData.success,
-      } as AuthResponse;
+      };
     } catch (error: any) {
       console.error("Register error:", error);
       throw error;

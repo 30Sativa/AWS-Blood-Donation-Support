@@ -158,12 +158,8 @@ export default function LoginPage() {
               // Update AuthContext
               refreshAuth();
 
-              // ✅ Use role for navigation (admin & staff → admin area)
-              if (userRole === "admin" || userRole === "staff") {
-                navigate("/admin", { replace: true });
-              } else {
-                navigate("/member/dashboard", { replace: true });
-              }
+              // ✅ Redirect to homepage first, user can access dashboard via header menu
+              navigate("/", { replace: true });
             } catch (e) {
               console.warn("Unable to save token to storage:", e);
             }
@@ -187,9 +183,23 @@ export default function LoginPage() {
           }, 1500);
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "An unexpected error occurred"
-        );
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+        
+        // Check if user needs to verify email
+        if (
+          errorMessage.toLowerCase().includes("not confirmed") ||
+          errorMessage.toLowerCase().includes("verify your email") ||
+          errorMessage.toLowerCase().includes("email not verified") ||
+          errorMessage.toLowerCase().includes("please verify")
+        ) {
+          // Redirect to confirm email page
+          setError("Please verify your email first. Redirecting to confirmation page...");
+          setTimeout(() => {
+            navigate(`/confirm-email?email=${encodeURIComponent(values.email)}`, { replace: true });
+          }, 1500);
+        } else {
+          setError(errorMessage);
+        }
       } finally {
         setLoading(false);
       }

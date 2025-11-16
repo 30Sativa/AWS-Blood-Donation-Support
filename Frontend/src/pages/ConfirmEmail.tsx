@@ -30,10 +30,10 @@ export default function ConfirmEmail() {
         confirmationCode,
       });
 
-      setSuccess(response.message || "Email confirmed successfully! You can now login.");
+      setSuccess(response.message || "Email confirmed successfully! Redirecting to home page...");
       
       setTimeout(() => {
-        navigate("/auth/login", { replace: true });
+        navigate("/", { replace: true });
       }, 2000);
     } catch (err) {
       setError(
