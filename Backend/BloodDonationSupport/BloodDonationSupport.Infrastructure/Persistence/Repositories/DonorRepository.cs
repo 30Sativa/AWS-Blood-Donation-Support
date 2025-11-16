@@ -1,8 +1,10 @@
 using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Linq.Expressions;
 using DonorDomain = BloodDonationSupport.Domain.Donors.Entities.DonorDomain;
 
@@ -359,6 +361,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return donor;
         }
 
+
+
         // =========================
         // NOT IMPLEMENTED
         // =========================
@@ -468,5 +472,86 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return (donors.Select(MapToDomainWithRelations), totalCount);
         }
+
+        public async Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds)
+        {
+            var listTypes = bloodTypeIds.ToList();
+
+            var donors = await _context.Donors
+                .Include(d => d.User).ThenInclude(u => u.UserProfile)
+                .Include(d => d.BloodType)
+                .Where(d => listTypes.Contains(d.BloodTypeId ?? 0) && d.IsReady == true)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var result = new List<DonorDomain>();
+
+            foreach (var e in donors)
+            {
+                GeoLocation? lastLocation = null;
+
+                if (e.Latitude.HasValue && e.Longitude.HasValue)
+                {
+                    lastLocation = GeoLocation.Create(e.Latitude.Value, e.Longitude.Value);
+                }
+
+                var donor = DonorDomain.RehydrateWithRelations(
+                    id: e.DonorId,
+                    userId: e.UserId,
+                    bloodTypeId: e.BloodTypeId,
+                    addressId: e.AddressId,
+                    travelRadiusKm: e.TravelRadiusKm,
+                    nextEligibleDate: e.NextEligibleDate,
+                    isReady: e.IsReady,
+                    lastKnownLocation: lastLocation,
+                    locationUpdatedAt: e.LocationUpdatedAt,
+                    createdAt: e.CreatedAt,
+                    updatedAt: e.UpdatedAt,
+                    availabilities: new List<Domain.Donors.Entities.DonorAvailability>(),
+                    healthConditions: new List<DonorHealthConditionDomain>()
+                );
+
+                // ========== MAP USER ==========
+                if (e.User != null)
+                {
+                    var email = new Domain.Users.ValueObjects.Email(e.User.Email);
+
+                    var userDomain = Domain.Users.Entities.UserDomain.Rehydrate(
+                        e.User.UserId,
+                        email,
+                        e.User.CognitoUserId,
+                        e.User.PhoneNumber,
+                        e.User.IsActive,
+                        e.User.CreatedAt
+                    );
+
+                    if (e.User.UserProfile != null)
+                    {
+                        var profile = Domain.Users.Entities.UserProfileDomain.Rehydrate(
+                            e.User.UserProfile.UserId,
+                            e.User.UserProfile.FullName,
+                            e.User.UserProfile.BirthYear,
+                            e.User.UserProfile.Gender,
+                            e.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
+                        );
+                        userDomain.SetProfile(profile);
+                    }
+
+                    donor.SetUser(userDomain);
+                }
+
+                // Map BloodType
+                if (e.BloodType != null)
+                {
+                    donor.SetBloodType(e.BloodTypeId, e.BloodType.Abo, e.BloodType.Rh);
+                }
+
+                result.Add(donor);
+            }
+
+            return result;
+        }
+
+
     }
 }

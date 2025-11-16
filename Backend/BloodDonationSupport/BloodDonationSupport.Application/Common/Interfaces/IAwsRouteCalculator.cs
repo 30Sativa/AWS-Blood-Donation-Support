@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BloodDonationSupport.Application.Common.Interfaces
+{
+    public interface IAwsRouteCalculator
+    {
+        Task<double?> CalculateDistanceKmAsync(
+            double fromLat, double fromLng,
+            double toLat, double toLng);
+    }
+}

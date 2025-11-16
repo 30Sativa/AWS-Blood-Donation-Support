@@ -94,5 +94,19 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new GetNearbyRequestsQuery(request));
             return result == null ? NotFound() : Ok(result);
         }
+
+
+        // =====================================================
+        // [GET] api/requests/{id}/compatible-donors (get compatible donors for a request)
+        // =====================================================
+        [HttpGet("{id}/compatible-donors")]
+        public async Task<IActionResult> GetCompatibleDonors(long id)
+        {
+            var response = await _mediator.Send(new GetCompatibleDonorsQuery(id));
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
     }
 }

@@ -3,6 +3,7 @@ using BloodDonationSupport.Domain.Requests.Enums;
 using BloodDonationSupport.Domain.Requests.Events;
 using BloodDonationSupport.Domain.Requests.Rules;
 using BloodDonationSupport.Domain.Shared.Entities;
+using BloodDonationSupport.Domain.Shared.ValueObjects;
 
 namespace BloodDonationSupport.Domain.Requests.Entities
 {
@@ -22,6 +23,9 @@ namespace BloodDonationSupport.Domain.Requests.Entities
 
         // Navigation (optional)
         public BloodType? BloodType { get; private set; }
+
+        // 🟢 NEW: Location of request (needed for distance logic)
+        public GeoLocation? Location { get; private set; }
 
         private RequestDomain()
         { } // EF
@@ -100,7 +104,8 @@ namespace BloodDonationSupport.Domain.Requests.Entities
     RequestStatus status,
     string? clinicalNotes,
     DateTime createdAt,
-    DateTime? updatedAt)
+    DateTime? updatedAt,
+    GeoLocation? location)
         {
             return new RequestDomain
             {
@@ -115,7 +120,8 @@ namespace BloodDonationSupport.Domain.Requests.Entities
                 Status = status,
                 ClinicalNotes = clinicalNotes,
                 CreatedAt = createdAt,
-                UpdatedAt = updatedAt
+                UpdatedAt = updatedAt,
+                Location = location
             };
         }
     }

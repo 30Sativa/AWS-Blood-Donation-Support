@@ -1,6 +1,7 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Requests.Entities;
 using BloodDonationSupport.Domain.Requests.Enums;
+using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -190,6 +191,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             Enum.TryParse(entity.Urgency, out UrgencyLevel urgency);
             Enum.TryParse(entity.Status, out RequestStatus status);
 
+            // Map GeoLocation if coordinates are present
+            GeoLocation? location = null;
+            if (entity.Latitude.HasValue && entity.Longitude.HasValue)
+            {
+                location = GeoLocation.Create(entity.Latitude.Value, entity.Longitude.Value);
+            }
+
             return RequestDomain.Rehydrate(
                 id: entity.RequestId,
                 requesterUserId: entity.RequesterUserId,
@@ -202,7 +210,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 status: status,
                 clinicalNotes: entity.ClinicalNotes,
                 createdAt: entity.CreatedAt,
-                updatedAt: entity.UpdatedAt
+                updatedAt: entity.UpdatedAt,
+                location: location
             );
         }
     }

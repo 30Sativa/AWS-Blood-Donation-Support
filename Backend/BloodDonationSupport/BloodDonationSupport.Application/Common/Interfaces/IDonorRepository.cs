@@ -18,5 +18,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
             bool? isReady,
             int pageNumber,
             int pageSize);
+
+        Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds);
     }
 }
