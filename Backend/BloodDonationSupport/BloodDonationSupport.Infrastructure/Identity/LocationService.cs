@@ -17,7 +17,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         private readonly string _routeCalculatorName;
         private readonly IAmazonLocationService _locationClient;
 
-        public LocationService(AppDbContext context, IConfiguration configuration)
+        public LocationService(AppDbContext context, IConfiguration configuration, IAmazonLocationService locationClient)
         {
             _context = context;
 
@@ -26,7 +26,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                       ?? throw new Exception("Missing AWS Location Route Calculator name");
 
             // Use AWS SDK (SigV4) instead of API Key to avoid authorization issues
-            _locationClient = new AmazonLocationServiceClient(RegionEndpoint.GetBySystemName(_region));
+            _locationClient = locationClient;
         }
 
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
