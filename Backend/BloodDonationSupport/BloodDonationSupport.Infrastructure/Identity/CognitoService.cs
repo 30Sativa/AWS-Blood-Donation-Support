@@ -59,7 +59,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
             Console.WriteLine($"ClientId     = {_clientId}");
             Console.WriteLine("[Cognito] INIT END --------");
 
-        }
+        }   
 
         private static string CalculateSecretHash(string username, string clientId, string? clientSecret)
         {
