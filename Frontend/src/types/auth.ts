@@ -29,3 +29,18 @@ export interface AuthError {
   errors?: Record<string, string[]>;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyOTPRequest {
+  email: string;
+  confirmationCode: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  confirmationCode: string;
+  newPassword: string;
+}
+
