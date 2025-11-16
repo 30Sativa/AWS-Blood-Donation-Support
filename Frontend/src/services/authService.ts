@@ -1,7 +1,5 @@
 
 import apiClient from "@/services/axios";
-import type { LoginRequest, RegisterRequest, AuthResponse } from "@/types/auth";
-
 import type { LoginRequest, RegisterRequest, AuthResponse, ForgotPasswordRequest, VerifyOTPRequest, ResetPasswordRequest } from "@/types/auth";
 
 
@@ -98,37 +96,28 @@ export const authService = {
   },
 
   async requestPasswordReset(data: ForgotPasswordRequest): Promise<{ message?: string; success?: boolean }> {
-    console.log("🔍 Requesting password reset for:", data.email);
-    console.log("�� API URL:", `${API_BASE_URL}/api/Users/forgot-password`);
-    
-    const response = await fetch(`${API_BASE_URL}/api/Users/forgot-password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await apiClient.post<{ success: boolean; message?: string }>(
+        "/api/Users/forgot-password",
+        {
+          email: data.email,
+        }
+      );
 
-    console.log("�� Response status:", response.status, response.statusText);
-    console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
+      const backendData = response.data;
 
-    const raw = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-      success: false,
-    }));
+      if (!backendData.success) {
+        throw new Error(backendData.message || "Không thể gửi mã xác nhận");
+      }
 
-    console.log("📦 Response data:", JSON.stringify(raw, null, 2));
-
-    if (!response.ok || raw.success === false) {
-      console.error("❌ Error:", raw.message);
-      throw new Error(raw.message || "Không thể gửi mã xác nhận");
+      return {
+        message: backendData.message || "Mã xác nhận đã được gửi đến email của bạn!",
+        success: backendData.success,
+      };
+    } catch (error: any) {
+      console.error("Request password reset error:", error);
+      throw error;
     }
-
-    console.log("✅ Success:", raw.message);
-    return {
-      message: raw?.message as string | undefined,
-      success: raw?.success as boolean | undefined,
-    };
   },
 
   async verifyOTP(data: VerifyOTPRequest): Promise<{ message?: string; success?: boolean }> {
@@ -158,32 +147,31 @@ export const authService = {
   },
 
   async resetPassword(data: ResetPasswordRequest): Promise<{ message?: string; success?: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/api/Users/reset-password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        request: {
-          email: data.email,
-          newPassword: data.newPassword,
-          confirmationCode: data.confirmationCode,
-        },
-      }),
-    });
+    try {
+      const response = await apiClient.post<{ success: boolean; message?: string }>(
+        "/api/Users/reset-password",
+        {
+          request: {
+            email: data.email,
+            newPassword: data.newPassword,
+            confirmationCode: data.confirmationCode,
+          },
+        }
+      );
 
-    const raw = await response.json().catch(() => ({
-      message: "Đã xảy ra lỗi không xác định",
-      success: false,
-    }));
+      const backendData = response.data;
 
-    if (!response.ok || raw.success === false) {
-      throw new Error(raw.message || "Không thể đặt lại mật khẩu");
+      if (!backendData.success) {
+        throw new Error(backendData.message || "Không thể đặt lại mật khẩu");
+      }
+
+      return {
+        message: backendData.message || "Đặt lại mật khẩu thành công!",
+        success: backendData.success,
+      };
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      throw error;
     }
-
-    return {
-      message: raw?.message as string | undefined,
-      success: raw?.success as boolean | undefined,
-    };
   },
 };

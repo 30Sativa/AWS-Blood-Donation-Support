@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Droplet, ArrowLeft, Mail, KeyRound, Lock } from "lucide-react";
 import { authService } from "@/services/authService";
 
-type Step = "email" | "otp" | "newPassword";
+type Step = "email" | "newPassword";
 
 const Forgotpassword = () => {
   const navigate = useNavigate();
@@ -29,34 +29,12 @@ const Forgotpassword = () => {
       const response = await authService.requestPasswordReset({ email });
       setSuccess(response.message || "Mã OTP đã được gửi đến email của bạn!");
       setTimeout(() => {
-        setStep("otp");
+        setStep("newPassword");
         setSuccess("");
       }, 2000);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
-
-    try {
-      const response = await authService.verifyOTP({ email, confirmationCode });
-      setSuccess(response.message || "Xác thực mã xác nhận thành công!");
-      setTimeout(() => {
-        setStep("newPassword");
-        setSuccess("");
-      }, 1500);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Mã xác nhận không hợp lệ hoặc đã hết hạn"
       );
     } finally {
       setLoading(false);
@@ -145,11 +123,11 @@ const Forgotpassword = () => {
           </form>
         );
 
-      case "otp":
+      case "newPassword":
         return (
-          <form onSubmit={handleVerifyOTP} className="space-y-4">
+          <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="confirmationCode">Mã xác nhận</Label>
+              <Label htmlFor="confirmationCode">Mã xác nhận (OTP)</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
@@ -158,7 +136,8 @@ const Forgotpassword = () => {
                   placeholder="Nhập mã xác nhận"
                   value={confirmationCode}
                   onChange={(e) => setConfirmationCode(e.target.value)}
-                  className="pl-10 text-center text-lg tracking-widest"
+                  className="pl-10 text-center text-lg tracking-widest font-mono"
+                  maxLength={6}
                   required
                 />
               </div>
@@ -167,46 +146,6 @@ const Forgotpassword = () => {
               </p>
             </div>
 
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
-                {success}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setStep("email");
-                  setConfirmationCode("");
-                  setError("");
-                  setSuccess("");
-                }}
-                className="flex-1"
-              >
-                Quay lại
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-              >
-                {loading ? "Đang xác thực..." : "Xác thực"}
-              </Button>
-            </div>
-          </form>
-        );
-
-      case "newPassword":
-        return (
-          <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newPassword">Mật khẩu mới</Label>
               <div className="relative">
@@ -257,7 +196,8 @@ const Forgotpassword = () => {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setStep("otp");
+                  setStep("email");
+                  setConfirmationCode("");
                   setNewPassword("");
                   setConfirmPassword("");
                   setError("");
@@ -269,7 +209,7 @@ const Forgotpassword = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !confirmationCode || !newPassword || !confirmPassword}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
                 {loading ? "Đang xử lý..." : "Đặt lại mật khẩu"}
@@ -310,8 +250,7 @@ const Forgotpassword = () => {
           <h1 className="text-2xl font-bold text-center mb-2">Quên mật khẩu</h1>
           <p className="text-sm text-gray-600 text-center mb-6">
             {step === "email" && "Nhập email để nhận mã xác nhận"}
-            {step === "otp" && "Nhập mã xác nhận đã được gửi đến email của bạn"}
-            {step === "newPassword" && "Tạo mật khẩu mới cho tài khoản của bạn"}
+            {step === "newPassword" && "Nhập mã OTP và mật khẩu mới"}
           </p>
 
           {/* Progress indicator */}
@@ -333,28 +272,12 @@ const Forgotpassword = () => {
               />
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step === "otp"
-                    ? "bg-red-600 text-white"
-                    : step === "newPassword"
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-300 text-gray-600"
-                }`}
-              >
-                {step === "newPassword" ? "✓" : "2"}
-              </div>
-              <div
-                className={`w-12 h-0.5 ${
-                  step === "newPassword" ? "bg-green-500" : "bg-gray-300"
-                }`}
-              />
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step === "newPassword"
                     ? "bg-red-600 text-white"
                     : "bg-gray-300 text-gray-600"
                 }`}
               >
-                3
+                2
               </div>
             </div>
           </div>
