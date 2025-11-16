@@ -42,6 +42,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IRequestRepository, RequestRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IAwsRouteCalculator, AwsRouteCalculator>();
+            services.AddScoped<ICompatibilityRepository, CompatibilityRepository>();
             // HttpContext accessor (lifetime managed by framework)
             services.AddHttpContextAccessor();
 
