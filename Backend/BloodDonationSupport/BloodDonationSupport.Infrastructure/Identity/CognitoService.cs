@@ -53,6 +53,12 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 ?? throw new ArgumentNullException(nameof(options.Cognito.UserPoolId));
 
             _clientSecret = options.Cognito.ClientSecret?.Trim();
+            Console.WriteLine("[Cognito] INIT ------------");
+            Console.WriteLine($"Region       = {region.SystemName}");
+            Console.WriteLine($"UserPoolId   = {_userPoolId}");
+            Console.WriteLine($"ClientId     = {_clientId}");
+            Console.WriteLine("[Cognito] INIT END --------");
+
         }
 
         private static string CalculateSecretHash(string username, string clientId, string? clientSecret)
