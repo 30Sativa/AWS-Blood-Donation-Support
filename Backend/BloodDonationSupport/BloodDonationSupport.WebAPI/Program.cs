@@ -86,25 +86,27 @@ builder.Services
     {
         var region = "ap-southeast-2";
         var poolId = config["AWS:Cognito:UserPoolId"];
-        var clientId = config["AWS:Cognito:ClientId"];
 
-        options.Authority = $"https://cognito-idp.{region}.amazonaws.com/{poolId}";
-        options.MetadataAddress = $"https://cognito-idp.{region}.amazonaws.com/{poolId}/.well-known/openid-configuration";
+        options.MetadataAddress =
+            $"https://cognito-idp.{region}.amazonaws.com/{poolId}/.well-known/openid-configuration";
+
+        options.Authority =
+            $"https://cognito-idp.{region}.amazonaws.com/{poolId}";
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = $"https://cognito-idp.{region}.amazonaws.com/{poolId}",
 
-            ValidateAudience = true,
-            ValidAudience = clientId,
+            ValidateAudience = false,   // MUST BE FALSE for Cognito
 
-            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
 
             RoleClaimType = "cognito:groups"
         };
     });
+
 
 
 
