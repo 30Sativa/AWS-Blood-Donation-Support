@@ -80,36 +80,32 @@ builder.Services.AddCors(options =>
 // =========================================================
 // 🔐 JWT AUTHENTICATION (AWS Cognito)
 // =========================================================
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var region = "ap-southeast-2";
         var poolId = config["AWS:Cognito:UserPoolId"];
         var clientId = config["AWS:Cognito:ClientId"];
 
-        // 👉 Authority KHÔNG có poolId
-        options.Authority = $"https://cognito-idp.{region}.amazonaws.com";
+        options.Authority = $"https://cognito-idp.{region}.amazonaws.com/{poolId}";
+        options.MetadataAddress = $"https://cognito-idp.{region}.amazonaws.com/{poolId}/.well-known/openid-configuration";
 
-        // 👉 ValidIssuer phải có poolId
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = $"https://cognito-idp.{region}.amazonaws.com/{poolId}",
 
             ValidateAudience = true,
-            ValidAudience = clientId, // 👉 RẤT QUAN TRỌNG
+            ValidAudience = clientId,
 
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(2),
-
             ValidateIssuerSigningKey = true,
+
             RoleClaimType = "cognito:groups"
         };
-
-        // Cho phép lấy key signing từ JWKS
-        options.RequireHttpsMetadata = true;
-        options.SaveToken = true;
     });
+
 
 
 // =========================================================
