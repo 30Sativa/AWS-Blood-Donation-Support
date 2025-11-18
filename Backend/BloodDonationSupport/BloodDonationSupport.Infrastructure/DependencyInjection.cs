@@ -39,6 +39,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IPostRepository, PostRepository>();
             services.AddScoped<IPostTagRepository, PostTagRepository>();
             services.AddScoped<IDonorRepository, DonorRepository>();
+            services.AddScoped<IAddressRepository, AddressRepository>();
             services.AddScoped<ILocationService, LocationService>();
             services.AddScoped<IRequestRepository, RequestRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();

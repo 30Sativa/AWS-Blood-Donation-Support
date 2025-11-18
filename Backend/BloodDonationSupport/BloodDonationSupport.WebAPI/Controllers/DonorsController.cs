@@ -100,6 +100,24 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : NotFound(result);
         }
 
+        // [GET] api/donors/me (Get current user's donor profile)
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentDonor()
+        {
+            var result = await _mediator.Send(new GetCurrentDonorQuery());
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
+        // [PUT] api/donors/me (Update current user's donor profile)
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMyDonor([FromBody] UpdateDonorRequest request)
+        {
+            var result = await _mediator.Send(new UpdateMyDonorCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // [PUT] api/donors/{id} (Update donor profile)
         [HttpPut("{id:long}")]
         [Authorize(Policy = "UserOrAdmin")]
