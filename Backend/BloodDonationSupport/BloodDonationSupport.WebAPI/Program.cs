@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -119,9 +120,14 @@ builder.Services
             OnTokenValidated = context =>
             {
                 var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                
+                // Log all claims to debug
+                var allClaims = context.Principal?.Claims?.Select(c => $"{c.Type}={c.Value}").ToList() ?? new List<string>();
+                logger.LogInformation("✅ JWT Token validated - All Claims: {Claims}", string.Join(", ", allClaims));
+                
                 var sub = context.Principal?.FindFirst("sub")?.Value;
                 var email = context.Principal?.FindFirst("email")?.Value;
-                logger.LogInformation("✅ JWT Token validated - Sub: {Sub}, Email: {Email}", sub, email);
+                logger.LogInformation("✅ JWT Token validated - Sub: {Sub}, Email: {Email}", sub ?? "null", email ?? "null");
                 return Task.CompletedTask;
             },
             OnChallenge = context =>

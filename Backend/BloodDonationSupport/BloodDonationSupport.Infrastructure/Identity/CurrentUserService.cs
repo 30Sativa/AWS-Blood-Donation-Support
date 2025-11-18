@@ -1,5 +1,6 @@
 using BloodDonationSupport.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Security.Claims;
 
@@ -8,10 +9,12 @@ namespace BloodDonationSupport.Infrastructure.Identity
     public class CurrentUserService : ICurrentUserService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<CurrentUserService> _logger;
 
-        public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+        public CurrentUserService(IHttpContextAccessor httpContextAccessor, ILogger<CurrentUserService> logger)
         {
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public long? UserId
@@ -27,7 +30,24 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
         }
 
-        public string? CognitoUserId => GetClaim("sub");
+        public string? CognitoUserId
+        {
+            get
+            {
+                var sub = GetClaim("sub");
+                if (sub == null)
+                {
+                    // Log all available claims for debugging
+                    var httpContext = _httpContextAccessor.HttpContext;
+                    if (httpContext?.User?.Claims != null)
+                    {
+                        var allClaims = httpContext.User.Claims.Select(c => $"{c.Type}={c.Value}").ToList();
+                        _logger.LogWarning("CognitoUserId is null. Available claims: {Claims}", string.Join(", ", allClaims));
+                    }
+                }
+                return sub;
+            }
+        }
 
         public string? Email => GetClaim(ClaimTypes.Email) ?? GetClaim("email");
 
@@ -53,9 +73,15 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
         private string? GetClaim(string claimType)
         {
-            return _httpContextAccessor.HttpContext?.User?.Claims
-                .FirstOrDefault(c => c.Type == claimType)
-                ?.Value;
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.User?.Claims == null)
+                return null;
+
+            var claim = httpContext.User.Claims.FirstOrDefault(c => 
+                c.Type == claimType || 
+                c.Type == ClaimTypes.NameIdentifier && claimType == "sub");
+            
+            return claim?.Value;
         }
     }
 }
