@@ -109,6 +109,15 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : NotFound(result);
         }
 
+        // [GET] api/donors/me/availability (Get availability of current donor)
+        [HttpGet("me/availability")]
+        [Authorize]
+        public async Task<IActionResult> GetMyAvailability()
+        {
+            var result = await _mediator.Send(new GetMyDonorAvailabilityQuery());
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
         // [PUT] api/donors/me (Update current user's donor profile)
         [HttpPut("me")]
         [Authorize]

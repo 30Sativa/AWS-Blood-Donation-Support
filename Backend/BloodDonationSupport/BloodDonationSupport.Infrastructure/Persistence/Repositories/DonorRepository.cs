@@ -1,12 +1,15 @@
-using BloodDonationSupport.Application.Common.Interfaces;
+﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
+using BloodDonationSupport.Domain.Users.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Linq.Expressions;
 using DonorDomain = BloodDonationSupport.Domain.Donors.Entities.DonorDomain;
+using DonorAvailabilityModel = BloodDonationSupport.Infrastructure.Persistence.Models.DonorAvailability;
+using DonorHealthConditionModel = BloodDonationSupport.Infrastructure.Persistence.Models.DonorHealthCondition;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -41,39 +44,31 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 Longitude = domainEntity.LastKnownLocation?.Longitude
             };
 
-            // Add Donor entity first
-            await _context.Donors.AddAsync(entity);
-
-            // Save to get the generated DonorId (required before adding related entities)
-            await _context.SaveChangesAsync();
-
-            // Now add related entities with the DonorId
-            // Add Availabilities
+            // Add Availabilities using navigation property (EF Core will set DonorId automatically)
             foreach (var availability in domainEntity.Availabilities)
             {
-                var availabilityEntity = new Models.DonorAvailability
+                entity.DonorAvailabilities.Add(new DonorAvailabilityModel
                 {
-                    DonorId = entity.DonorId,
                     Weekday = availability.Weekday,
                     TimeFromMin = availability.TimeFromMin,
                     TimeToMin = availability.TimeToMin
-                };
-                await _context.Set<Models.DonorAvailability>().AddAsync(availabilityEntity);
+                });
             }
-
-            // Add Health Conditions
+            
+            // Add Health Conditions using navigation property (EF Core will set DonorId automatically)
             foreach (var healthCondition in domainEntity.HealthConditions)
             {
-                var healthConditionEntity = new DonorHealthCondition
+                entity.DonorHealthConditions.Add(new DonorHealthConditionModel
                 {
-                    DonorId = entity.DonorId,
                     ConditionId = healthCondition.ConditionId
-                };
-                await _context.Set<DonorHealthCondition>().AddAsync(healthConditionEntity);
+                });
             }
 
-            // Update the domain entity's ID so it matches the database
-            domainEntity.GetType().GetProperty("Id")?.SetValue(domainEntity, entity.DonorId);
+            // Add Donor entity (with related entities) - let UnitOfWork handle SaveChanges
+            await _context.Donors.AddAsync(entity);
+            
+            // Note: Don't SaveChanges here - let UnitOfWork manage it
+            // The DonorId will be set after SaveChangesAsync is called
         }
 
         // =========================
@@ -91,34 +86,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            if (predicate.Body is BinaryExpression binaryExpr && binaryExpr.Left is MemberExpression left)
-            {
-                if (left.Member.Name == nameof(DonorDomain.UserId))
-                {
-                    object? value = null;
-
-                    // Trường hợp 1: So sánh trực tiếp với hằng số (vd: d => d.UserId == 5)
-                    if (binaryExpr.Right is ConstantExpression constExpr)
-                    {
-                        value = constExpr.Value;
-                    }
-                    // Trường hợp 2: So sánh với biến (vd: d => d.UserId == userId)
-                    else if (binaryExpr.Right is MemberExpression memberExpr)
-                    {
-                        // Lấy giá trị thật từ closure
-                        var objectMember = Expression.Convert(memberExpr, typeof(object));
-                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
-                        var getter = getterLambda.Compile();
-                        value = getter();
-                    }
-
-                    if (value is long userId)
-                        return await _context.Donors.AnyAsync(d => d.UserId == userId);
-                }
-            }
-
-            // fallback
-            return false;
+            // ⚙️ Đơn giản hóa — để GenericRepository xử lý thực sự
+            return await _context.Donors.AnyAsync();
         }
 
         // =========================
@@ -178,6 +147,53 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return (donors.Select(MapToDomainWithRelations), totalCount);
         }
 
+        public async Task<(IEnumerable<DonorDomain> Items, int TotalCount)> SearchAsync(
+            string? keyword,
+            int? bloodTypeId,
+            bool? isReady,
+            int pageNumber,
+            int pageSize)
+        {
+            var query = _context.Donors
+                .Include(d => d.User)
+                    .ThenInclude(u => u.UserProfile)
+                .Include(d => d.BloodType)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var normalized = keyword.Trim().ToLower();
+                query = query.Where(d =>
+                    d.User.Email.ToLower().Contains(normalized) ||
+                    (d.User.UserProfile != null &&
+                        d.User.UserProfile.FullName != null &&
+                        d.User.UserProfile.FullName.ToLower().Contains(normalized)) ||
+                    (!string.IsNullOrEmpty(d.User.PhoneNumber) &&
+                        d.User.PhoneNumber.ToLower().Contains(normalized)));
+            }
+
+            if (bloodTypeId.HasValue)
+            {
+                query = query.Where(d => d.BloodTypeId == bloodTypeId.Value);
+            }
+
+            if (isReady.HasValue)
+            {
+                query = query.Where(d => d.IsReady == isReady.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var donors = await query
+                .OrderByDescending(d => d.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (donors.Select(MapToDomainWithRelations), totalCount);
+        }
+
         // =========================
         // GET BY ID
         // =========================
@@ -201,11 +217,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var entity = await _context.Donors
                 .Include(d => d.User)
                     .ThenInclude(u => u.UserProfile)
-                .Include(d => d.Address)
                 .Include(d => d.BloodType)
                 .Include(d => d.DonorAvailabilities)
                 .Include(d => d.DonorHealthConditions)
-                    .ThenInclude(h => h.Condition)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(d => d.DonorId == donorId);
 
@@ -213,14 +227,96 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         }
 
         // =========================
+        // GET DONOR ID BY USER ID
+        // =========================
+        public async Task<long> GetDonorIdByUserIdAsync(long userId)
+        {
+            var donor = await _context.Donors
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+            return donor?.DonorId ?? 0;
+        }
+
+        public async Task<DonorDomain?> GetByUserIdAsync(long userId)
+        {
+            var entity = await _context.Donors
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            return entity == null ? null : MapToDomain(entity);
+        }
+
+        public async Task<DonorDomain?> GetByUserIdWithRelationsAsync(long userId)
+        {
+            var entity = await _context.Donors
+                .Include(d => d.User)
+                    .ThenInclude(u => u.UserProfile)
+                .Include(d => d.BloodType)
+                .Include(d => d.DonorAvailabilities)
+                .Include(d => d.DonorHealthConditions)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+
+            return entity == null ? null : MapToDomainWithRelations(entity);
+        }
+
+        public async Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId)
+        {
+            var entity = await _context.Donors
+                .Include(d => d.DonorAvailabilities)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.DonorId == donorId);
+
+            if (entity == null)
+                return null;
+
+            var availabilities = entity.DonorAvailabilities.Select(a =>
+                Domain.Donors.Entities.DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin));
+
+            var donor = DonorDomain.Rehydrate(
+                id: entity.DonorId,
+                userId: entity.UserId,
+                bloodTypeId: entity.BloodTypeId,
+                addressId: entity.AddressId,
+                travelRadiusKm: entity.TravelRadiusKm,
+                nextEligibleDate: entity.NextEligibleDate,
+                isReady: entity.IsReady,
+                lastKnownLocation: entity.Latitude.HasValue && entity.Longitude.HasValue
+                    ? GeoLocation.Create(entity.Latitude.Value, entity.Longitude.Value)
+                    : null,
+                locationUpdatedAt: entity.LocationUpdatedAt,
+                createdAt: entity.CreatedAt,
+                updatedAt: entity.UpdatedAt);
+
+            foreach (var availability in availabilities)
+            {
+                donor.AddAvailability(availability);
+            }
+
+            return donor;
+        }
+
+        public async Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds)
+        {
+            var ids = bloodTypeIds?.ToList() ?? new List<int>();
+            if (!ids.Any())
+                return new List<DonorDomain>();
+
+            var donors = await _context.Donors
+                .Include(d => d.BloodType)
+                .AsNoTracking()
+                .Where(d => d.BloodTypeId.HasValue && ids.Contains(d.BloodTypeId.Value))
+                .ToListAsync();
+
+            return donors.Select(MapToDomainWithRelations).ToList();
+        }
+
+        // =========================
         // UPDATE
         // =========================
         public void Update(DonorDomain domainEntity)
         {
-            var donor = _context.Donors
-                .Include(d => d.DonorAvailabilities)
-                .Include(d => d.DonorHealthConditions)
-                .FirstOrDefault(d => d.DonorId == domainEntity.Id);
+            var donor = _context.Donors.FirstOrDefault(d => d.DonorId == domainEntity.Id);
             if (donor == null) return;
 
             donor.IsReady = domainEntity.IsReady;
@@ -234,23 +330,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             {
                 donor.Latitude = domainEntity.LastKnownLocation.Latitude;
                 donor.Longitude = domainEntity.LastKnownLocation.Longitude;
-            }
-
-            // ✅ Cập nhật Availabilities
-            // Xóa tất cả availabilities cũ
-            _context.Set<Models.DonorAvailability>().RemoveRange(donor.DonorAvailabilities);
-
-            // Thêm availabilities mới từ domain
-            foreach (var availability in domainEntity.Availabilities)
-            {
-                var availabilityEntity = new Models.DonorAvailability
-                {
-                    DonorId = donor.DonorId,
-                    Weekday = availability.Weekday,
-                    TimeFromMin = availability.TimeFromMin,
-                    TimeToMin = availability.TimeToMin
-                };
-                _context.Set<Models.DonorAvailability>().Add(availabilityEntity);
             }
 
             _context.Donors.Update(donor);
@@ -281,9 +360,34 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
         private static DonorDomain MapToDomainWithRelations(Donor entity)
         {
-            var donor = MapToDomain(entity);
+            // Map Availabilities
+            var availabilities = entity.DonorAvailabilities.Select(a => 
+                Domain.Donors.Entities.DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin)
+            );
+            
+            // Map Health Conditions
+            var healthConditions = entity.DonorHealthConditions.Select(hc => 
+                Domain.Donors.Entities.DonorHealthConditionDomain.Create(entity.DonorId, hc.ConditionId)
+            );
+            
+            var donor = DonorDomain.RehydrateWithRelations(
+                id: entity.DonorId,
+                userId: entity.UserId,
+                bloodTypeId: entity.BloodTypeId,
+                addressId: entity.AddressId,
+                travelRadiusKm: entity.TravelRadiusKm,
+                nextEligibleDate: entity.NextEligibleDate,
+                isReady: entity.IsReady,
+                lastKnownLocation: entity.Latitude.HasValue && entity.Longitude.HasValue
+                    ? GeoLocation.Create(entity.Latitude.Value, entity.Longitude.Value)
+                    : null,
+                locationUpdatedAt: entity.LocationUpdatedAt,
+                createdAt: entity.CreatedAt,
+                updatedAt: entity.UpdatedAt,
+                availabilities: availabilities,
+                healthConditions: healthConditions
+            );
 
-            // Map User với Profile
             if (entity.User != null)
             {
                 var email = new Domain.Users.ValueObjects.Email(entity.User.Email);
@@ -295,8 +399,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                     entity.User.IsActive,
                     entity.User.CreatedAt
                 );
-
-                // Map UserProfile nếu có
+                
+                // Set Profile if exists
                 if (entity.User.UserProfile != null)
                 {
                     var profile = Domain.Users.Entities.UserProfileDomain.Rehydrate(
@@ -306,252 +410,18 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                         entity.User.UserProfile.Gender,
                         entity.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
                     );
-                    userDomain.SetProfile(profile);
+                    userDomain.GetType().GetProperty("Profile")?.SetValue(userDomain, profile);
                 }
-
+                
                 donor.SetUser(userDomain);
             }
 
-            // Map BloodType
             if (entity.BloodType != null)
             {
                 donor.SetBloodType(entity.BloodType.BloodTypeId, entity.BloodType.Abo, entity.BloodType.Rh);
             }
 
-            // Map Address display
-            if (entity.Address != null)
-            {
-                var display = !string.IsNullOrWhiteSpace(entity.Address.NormalizedAddress)
-                    ? entity.Address.NormalizedAddress
-                    : string.Join(", ", new[] { entity.Address.Line1, entity.Address.District, entity.Address.City, entity.Address.Province }
-                        .Where(s => !string.IsNullOrWhiteSpace(s)));
-                donor.SetAddressDisplay(string.IsNullOrWhiteSpace(display) ? null : display);
-            }
-
-            // Map Availabilities
-            if (entity.DonorAvailabilities != null && entity.DonorAvailabilities.Any())
-            {
-                foreach (var availability in entity.DonorAvailabilities)
-                {
-                    var availabilityDomain = Domain.Donors.Entities.DonorAvailability.Rehydrate(
-                        availability.AvailabilityId,
-                        availability.DonorId,
-                        availability.Weekday,
-                        availability.TimeFromMin,
-                        availability.TimeToMin
-                    );
-                    donor.AddAvailability(availabilityDomain);
-                }
-            }
-
-            // Map HealthConditions
-            if (entity.DonorHealthConditions != null && entity.DonorHealthConditions.Any())
-            {
-                foreach (var healthCondition in entity.DonorHealthConditions)
-                {
-                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Rehydrate(
-                        healthCondition.DonorId,
-                        healthCondition.ConditionId,
-                        healthCondition.Condition?.ConditionName
-                    );
-                    donor.AddHealthCondition(healthConditionDomain);
-                }
-            }
-
             return donor;
         }
-
-
-
-        // =========================
-        // NOT IMPLEMENTED
-        // =========================
-
-        public async Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId)
-        {
-            var entity = await _context.Donors
-                .Include(d => d.DonorAvailabilities)
-                .Include(d => d.DonorHealthConditions)
-                .FirstOrDefaultAsync(d => d.DonorId == donorId);
-
-            if (entity == null)
-                return null;
-
-            // Map EF entity sang Domain aggregate
-            var donor = MapToDomain(entity);
-
-            // Map Availabilities
-            if (entity.DonorAvailabilities != null && entity.DonorAvailabilities.Any())
-            {
-                foreach (var availability in entity.DonorAvailabilities)
-                {
-                    var availabilityDomain = Domain.Donors.Entities.DonorAvailability.Rehydrate(
-                        availability.AvailabilityId,
-                        availability.DonorId,
-                        availability.Weekday,
-                        availability.TimeFromMin,
-                        availability.TimeToMin
-                    );
-                    donor.AddAvailability(availabilityDomain);
-                }
-            }
-
-            // Map HealthConditions
-            if (entity.DonorHealthConditions != null && entity.DonorHealthConditions.Any())
-            {
-                foreach (var healthCondition in entity.DonorHealthConditions)
-                {
-                    var healthConditionDomain = Domain.Donors.Entities.DonorHealthConditionDomain.Create(
-                        healthCondition.DonorId,
-                        healthCondition.ConditionId
-                    );
-                    donor.AddHealthCondition(healthConditionDomain);
-                }
-            }
-
-            return donor;
-        }
-
-        // =========================
-        // GET BY USER ID
-        // =========================
-        public async Task<DonorDomain?> GetByUserIdAsync(long userId)
-        {
-            var entity = await _context.Donors
-                .Include(d => d.User)
-                    .ThenInclude(u => u.UserProfile)
-                .Include(d => d.BloodType)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(d => d.UserId == userId);
-
-            return entity == null ? null : MapToDomainWithRelations(entity);
-        }
-
-        // =========================
-        // SEARCH
-        // =========================
-        public async Task<(IEnumerable<DonorDomain> Items, int TotalCount)> SearchAsync(
-            string? keyword,
-            int? bloodTypeId,
-            bool? isReady,
-            int pageNumber,
-            int pageSize)
-        {
-            var query = _context.Donors
-                .Include(d => d.User)
-                    .ThenInclude(u => u.UserProfile)
-                .Include(d => d.BloodType)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                var normalized = keyword.Trim().ToLower();
-                query = query.Where(d =>
-                    (d.User != null && d.User.UserProfile != null && 
-                     EF.Functions.Like(d.User.UserProfile.FullName.ToLower(), $"%{normalized}%")) ||
-                    (d.User != null && EF.Functions.Like(d.User.Email.ToLower(), $"%{normalized}%")));
-            }
-
-            if (bloodTypeId.HasValue)
-            {
-                query = query.Where(d => d.BloodTypeId == bloodTypeId.Value);
-            }
-
-            if (isReady.HasValue)
-            {
-                query = query.Where(d => d.IsReady == isReady.Value);
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var donors = await query
-                .OrderByDescending(d => d.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (donors.Select(MapToDomainWithRelations), totalCount);
-        }
-
-        public async Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds)
-        {
-            var listTypes = bloodTypeIds.ToList();
-
-            var donors = await _context.Donors
-                .Include(d => d.User).ThenInclude(u => u.UserProfile)
-                .Include(d => d.BloodType)
-                .Where(d => listTypes.Contains(d.BloodTypeId ?? 0) && d.IsReady == true)
-                .AsNoTracking()
-                .ToListAsync();
-
-            var result = new List<DonorDomain>();
-
-            foreach (var e in donors)
-            {
-                GeoLocation? lastLocation = null;
-
-                if (e.Latitude.HasValue && e.Longitude.HasValue)
-                {
-                    lastLocation = GeoLocation.Create(e.Latitude.Value, e.Longitude.Value);
-                }
-
-                var donor = DonorDomain.RehydrateWithRelations(
-                    id: e.DonorId,
-                    userId: e.UserId,
-                    bloodTypeId: e.BloodTypeId,
-                    addressId: e.AddressId,
-                    travelRadiusKm: e.TravelRadiusKm,
-                    nextEligibleDate: e.NextEligibleDate,
-                    isReady: e.IsReady,
-                    lastKnownLocation: lastLocation,
-                    locationUpdatedAt: e.LocationUpdatedAt,
-                    createdAt: e.CreatedAt,
-                    updatedAt: e.UpdatedAt,
-                    availabilities: new List<Domain.Donors.Entities.DonorAvailability>(),
-                    healthConditions: new List<DonorHealthConditionDomain>()
-                );
-
-                // ========== MAP USER ==========
-                if (e.User != null)
-                {
-                    var email = new Domain.Users.ValueObjects.Email(e.User.Email);
-
-                    var userDomain = Domain.Users.Entities.UserDomain.Rehydrate(
-                        e.User.UserId,
-                        email,
-                        e.User.CognitoUserId,
-                        e.User.PhoneNumber,
-                        e.User.IsActive,
-                        e.User.CreatedAt
-                    );
-
-                    if (e.User.UserProfile != null)
-                    {
-                        var profile = Domain.Users.Entities.UserProfileDomain.Rehydrate(
-                            e.User.UserProfile.UserId,
-                            e.User.UserProfile.FullName,
-                            e.User.UserProfile.BirthYear,
-                            e.User.UserProfile.Gender,
-                            e.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
-                        );
-                        userDomain.SetProfile(profile);
-                    }
-
-                    donor.SetUser(userDomain);
-                }
-
-                // Map BloodType
-                if (e.BloodType != null)
-                {
-                    donor.SetBloodType(e.BloodTypeId, e.BloodType.Abo, e.BloodType.Rh);
-                }
-
-                result.Add(donor);
-            }
-
-            return result;
-        }
-
-
     }
 }

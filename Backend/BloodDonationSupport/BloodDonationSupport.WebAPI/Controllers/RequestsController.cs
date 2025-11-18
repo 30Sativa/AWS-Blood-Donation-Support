@@ -4,6 +4,7 @@ using BloodDonationSupport.Application.Features.Requests.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace BloodDonationSupport.WebAPI.Controllers
 {
@@ -107,6 +108,19 @@ namespace BloodDonationSupport.WebAPI.Controllers
                 return BadRequest(response);
 
             return Ok(response);
+        }
+
+        // [POST] api/requests/{id}/match (Create match between request and donor)
+        // =====================================================
+        [HttpPost("{id:long}/match")]
+        [Authorize(Policy = "AdminOrStaff")]
+        public async Task<IActionResult> CreateMatch(long id, [FromBody] CreateMatchRequest request)
+        {
+            if (request == null)
+                return BadRequest("Request body cannot be null.");
+
+            var result = await _mediator.Send(new CreateMatchCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
         }
     }
 }

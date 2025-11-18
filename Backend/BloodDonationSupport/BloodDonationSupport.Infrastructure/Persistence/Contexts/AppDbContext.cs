@@ -23,6 +23,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
 
         public virtual DbSet<Address> Addresses { get; set; }
         public virtual DbSet<Appointment> Appointments { get; set; }
+        public virtual DbSet<Match> Matches { get; set; }
+        public virtual DbSet<HealthCondition> HealthConditions { get; set; }
         public virtual DbSet<BloodComponent> BloodComponents { get; set; }
         public virtual DbSet<BloodType> BloodTypes { get; set; }
         public virtual DbSet<Donation> Donations { get; set; }
