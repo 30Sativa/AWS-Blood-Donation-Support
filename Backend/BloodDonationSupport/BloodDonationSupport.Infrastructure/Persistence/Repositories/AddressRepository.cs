@@ -32,6 +32,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
 
             await _context.Addresses.AddAsync(entity);
+            // Note: SaveChanges should be managed by UnitOfWork in the handler
+            // But for Address, we need the ID immediately, so we save here
             await _context.SaveChangesAsync();
 
             return entity.AddressId;
@@ -97,6 +99,36 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             await _context.SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<(IEnumerable<AddressData> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Addresses.AsNoTracking();
+            var totalCount = await query.CountAsync();
+
+            var addresses = await query
+                .OrderByDescending(a => a.AddressId)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = addresses.Select(a => new AddressData
+            {
+                AddressId = a.AddressId,
+                Line1 = a.Line1,
+                District = a.District,
+                City = a.City,
+                Province = a.Province,
+                Country = a.Country,
+                PostalCode = a.PostalCode,
+                NormalizedAddress = a.NormalizedAddress,
+                PlaceId = a.PlaceId,
+                ConfidenceScore = a.ConfidenceScore,
+                Latitude = a.Latitude,
+                Longitude = a.Longitude
+            });
+
+            return (items, totalCount);
         }
     }
 }

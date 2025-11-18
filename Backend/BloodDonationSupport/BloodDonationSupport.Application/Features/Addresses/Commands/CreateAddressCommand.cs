@@ -3,6 +3,7 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Addresses.DTOs.Request;
 using BloodDonationSupport.Application.Features.Addresses.DTOs.Response;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace BloodDonationSupport.Application.Features.Addresses.Commands
 {
@@ -11,10 +12,14 @@ namespace BloodDonationSupport.Application.Features.Addresses.Commands
     public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand, BaseResponse<AddressResponse>>
     {
         private readonly IAddressRepository _addressRepository;
+        private readonly ILogger<CreateAddressCommandHandler> _logger;
 
-        public CreateAddressCommandHandler(IAddressRepository addressRepository)
+        public CreateAddressCommandHandler(
+            IAddressRepository addressRepository,
+            ILogger<CreateAddressCommandHandler> logger)
         {
             _addressRepository = addressRepository;
+            _logger = logger;
         }
 
         public async Task<BaseResponse<AddressResponse>> Handle(CreateAddressCommand request, CancellationToken cancellationToken)
@@ -34,31 +39,41 @@ namespace BloodDonationSupport.Application.Features.Addresses.Commands
                 Longitude = request.Request.Longitude
             };
 
-            var addressId = await _addressRepository.AddAsync(addressData);
-
-            var createdAddress = await _addressRepository.GetByIdAsync(addressId);
-            if (createdAddress == null)
+            try
             {
-                return BaseResponse<AddressResponse>.FailureResponse("Failed to create address.");
+                var addressId = await _addressRepository.AddAsync(addressData);
+                _logger.LogInformation("Address created with ID: {AddressId}", addressId);
+
+                var createdAddress = await _addressRepository.GetByIdAsync(addressId);
+                if (createdAddress == null)
+                {
+                    _logger.LogWarning("Address created but could not be retrieved. AddressId: {AddressId}", addressId);
+                    return BaseResponse<AddressResponse>.FailureResponse("Failed to create address.");
+                }
+
+                var response = new AddressResponse
+                {
+                    AddressId = createdAddress.AddressId!.Value,
+                    Line1 = createdAddress.Line1,
+                    District = createdAddress.District,
+                    City = createdAddress.City,
+                    Province = createdAddress.Province,
+                    Country = createdAddress.Country,
+                    PostalCode = createdAddress.PostalCode,
+                    NormalizedAddress = createdAddress.NormalizedAddress,
+                    PlaceId = createdAddress.PlaceId,
+                    ConfidenceScore = createdAddress.ConfidenceScore,
+                    Latitude = createdAddress.Latitude,
+                    Longitude = createdAddress.Longitude
+                };
+
+                return BaseResponse<AddressResponse>.SuccessResponse(response, "Address created successfully.");
             }
-
-            var response = new AddressResponse
+            catch (Exception ex)
             {
-                AddressId = createdAddress.AddressId!.Value,
-                Line1 = createdAddress.Line1,
-                District = createdAddress.District,
-                City = createdAddress.City,
-                Province = createdAddress.Province,
-                Country = createdAddress.Country,
-                PostalCode = createdAddress.PostalCode,
-                NormalizedAddress = createdAddress.NormalizedAddress,
-                PlaceId = createdAddress.PlaceId,
-                ConfidenceScore = createdAddress.ConfidenceScore,
-                Latitude = createdAddress.Latitude,
-                Longitude = createdAddress.Longitude
-            };
-
-            return BaseResponse<AddressResponse>.SuccessResponse(response, "Address created successfully.");
+                _logger.LogError(ex, "Error creating address");
+                return BaseResponse<AddressResponse>.FailureResponse($"Error creating address: {ex.Message}");
+            }
         }
     }
 }

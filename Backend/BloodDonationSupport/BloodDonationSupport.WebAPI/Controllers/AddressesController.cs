@@ -20,6 +20,24 @@ namespace BloodDonationSupport.WebAPI.Controllers
             _logger = logger;
         }
 
+        // [GET] api/addresses (Get all addresses with pagination)
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetAllAddresses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _mediator.Send(new GetAllAddressesQuery(pageNumber, pageSize));
+            return Ok(result);
+        }
+
+        // [GET] api/addresses/me (Get current user's address)
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUserAddress()
+        {
+            var result = await _mediator.Send(new GetCurrentUserAddressQuery());
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
         // [POST] api/addresses (Create new address)
         [HttpPost]
         [Authorize]
@@ -38,7 +56,16 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : NotFound(result);
         }
 
-        // [PUT] api/addresses/{id} (Update address)
+        // [PUT] api/addresses/me (Update current user's address)
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMyAddress([FromBody] UpdateAddressRequest request)
+        {
+            var result = await _mediator.Send(new UpdateMyAddressCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [PUT] api/addresses/{id} (Update address by ID)
         [HttpPut("{id:long}")]
         [Authorize]
         public async Task<IActionResult> UpdateAddress(long id, [FromBody] UpdateAddressRequest request)

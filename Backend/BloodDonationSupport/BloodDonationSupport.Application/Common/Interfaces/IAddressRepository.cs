@@ -6,6 +6,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<AddressData?> GetByIdAsync(long addressId);
         Task<bool> UpdateAsync(long addressId, AddressData address);
         Task<bool> DeleteAsync(long addressId);
+        Task<(IEnumerable<AddressData> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
     }
 
     public class AddressData
