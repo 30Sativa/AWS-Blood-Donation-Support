@@ -2,6 +2,7 @@ using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
@@ -13,23 +14,33 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
         private readonly ICurrentUserService _currentUserService;
         private readonly IUserRepository _userRepository;
         private readonly IUserProfileRepository _userProfileRepository;
+        private readonly ILogger<GetCurrentUserProfileQueryHandler> _logger;
 
         public GetCurrentUserProfileQueryHandler(
             ICurrentUserService currentUserService,
             IUserRepository userRepository,
-            IUserProfileRepository userProfileRepository)
+            IUserProfileRepository userProfileRepository,
+            ILogger<GetCurrentUserProfileQueryHandler> logger)
         {
             _currentUserService = currentUserService;
             _userRepository = userRepository;
             _userProfileRepository = userProfileRepository;
+            _logger = logger;
         }
 
         public async Task<BaseResponse<UserWithProfileResponse>> Handle(
             GetCurrentUserProfileQuery request,
             CancellationToken cancellationToken)
         {
+            _logger.LogInformation("GetCurrentUserProfile - IsAuthenticated: {IsAuth}, CognitoUserId: {CognitoId}, Email: {Email}",
+                _currentUserService.IsAuthenticated, 
+                _currentUserService.CognitoUserId ?? "null",
+                _currentUserService.Email ?? "null");
+
             if (!_currentUserService.IsAuthenticated || string.IsNullOrWhiteSpace(_currentUserService.CognitoUserId))
             {
+                _logger.LogWarning("User is not authenticated - IsAuthenticated: {IsAuth}, CognitoUserId: {CognitoId}",
+                    _currentUserService.IsAuthenticated, _currentUserService.CognitoUserId ?? "null");
                 return BaseResponse<UserWithProfileResponse>.FailureResponse("User is not authenticated.");
             }
 

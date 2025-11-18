@@ -4,6 +4,7 @@ using BloodDonationSupport.WebAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,6 +105,32 @@ builder.Services
             ValidateLifetime = true,
 
             RoleClaimType = "cognito:groups"
+        };
+
+        // Add event handlers for debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogError(context.Exception, "❌ JWT Authentication failed");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                var sub = context.Principal?.FindFirst("sub")?.Value;
+                var email = context.Principal?.FindFirst("email")?.Value;
+                logger.LogInformation("✅ JWT Token validated - Sub: {Sub}, Email: {Email}", sub, email);
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning("⚠️ JWT Challenge - Error: {Error}, ErrorDescription: {ErrorDescription}", 
+                    context.Error, context.ErrorDescription);
+                return Task.CompletedTask;
+            }
         };
     });
 
