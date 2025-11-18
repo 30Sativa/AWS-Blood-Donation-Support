@@ -5,40 +5,23 @@ import { Label } from "./label";
 import { Input } from "./input";
 import { Select } from "./select";
 import { Checkbox } from "./checkbox";
-import { Heart, MapPin, Calendar, Loader2, AlertCircle } from "lucide-react";
+import { Heart, Loader2, AlertCircle } from "lucide-react";
 import { donorService } from "@/services/donorService";
 import { AddressInput } from "./AddressInput";
-import type { Donor, RegisterDonorRequest, UpdateDonorRequest, Availability } from "@/types/donor";
+import type {
+  Donor,
+  RegisterDonorRequest,
+  UpdateDonorRequest,
+  Availability,
+  BloodType,
+  HealthCondition,
+} from "@/types/donor";
 
 interface DonorManagementProps {
   userId: number;
   addressId: number | null;
   onAddressChange?: (addressId: number | null) => void;
 }
-
-// TODO: Cần API GET /api/BloodTypes để lấy danh sách blood types
-const BLOOD_TYPE_OPTIONS = [
-  { id: 1, name: "O-", code: "O-" },
-  { id: 2, name: "O+", code: "O+" },
-  { id: 3, name: "A-", code: "A-" },
-  { id: 4, name: "A+", code: "A+" },
-  { id: 5, name: "B-", code: "B-" },
-  { id: 6, name: "B+", code: "B+" },
-  { id: 7, name: "AB-", code: "AB-" },
-  { id: 8, name: "AB+", code: "AB+" },
-];
-
-// TODO: Cần API GET /api/HealthConditions để lấy danh sách health conditions
-const HEALTH_CONDITIONS = [
-  { id: 1, name: "HIV/AIDS" },
-  { id: 2, name: "Hepatitis B" },
-  { id: 3, name: "Hepatitis C" },
-  { id: 4, name: "Diabetes" },
-  { id: 5, name: "High blood pressure" },
-  { id: 6, name: "Heart disease" },
-  { id: 7, name: "Cancer" },
-  { id: 8, name: "Other chronic conditions" },
-];
 
 const WEEKDAYS = [
   { value: 0, label: "Chủ nhật" },
@@ -58,9 +41,15 @@ export function DonorManagement({
   const [donor, setDonor] = useState<Donor | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingDonor, setLoadingDonor] = useState(true);
+  const [loadingReference, setLoadingReference] = useState(true);
   const [error, setError] = useState("");
+  const [referenceError, setReferenceError] = useState("");
   const [success, setSuccess] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
+  const [bloodTypes, setBloodTypes] = useState<BloodType[]>([]);
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
+    []
+  );
 
   // Form state
   const [formData, setFormData] = useState({
@@ -72,6 +61,31 @@ export function DonorManagement({
     availabilities: [] as Availability[],
     healthConditionIds: [] as number[],
   });
+
+  // Load reference data (blood types, health conditions)
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        setLoadingReference(true);
+        setReferenceError("");
+        const [bloodTypeList, healthConditionList] = await Promise.all([
+          donorService.getBloodTypes(),
+          donorService.getHealthConditions(),
+        ]);
+        setBloodTypes(bloodTypeList);
+        setHealthConditions(healthConditionList);
+      } catch (err) {
+        console.error("Error loading reference data:", err);
+        setReferenceError(
+          "Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe."
+        );
+      } finally {
+        setLoadingReference(false);
+      }
+    };
+
+    loadReferenceData();
+  }, []);
 
   // Load donor info
   useEffect(() => {
@@ -213,17 +227,25 @@ export function DonorManagement({
     }
   };
 
-  if (loadingDonor) {
+  if (loadingDonor || loadingReference) {
     return (
       <div className="flex justify-center items-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-gray-600" />
-        <span className="ml-2 text-gray-600">Đang tải thông tin donor...</span>
+        <span className="ml-2 text-gray-600">
+          Đang tải thông tin donor và dữ liệu cần thiết...
+        </span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {referenceError && (
+        <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-md text-sm">
+          {referenceError}
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
           {error}
@@ -268,7 +290,7 @@ export function DonorManagement({
                   className="w-full"
                 >
                   <option value="0">Chọn nhóm máu</option>
-                  {BLOOD_TYPE_OPTIONS.map((bt) => (
+                  {bloodTypes.map((bt) => (
                     <option key={bt.id} value={bt.id}>
                       {bt.name}
                     </option>
@@ -339,7 +361,7 @@ export function DonorManagement({
             <div className="space-y-2">
               <Label className="text-black">Tình trạng sức khỏe</Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {HEALTH_CONDITIONS.map((hc) => (
+                {healthConditions.map((hc) => (
                   <div key={hc.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`health-${hc.id}`}
@@ -415,7 +437,7 @@ export function DonorManagement({
                   className="w-full"
                 >
                   <option value="0">Chọn nhóm máu</option>
-                  {BLOOD_TYPE_OPTIONS.map((bt) => (
+                  {bloodTypes.map((bt) => (
                     <option key={bt.id} value={bt.id}>
                       {bt.name}
                     </option>
@@ -493,7 +515,7 @@ export function DonorManagement({
             <div className="space-y-2">
               <Label className="text-black">Tình trạng sức khỏe</Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {HEALTH_CONDITIONS.map((hc) => (
+                {healthConditions.map((hc) => (
                   <div key={hc.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`register-health-${hc.id}`}

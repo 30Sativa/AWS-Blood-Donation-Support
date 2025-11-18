@@ -362,7 +362,7 @@ export function AddressInput({
         {required && <span className="text-red-600">*</span>}
       </Label>
 
-      {/* Hiển thị thông báo khi chưa có address (chưa là donor) */}
+      {/* Hiển thị thông báo khi chưa có address */}
       {hasLoaded && !isLoading && !selectedAddress && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
           <div className="flex items-start gap-2">
@@ -370,31 +370,33 @@ export function AddressInput({
             <div className="flex-1">
               <strong className="text-blue-900">Thông báo:</strong>
               <p className="mt-1 text-sm">
-                Bạn chưa có địa chỉ. Vui lòng đăng ký làm donor để thêm địa chỉ.
+                Bạn chưa có địa chỉ. Vui lòng nhập địa chỉ cư trú của bạn vào form bên dưới để tiếp tục.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Chỉ hiển thị form address khi user đã có address (đã là donor) */}
-      {hasLoaded && !isLoading && selectedAddress && (
+      {/* Form địa chỉ luôn hiển thị sau khi đã load xong (dùng để tạo hoặc cập nhật địa chỉ) */}
+      {hasLoaded && !isLoading && (
         <>
-          {/* Hiển thị thông tin address đã lưu */}
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md mb-4">
-            <div className="flex items-start gap-2">
-              <MapPin className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <strong className="text-green-900">Địa chỉ hiện tại:</strong>
-                <p className="mt-1 text-sm">
-                  {selectedAddress.normalizedAddress || 
-                    `${selectedAddress.line1}${selectedAddress.district ? `, ${selectedAddress.district}` : ""}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}${selectedAddress.province ? `, ${selectedAddress.province}` : ""}`.trim()}
-                </p>
+          {/* Hiển thị thông tin address đã lưu (nếu có) */}
+          {selectedAddress && (
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md mb-4">
+              <div className="flex items-start gap-2">
+                <MapPin className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <strong className="text-green-900">Địa chỉ hiện tại:</strong>
+                  <p className="mt-1 text-sm">
+                    {selectedAddress.normalizedAddress || 
+                      `${selectedAddress.line1}${selectedAddress.district ? `, ${selectedAddress.district}` : ""}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}${selectedAddress.province ? `, ${selectedAddress.province}` : ""}`.trim()}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Manual Input Form - Chỉ hiện khi đã có address để update */}
+          {/* Manual Input Form - tạo mới hoặc cập nhật địa chỉ */}
           <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1 md:col-span-2">

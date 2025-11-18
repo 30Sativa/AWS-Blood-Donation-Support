@@ -7,6 +7,10 @@ import type {
   UpdateReadyStatusRequest,
   UpdateAvailabilityRequest,
   Donor,
+  BloodType,
+  HealthCondition,
+  BloodTypesResponse,
+  HealthConditionsResponse,
 } from "@/types/donor";
 
 export const donorService = {
@@ -203,6 +207,58 @@ export const donorService = {
         return null;
       }
       console.error("Get donor by user id error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách nhóm máu
+   * GET /api/BloodTypes
+   */
+  async getBloodTypes(): Promise<BloodType[]> {
+    try {
+      const response = await apiClient.get<BloodTypesResponse>(
+        "/api/BloodTypes"
+      );
+
+      if (!response.data) {
+        throw new Error("Response data is empty");
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to get blood types");
+      }
+
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error("Get blood types error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách tình trạng sức khỏe
+   * GET /api/HealthConditions
+   */
+  async getHealthConditions(): Promise<HealthCondition[]> {
+    try {
+      const response = await apiClient.get<HealthConditionsResponse>(
+        "/api/HealthConditions"
+      );
+
+      if (!response.data) {
+        throw new Error("Response data is empty");
+      }
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message || "Failed to get health conditions"
+        );
+      }
+
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error("Get health conditions error:", error);
       throw error;
     }
   },

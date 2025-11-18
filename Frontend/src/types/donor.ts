@@ -67,11 +67,24 @@ export interface BloodType {
   id: number;
   name: string;
   code: string; // e.g., "A+", "O-"
+  description?: string;
 }
 
 export interface HealthCondition {
   id: number;
   name: string;
   description?: string;
+}
+
+export interface BloodTypesResponse {
+  success: boolean;
+  message: string | null;
+  data: BloodType[];
+}
+
+export interface HealthConditionsResponse {
+  success: boolean;
+  message: string | null;
+  data: HealthCondition[];
 }
 

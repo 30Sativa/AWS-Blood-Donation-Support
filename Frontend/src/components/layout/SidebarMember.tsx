@@ -8,11 +8,13 @@ import {
   AlertCircle,
   BarChart3,
   Settings,
+  HeartHandshake,
 } from "lucide-react";
 
 // Member-specific items — you can expand this list or move it to a separate config/file.
 const memberItems: SidebarItem[] = [
   { path: "/member/register-donation", icon: UserPlus, label: "Register Donation" },
+  { path: "/member/donor-profile", icon: HeartHandshake, label: "Donor Profile" },
   { path: "/member/health-check", icon: UserCheck, label: "Health Check" },
   { path: "/member/history", icon: History, label: "History" },
   { path: "/member/notifications", icon: Bell, label: "Notifications" },

@@ -10,6 +10,8 @@ import { useAuth } from "../context/AuthContext";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { donorService } from "@/services/donorService";
+import { profileService } from "@/services/profileService";
 
 type AuthMode = "login" | "register";
 
@@ -157,8 +159,34 @@ export default function LoginPage() {
               // Update AuthContext
               refreshAuth();
 
-              // ✅ Redirect to homepage first, user can access dashboard via header menu
-              navigate("/", { replace: true });
+              // ✅ Sau khi login, kiểm tra xem user đã có donor hay chưa
+              try {
+                // Lấy profile để chắc chắn có userId và các thông tin cơ bản
+                const profileRes = await profileService.getCurrentUser().catch(
+                  () => null
+                );
+
+                // Kiểm tra donor hiện tại
+                const donorRes = await donorService.getMyDonor().catch(
+                  () => null
+                );
+
+                if (!donorRes?.data) {
+                  // Chưa có donor -> đánh dấu cần hoàn tất hồ sơ & chuyển sang trang Complete Profile
+                  localStorage.setItem("needsCompleteProfile", "true");
+                  navigate("/member/complete-profile", { replace: true });
+                } else {
+                  // Đã là donor -> về home như cũ
+                  localStorage.removeItem("needsCompleteProfile");
+                  navigate("/", { replace: true });
+                }
+              } catch (checkErr) {
+                console.error(
+                  "Error checking donor/profile after login, fallback to home:",
+                  checkErr
+                );
+                navigate("/", { replace: true });
+              }
             } catch (e) {
               console.warn("Unable to save token to storage:", e);
             }

@@ -1,29 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Droplet } from "lucide-react";
+import { Calendar, MapPin, Droplet, Loader2 } from "lucide-react";
+import { AddressInput } from "@/components/ui/AddressInput";
+import { profileService } from "@/services/profileService";
+import { addressService } from "@/services/addressService";
+import { donorService } from "@/services/donorService";
+import { appointmentService } from "@/services/appointmentService";
+import type { BloodType, HealthCondition } from "@/types/donor";
+import type { Address } from "@/types/address";
 
-const BLOOD_TYPES = [
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "AB", label: "AB" },
-  { value: "O", label: "O" },
-  { value: "Rh+", label: "Rh+" },
-  { value: "Rh-", label: "Rh-" },
+const DEFAULT_BLOOD_TYPES: BloodType[] = [
+  { id: 1, name: "O-", code: "O-" },
+  { id: 2, name: "O+", code: "O+" },
+  { id: 3, name: "A-", code: "A-" },
+  { id: 4, name: "A+", code: "A+" },
+  { id: 5, name: "B-", code: "B-" },
+  { id: 6, name: "B+", code: "B+" },
+  { id: 7, name: "AB-", code: "AB-" },
+  { id: 8, name: "AB+", code: "AB+" },
 ];
 
-const HEALTH_CONDITIONS = [
-  "HIV/AIDS",
-  "Hepatitis B",
-  "Hepatitis C",
-  "Diabetes",
-  "High blood pressure",
-  "Heart disease",
-  "Cancer",
-  "Other chronic conditions",
+const DEFAULT_HEALTH_CONDITIONS: HealthCondition[] = [
+  { id: 1, name: "HIV/AIDS" },
+  { id: 2, name: "Hepatitis B" },
+  { id: 3, name: "Hepatitis C" },
+  { id: 4, name: "Diabetes" },
+  { id: 5, name: "High blood pressure" },
+  { id: 6, name: "Heart disease" },
+  { id: 7, name: "Cancer" },
+  { id: 8, name: "Other chronic conditions" },
 ];
 
 const DONATION_VOLUMES = [
@@ -31,53 +40,289 @@ const DONATION_VOLUMES = [
   { value: "450", label: "450ml" },
 ];
 
-// Mock hospitals - sẽ được thay bằng API call
-const HOSPITALS = [
-  { id: "1", name: "Hopital Cho Ray" },
-  { id: "2", name: "Hopital Ung Buou" },
+// TODO: Replace with real hospital/location API once available
+const DEFAULT_HOSPITALS = [
+  { id: "1", name: "Cho Ray Hospital" },
+  { id: "2", name: "Ung Buou Hospital" },
   { id: "3", name: "Bach Mai Hospital" },
   { id: "4", name: "Viet Duc Hospital" },
 ];
 
-export function RegisterDonation() {
-  const [confirmInfo, setConfirmInfo] = useState(false);
-  const [sameAsPermanent, setSameAsPermanent] = useState(false);
+interface RegisterFormData {
+  fullName: string;
+  gender: string;
+  phone: string;
+  email: string;
+  permanentAddress: string;
+  currentAddress: string;
+  bloodTypeCode: string;
+  donatedBefore: boolean;
+  preferredDate: string;
+  hospitalId: string;
+  bloodVolumeMl: string;
+  healthConditionIds: number[];
+  notes: string;
+  confirm: boolean;
+}
 
-  const [formData, setFormData] = useState({
+export function RegisterDonation() {
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [optionsError, setOptionsError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [donorWarning, setDonorWarning] = useState("");
+
+  const [bloodTypes, setBloodTypes] = useState<BloodType[]>(DEFAULT_BLOOD_TYPES);
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
+    DEFAULT_HEALTH_CONDITIONS
+  );
+  const [hospitals] = useState(DEFAULT_HOSPITALS);
+  const [donorId, setDonorId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [addressId, setAddressId] = useState<number | null>(null);
+  const [address, setAddress] = useState<Address | null>(null);
+  const setAddressIdSafe = (value?: number | null) => {
+    setAddressId(value ?? null);
+  };
+
+  const [formData, setFormData] = useState<RegisterFormData>({
     fullName: "",
     gender: "",
     phone: "",
-    email: "user@example.com", // Readonly - lấy từ user profile
+    email: "",
     permanentAddress: "",
     currentAddress: "",
-    bloodType: "",
+    bloodTypeCode: "",
     donatedBefore: false,
     preferredDate: "",
     hospitalId: "",
     bloodVolumeMl: "",
-    healthConditions: [] as string[],
+    healthConditionIds: [],
     notes: "",
     confirm: false,
   });
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = <K extends keyof RegisterFormData>(
+    field: K,
+    value: RegisterFormData[K]
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (error) setError("");
+    if (successMessage) setSuccessMessage("");
   };
 
-  const handleHealthConditionToggle = (condition: string) => {
+  const handleHealthConditionToggle = (conditionId: number) => {
     setFormData((prev) => {
-      const conditions = prev.healthConditions.includes(condition)
-        ? prev.healthConditions.filter((c) => c !== condition)
-        : [...prev.healthConditions, condition];
-      return { ...prev, healthConditions: conditions };
+      const exists = prev.healthConditionIds.includes(conditionId);
+      const updated = exists
+        ? prev.healthConditionIds.filter((id) => id !== conditionId)
+        : [...prev.healthConditionIds, conditionId];
+      return { ...prev, healthConditionIds: updated };
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Donation registration submitted:", formData);
-    // Handle form submission here
+  const formatAddress = (address?: Address | null) => {
+    if (!address) return "";
+    const parts = [
+      address.line1,
+      address.district,
+      address.city,
+      address.province,
+      address.country,
+    ].filter(Boolean);
+    return parts.join(", ");
   };
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoadingProfile(true);
+        setError("");
+        const [profileResponse, addressResponse, donorResponse] =
+          await Promise.all([
+            profileService.getCurrentUser(),
+            addressService.getMyAddress().catch(() => null),
+            donorService.getMyDonor().catch(() => null),
+          ]);
+
+        if (profileResponse.success && profileResponse.data) {
+          const profile = profileResponse.data;
+          setUserId(profile.userId || null);
+          setAddressIdSafe(profile.addressId);
+          setFormData((prev) => ({
+            ...prev,
+            fullName: profile.fullName || "",
+            gender: profile.gender || "",
+            phone: profile.phoneNumber || "",
+            email: profile.email || "",
+            bloodTypeCode: profile.bloodType || "",
+            donatedBefore: donorResponse?.data ? true : prev.donatedBefore,
+          }));
+        }
+
+        if (donorResponse?.data) {
+          setDonorId(donorResponse.data.id ?? null);
+          setDonorWarning("");
+        } else {
+          setDonorId(null);
+          setDonorWarning(
+            "Bạn chưa có hồ sơ donor. Hệ thống sẽ tự tạo khi bạn gửi đăng ký, chỉ cần đảm bảo đã có địa chỉ và chọn nhóm máu."
+          );
+        }
+
+        if (addressResponse?.data) {
+          setAddressIdSafe(addressResponse.data.id);
+          setAddress(addressResponse.data);
+          const formatted = formatAddress(addressResponse.data);
+          setFormData((prev) => ({
+            ...prev,
+            permanentAddress: formatted,
+            currentAddress: formatted,
+          }));
+        }
+      } catch (err) {
+        console.error("Error loading profile/address for donation form:", err);
+        setError("Không thể tải thông tin người dùng. Vui lòng thử lại.");
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        setLoadingOptions(true);
+        setOptionsError("");
+        const [bloodTypeData, healthConditionData] = await Promise.all([
+          donorService.getBloodTypes(),
+          donorService.getHealthConditions(),
+        ]);
+
+        if (bloodTypeData.length) {
+          setBloodTypes(bloodTypeData);
+        }
+
+        if (healthConditionData.length) {
+          setHealthConditions(healthConditionData);
+        }
+      } catch (err) {
+        console.error("Error loading blood types/health conditions:", err);
+        setOptionsError(
+          "Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe. Đang dùng dữ liệu mặc định."
+        );
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+
+    loadOptions();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSuccessMessage("");
+    setError("");
+
+    if (!formData.preferredDate) {
+      setError("Vui lòng chọn ngày hiến máu.");
+      return;
+    }
+
+    if (!formData.hospitalId) {
+      setError("Vui lòng chọn bệnh viện muốn hiến máu.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      let currentDonorId = donorId;
+
+      if (!currentDonorId) {
+        if (!userId) {
+          setError("Không xác định được tài khoản người dùng. Vui lòng đăng nhập lại.");
+          return;
+        }
+        if (!addressId) {
+          setError("Vui lòng thêm địa chỉ cư trú trước khi đăng ký.");
+          return;
+        }
+        if (!formData.bloodTypeCode) {
+          setError("Vui lòng chọn nhóm máu.");
+          return;
+        }
+
+        const bloodType = bloodTypes.find(
+          (bt) => bt.code === formData.bloodTypeCode
+        );
+        if (!bloodType) {
+          setError("Không tìm thấy mã nhóm máu phù hợp. Vui lòng chọn lại.");
+          return;
+        }
+
+        const registerResponse = await donorService.registerDonor({
+          userId,
+          bloodTypeId: bloodType.id,
+          addressId,
+          travelRadiusKm: 10,
+          isReady: true,
+          nextEligibleDate: formData.preferredDate,
+          healthConditionIds: formData.healthConditionIds,
+        });
+
+        const newlyCreatedDonorId = registerResponse.data.id ?? null;
+        currentDonorId = newlyCreatedDonorId;
+        setDonorId(newlyCreatedDonorId);
+        setDonorWarning("");
+      }
+
+      if (!currentDonorId) {
+        setError("Không thể xác định donor sau khi đăng ký. Vui lòng thử lại.");
+        return;
+      }
+
+      const scheduledAt = new Date(`${formData.preferredDate}T09:00:00`).toISOString();
+      const locationId = Number(formData.hospitalId);
+
+      const payload = {
+        requestId: 0,
+        donorId: currentDonorId,
+        scheduledAt,
+        locationId,
+        status: "Pending",
+      };
+
+      const response = await appointmentService.createAppointment(payload);
+      if (response.success) {
+        setSuccessMessage("Đặt lịch hiến máu thành công! Bộ phận điều phối sẽ liên hệ bạn sớm nhất.");
+        setFormData((prev) => ({ ...prev, confirm: false }));
+      }
+    } catch (err: any) {
+      console.error("Create appointment error:", err);
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không thể tạo lịch hiến máu. Vui lòng thử lại.";
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loadingProfile || loadingOptions) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+        <p className="mt-4 text-gray-600 text-sm">
+          Đang tải dữ liệu hồ sơ và danh sách cần thiết...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -85,6 +330,30 @@ export function RegisterDonation() {
         <h1 className="text-4xl font-bold text-gray-900">Register Donation</h1>
         <p className="text-gray-600 text-lg">Fill in the information to register for blood donation</p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+          {error}
+        </div>
+      )}
+
+      {optionsError && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
+          {optionsError}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+          {successMessage}
+        </div>
+      )}
+
+      {donorWarning && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm">
+          {donorWarning}
+        </div>
+      )}
 
       {/* Registration Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-lg p-10 space-y-10">
@@ -107,9 +376,13 @@ export function RegisterDonation() {
                 placeholder="Enter your full name"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange("fullName", e.target.value)}
+                readOnly
                 required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+                className="border-gray-300 bg-gray-50 cursor-not-allowed opacity-80"
               />
+              <p className="text-xs text-gray-500 italic">
+                Chỉnh họ tên trong phần Account Settings.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -120,8 +393,9 @@ export function RegisterDonation() {
                 id="gender"
                 value={formData.gender}
                 onChange={(e) => handleInputChange("gender", e.target.value)}
+                disabled
                 required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+                className="border-gray-300 bg-gray-50 cursor-not-allowed opacity-80"
               >
                 <option value="">Select gender</option>
                 <option value="Male">Male</option>
@@ -140,9 +414,13 @@ export function RegisterDonation() {
                 placeholder="Enter phone number"
                 value={formData.phone}
                 onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly
                 required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+                className="border-gray-300 bg-gray-50 cursor-not-allowed opacity-80"
               />
+              <p className="text-xs text-gray-500 italic">
+                Cập nhật số điện thoại trong Account Settings.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -171,52 +449,48 @@ export function RegisterDonation() {
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="permanentAddress" className="text-sm font-semibold text-gray-700">
-                Permanent Address<span className="text-red-600 ml-1">*</span>
-              </Label>
-              <Input
-                id="permanentAddress"
-                placeholder="Enter permanent address"
-                value={formData.permanentAddress}
-                onChange={(e) => handleInputChange("permanentAddress", e.target.value)}
-                required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <Checkbox
-                id="sameAsPermanent"
-                checked={sameAsPermanent}
-                onChange={(e) => {
-                  setSameAsPermanent(e.target.checked);
-                  if (e.target.checked) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      currentAddress: prev.permanentAddress,
-                    }));
+            <p className="text-sm text-gray-600">
+              Địa chỉ sẽ dùng để xác định phạm vi hiến máu và liên hệ. Bạn có thể chỉnh sửa trực tiếp tại đây, thông tin sẽ đồng bộ với hồ sơ.
+            </p>
+            <AddressInput
+              value={addressId}
+              onChange={(newAddressId, addressData) => {
+                setAddressIdSafe(newAddressId);
+                if (addressData) {
+                  setAddress(addressData);
+                  const formatted = formatAddress(addressData);
+                  setFormData((prev) => ({
+                    ...prev,
+                    permanentAddress: formatted,
+                    currentAddress: formatted,
+                  }));
+                }
+              }}
+              onSaveSuccess={async (newAddressId) => {
+                if (newAddressId != null) {
+                  setAddressIdSafe(newAddressId);
+                  if (userId) {
+                    try {
+                      await profileService.updateProfile(userId, {
+                        id: userId,
+                        addressId: newAddressId,
+                      });
+                      setSuccessMessage("Địa chỉ đã được cập nhật cho hồ sơ của bạn.");
+                    } catch (updateError) {
+                      console.error("Update profile address error:", updateError);
+                      setError("Đã lưu địa chỉ nhưng chưa đồng bộ được lên hồ sơ. Vui lòng kiểm tra lại trong Account Settings.");
+                    }
                   }
-                }}
-              />
-              <Label htmlFor="sameAsPermanent" className="font-medium cursor-pointer text-sm text-gray-700 hover:text-gray-900 transition-colors">
-                Same as permanent address
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="currentAddress" className="text-sm font-semibold text-gray-700">
-                Current Address
-              </Label>
-              <Input
-                id="currentAddress"
-                placeholder="Enter current address (if different)"
-                value={formData.currentAddress}
-                onChange={(e) => handleInputChange("currentAddress", e.target.value)}
-                disabled={sameAsPermanent}
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:bg-gray-50 disabled:opacity-60 transition-all duration-200"
-              />
-            </div>
+                }
+              }}
+              className="w-full"
+            />
+            {address && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">Địa chỉ hiện tại:</div>
+                <p className="mt-1">{formatAddress(address)}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -239,15 +513,15 @@ export function RegisterDonation() {
               </div>
               <Select
                 id="bloodType"
-                value={formData.bloodType}
-                onChange={(e) => handleInputChange("bloodType", e.target.value)}
+                value={formData.bloodTypeCode}
+                onChange={(e) => handleInputChange("bloodTypeCode", e.target.value)}
                 required
                 className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
               >
                 <option value="">Choose blood type</option>
-                {BLOOD_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
+                {bloodTypes.map((type) => (
+                  <option key={type.id} value={type.code}>
+                    {type.name}
                   </option>
                 ))}
               </Select>
@@ -304,7 +578,7 @@ export function RegisterDonation() {
                 className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
               >
                 <option value="">Select hospital</option>
-                {HOSPITALS.map((hospital) => (
+                {hospitals.map((hospital) => (
                   <option key={hospital.id} value={hospital.id}>
                     {hospital.name}
                   </option>
@@ -344,18 +618,21 @@ export function RegisterDonation() {
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-5 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 shadow-sm">
-              {HEALTH_CONDITIONS.map((condition) => (
-                <div key={condition} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/60 transition-colors duration-150">
+              {healthConditions.map((condition) => (
+                <div
+                  key={condition.id}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/60 transition-colors duration-150"
+                >
                   <Checkbox
-                    id={`health-${condition}`}
-                    checked={formData.healthConditions.includes(condition)}
-                    onChange={() => handleHealthConditionToggle(condition)}
+                    id={`health-${condition.id}`}
+                    checked={formData.healthConditionIds.includes(condition.id)}
+                    onChange={() => handleHealthConditionToggle(condition.id)}
                   />
                   <Label
-                    htmlFor={`health-${condition}`}
+                    htmlFor={`health-${condition.id}`}
                     className="font-medium cursor-pointer text-sm text-gray-700 hover:text-gray-900 transition-colors"
                   >
-                    {condition}
+                    {condition.name}
                   </Label>
                 </div>
               ))}
@@ -386,7 +663,6 @@ export function RegisterDonation() {
               checked={formData.confirm}
               onChange={(e) => {
                 handleInputChange("confirm", e.target.checked);
-                setConfirmInfo(e.target.checked);
               }}
               className="mt-1"
             />
@@ -399,9 +675,9 @@ export function RegisterDonation() {
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:hover:from-gray-300 disabled:hover:to-gray-400 py-5 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
-            disabled={!formData.confirm}
+            disabled={!formData.confirm || submitting}
           >
-            Register Donation
+            {submitting ? "Đang gửi..." : "Register Donation"}
           </Button>
         </div>
       </form>
