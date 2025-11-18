@@ -3,8 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar, MapPin, Droplet } from "lucide-react";
+import { AddressInput } from "@/components/ui/AddressInput";
+import { User, Mail, Phone, Calendar, Droplet } from "lucide-react";
 import { profileService } from "@/services/profileService";
+import type { Address } from "@/types/address";
 
 const GENDER_OPTIONS = [
   { value: "Male", label: "Male" },
@@ -23,47 +25,6 @@ const BLOOD_TYPE_OPTIONS = [
   { value: "AB+", label: "AB+" },
 ];
 
-const getUserIdFromToken = (): number | null => {
-  try {
-    const savedUserId = localStorage.getItem("userId");
-    if (savedUserId) {
-      const userId = Number(savedUserId);
-      if (!isNaN(userId)) return userId;
-    }
-
-    const token = localStorage.getItem("token");
-    if (!token) return null;
-
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-
-    const decoded = JSON.parse(atob(payload));
-    
-    const userId = 
-      decoded.userId || 
-      decoded.user_id || 
-      decoded.UserId || 
-      decoded.sub || 
-      decoded.id || 
-      decoded.nameid ||
-      decoded.unique_name ||
-      null;
-    
-    if (userId) {
-      const numUserId = Number(userId);
-      if (!isNaN(numUserId)) {
-        localStorage.setItem("userId", String(numUserId));
-        return numUserId;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error decoding token:", error);
-    return null;
-  }
-};
-
 export function AccountSettings() {
   const [formData, setFormData] = useState({
     name: "",
@@ -71,9 +32,10 @@ export function AccountSettings() {
     phone: "",
     dateOfBirth: "", // Lưu dạng "YYYY-01-01" để tương thích với logic hiện tại
     gender: "",
-    address: "",
+    addressId: null as number | null,
     bloodType: "",
   });
+  const [address, setAddress] = useState<Address | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState("");
@@ -85,19 +47,19 @@ export function AccountSettings() {
       try {
         setLoadingProfile(true);
         setError("");
-        
-        const currentUserId = getUserIdFromToken();
-        if (!currentUserId) {
-          setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
-          setLoadingProfile(false);
-          return;
-        }
 
-        setUserId(currentUserId);
-
-        const response = await profileService.getProfile(currentUserId);
+        // Sử dụng endpoint /api/Users/me để lấy thông tin user hiện tại
+        console.log("[DEBUG] AccountSettings: Loading profile using getCurrentUser()");
+        const response = await profileService.getCurrentUser();
+        console.log("[DEBUG] AccountSettings: Received profile response", response);
         if (response.success && response.data) {
           const profile = response.data;
+          
+          // Lưu userId để sử dụng khi update
+          setUserId(profile.userId);
+          if (profile.userId) {
+            localStorage.setItem("userId", String(profile.userId));
+          }
           
           const birthDate = profile.birthYear 
             ? `${profile.birthYear}-01-01` 
@@ -109,13 +71,17 @@ export function AccountSettings() {
             phone: profile.phoneNumber || "",
             dateOfBirth: birthDate,
             gender: profile.gender || "",
-            address: profile.address || "",
+            addressId: profile.addressId || null,
             bloodType: profile.bloodType || "",
           });
+        } else {
+          // Nếu response không có data hoặc success = false
+          setError(response.message || "Không thể tải thông tin profile. Vui lòng thử lại.");
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải thông tin";
         setError(errorMessage);
+        console.error("Error loading profile in AccountSettings:", err);
       } finally {
         setLoadingProfile(false);
       }
@@ -138,22 +104,46 @@ export function AccountSettings() {
       return;
     }
 
+    // Validate form trước khi submit
+    if (!formData.name?.trim()) {
+      setError("Vui lòng nhập tên");
+      return;
+    }
+    if (!formData.email?.trim()) {
+      setError("Vui lòng nhập email");
+      return;
+    }
+    if (!formData.phone?.trim()) {
+      setError("Vui lòng nhập số điện thoại");
+      return;
+    }
+    if (!formData.gender) {
+      setError("Vui lòng chọn giới tính");
+      return;
+    }
+    if (!formData.dateOfBirth) {
+      setError("Vui lòng nhập năm sinh");
+      return;
+    }
+
+    // Validate năm sinh
+    if (formData.dateOfBirth) {
+      const birthYear = new Date(formData.dateOfBirth).getFullYear();
+      const currentYear = new Date().getFullYear();
+      if (birthYear < 1900 || birthYear > currentYear) {
+        setError(`Năm sinh phải từ 1900 đến ${currentYear}`);
+        return;
+      }
+    }
+
+    // Note: Address không bắt buộc, nhưng nếu có thì phải đã được lưu (có addressId)
+    // Validation address sẽ được xử lý trong AddressInput component
+
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      // Validate năm sinh
-      if (formData.dateOfBirth) {
-        const birthYear = new Date(formData.dateOfBirth).getFullYear();
-        const currentYear = new Date().getFullYear();
-        if (birthYear < 1900 || birthYear > currentYear) {
-          setError(`Năm sinh phải từ 1900 đến ${currentYear}`);
-          setLoading(false);
-          return;
-        }
-      }
-
       const birthYear = formData.dateOfBirth 
         ? new Date(formData.dateOfBirth).getFullYear()
         : undefined;
@@ -165,11 +155,13 @@ export function AccountSettings() {
         fullName: formData.name,
         birthYear: birthYear,
         gender: formData.gender || undefined,
-        address: formData.address || undefined,
+        addressId: formData.addressId || undefined,
         bloodType: formData.bloodType || undefined,
       };
 
+      console.log("[DEBUG] AccountSettings: Updating profile with data:", updateData);
       const response = await profileService.updateProfile(userId, updateData);
+      console.log("[DEBUG] AccountSettings: Update profile response:", response);
       
       if (response.success) {
         setSuccess("Cập nhật thông tin thành công!");
@@ -179,9 +171,20 @@ export function AccountSettings() {
       } else {
         setError(response.message || "Cập nhật thất bại");
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật thông tin";
-      setError(errorMessage);
+    } catch (err: any) {
+      console.error("[ERROR] AccountSettings: Update profile error:", err);
+      
+      // Xử lý lỗi 403 Forbidden
+      if (err.response?.status === 403) {
+        setError("Bạn không có quyền cập nhật thông tin này. Vui lòng kiểm tra lại quyền truy cập hoặc đăng nhập lại.");
+      } else if (err.response?.status === 401) {
+        setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật thông tin";
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -333,22 +336,34 @@ export function AccountSettings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-gray-600" />
-                <Label htmlFor="address" className="text-black">
-                  Address
-                </Label>
-              </div>
-              <Input
-                id="address"
-                placeholder="Enter your address"
-                value={formData.address}
-                onChange={(e) => handleInputChange("address", e.target.value)}
-                className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500"
-              />
-            </div>
+          <div className="space-y-6">
+            <AddressInput
+              label="Address"
+              value={formData.addressId}
+              onChange={(addressId, addressData) => {
+                setFormData((prev) => ({ ...prev, addressId: addressId || null }));
+                setAddress(addressData);
+              }}
+              onSaveSuccess={async (addressId) => {
+                // Tự động cập nhật profile với addressId mới khi lưu address thành công
+                if (userId && addressId) {
+                  try {
+                    const updateData = {
+                      id: userId,
+                      addressId: addressId,
+                    };
+                    await profileService.updateProfile(userId, updateData);
+                    // Cập nhật formData để đảm bảo đồng bộ
+                    setFormData((prev) => ({ ...prev, addressId: addressId }));
+                    setSuccess("Địa chỉ đã được lưu và cập nhật vào profile!");
+                  } catch (err) {
+                    console.error("Error updating profile with addressId:", err);
+                    setError("Địa chỉ đã được lưu nhưng chưa cập nhật vào profile. Vui lòng nhấn 'Update Information' để hoàn tất.");
+                  }
+                }
+              }}
+              className="w-full"
+            />
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">

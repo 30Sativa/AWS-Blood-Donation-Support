@@ -36,11 +36,9 @@ export function Layout({ children }: LayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const role = getRoleFromToken();
-  console.log('Current Role:', role); // Debug log
 
   // Check the current pathname to determine if we're in the admin section
   const isAdminPath = window.location.pathname.startsWith('/admin');
-  console.log('Is Admin Path:', isAdminPath); // Debug log
 
   // Use SidebarAdmin for admin paths regardless of role, otherwise use role-based sidebar
   const SidebarComponent = isAdminPath ? SidebarAdmin : 

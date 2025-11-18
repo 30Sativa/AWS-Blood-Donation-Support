@@ -21,10 +21,15 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Giữ nguyên error object để có thể check status code
     if (error.response) {
       const payload = error.response.data as any;
       const msg = payload?.message || payload?.error || "Đã xảy ra lỗi không xác định";
-      throw new Error(msg);
+      // Tạo error mới nhưng giữ nguyên response để check status
+      const customError: any = new Error(msg);
+      customError.response = error.response;
+      customError.status = error.response.status;
+      throw customError;
     } else if (error.request) {
       throw new Error("Không thể kết nối đến server. Vui lòng thử lại sau.");
     } else {

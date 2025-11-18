@@ -2,47 +2,6 @@ import { useState, useEffect } from "react";
 import { profileService } from "@/services/profileService";
 import type { UserProfile } from "@/types/profile";
 
-const getUserIdFromToken = (): number | null => {
-  try {
-    const savedUserId = localStorage.getItem("userId");
-    if (savedUserId) {
-      const userId = Number(savedUserId);
-      if (!isNaN(userId)) return userId;
-    }
-
-    const token = localStorage.getItem("token");
-    if (!token) return null;
-
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-
-    const decoded = JSON.parse(atob(payload));
-
-    const userId =
-      decoded.userId ||
-      decoded.user_id ||
-      decoded.UserId ||
-      decoded.sub ||
-      decoded.id ||
-      decoded.nameid ||
-      decoded.unique_name ||
-      null;
-
-    if (userId) {
-      const numUserId = Number(userId);
-      if (!isNaN(numUserId)) {
-        localStorage.setItem("userId", String(numUserId));
-        return numUserId;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error decoding token:", error);
-    return null;
-  }
-};
-
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,20 +12,25 @@ export function useUserProfile() {
       try {
         setLoading(true);
         setError(null);
-        const userId = getUserIdFromToken();
-        if (!userId) {
-          setError("User not found");
-          setLoading(false);
-          return;
-        }
 
-        const res = await profileService.getProfile(userId);
+        // Sử dụng endpoint /api/Users/me để lấy thông tin user hiện tại
+        console.log("[DEBUG] useUserProfile: Loading profile using getCurrentUser()");
+        const res = await profileService.getCurrentUser();
+        console.log("[DEBUG] useUserProfile: Received profile response", res);
         if (res && res.success && res.data) {
           setProfile(res.data);
+          // Lưu userId vào localStorage để sử dụng sau này
+          if (res.data.userId) {
+            localStorage.setItem("userId", String(res.data.userId));
+          }
+        } else {
+          // Nếu response không có data hoặc success = false
+          setError("Không thể tải thông tin profile. Vui lòng thử lại.");
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error loading profile";
         setError(msg);
+        console.error("Error in useUserProfile:", err);
       } finally {
         setLoading(false);
       }

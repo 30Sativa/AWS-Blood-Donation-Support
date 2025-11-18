@@ -114,7 +114,6 @@ export default function LoginPage() {
           });
 
           setSuccess("Login successful!");
-          console.log("Login response:", response);
 
           if (response.token && response.user) {
             try {

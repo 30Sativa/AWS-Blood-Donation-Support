@@ -2,13 +2,16 @@ export interface UserProfile {
   userId: number;
   email: string;
   phoneNumber: string;
+  cognitoUserId?: string;
   isActive: boolean;
   createdAt: string;
+  roles?: string[];
   fullName: string;
   birthYear: number;
   gender: string;
   privacyPhoneVisibleToStaffOnly: boolean;
-  address?: string;
+  address?: string; // Deprecated: use addressId instead
+  addressId?: number; // ID của Address trong database
   bloodType?: string;
 }
 
@@ -27,7 +30,8 @@ export interface UpdateProfileRequest {
   gender?: string;
   roleCode?: string;
   isActive?: boolean;
-  address?: string;
+  address?: string; // Deprecated: use addressId instead
+  addressId?: number; // ID của Address trong database
   bloodType?: string;
   privacyPhoneVisibleToStaffOnly?: boolean;
 }
