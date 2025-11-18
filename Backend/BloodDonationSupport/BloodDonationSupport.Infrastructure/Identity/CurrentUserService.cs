@@ -27,6 +27,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
         }
 
+        public string? CognitoUserId => GetClaim("sub");
+
         public string? Email => GetClaim(ClaimTypes.Email) ?? GetClaim("email");
 
         public IReadOnlyCollection<string> Roles

@@ -40,6 +40,25 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return user?.UserId ?? 0;
         }
 
+        public async Task<UserDomain?> GetByCognitoUserIdAsync(string cognitoUserId)
+        {
+            var entity = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.CognitoUserId == cognitoUserId);
+            if (entity == null)
+            {
+                return null;
+            }
+            return UserDomain.Rehydrate(
+                entity.UserId,
+                new Domain.Users.ValueObjects.Email(entity.Email),
+                entity.CognitoUserId ?? string.Empty,
+                entity.PhoneNumber,
+                entity.IsActive,
+                entity.CreatedAt
+            );
+        }
+
         public async Task AssignDefaultRoleAsync(long userId)
         {
             // Get User entity to ensure it's tracked

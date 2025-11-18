@@ -16,6 +16,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
 
         Task<long> GetUserIdByEmailAsync(string email);
 
+        Task<UserDomain?> GetByCognitoUserIdAsync(string cognitoUserId);
+
         Task<IEnumerable<string>> GetRolesByUserIdAsync(long userId);
 
         Task UpdateUserRolesAsync(long userId, IEnumerable<string> roleCodes);

@@ -28,12 +28,12 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             GetCurrentUserProfileQuery request,
             CancellationToken cancellationToken)
         {
-            if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+            if (!_currentUserService.IsAuthenticated || string.IsNullOrWhiteSpace(_currentUserService.CognitoUserId))
             {
                 return BaseResponse<UserWithProfileResponse>.FailureResponse("User is not authenticated.");
             }
 
-            var user = await _userRepository.GetByIdAsync(_currentUserService.UserId.Value);
+            var user = await _userRepository.GetByCognitoUserIdAsync(_currentUserService.CognitoUserId);
             if (user == null)
             {
                 return BaseResponse<UserWithProfileResponse>.FailureResponse("User not found.");
