@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AddressInput } from "@/components/ui/AddressInput";
+import { DonorManagement } from "@/components/ui/DonorManagement";
 import { User, Mail, Phone, Calendar, Droplet } from "lucide-react";
 import { profileService } from "@/services/profileService";
 import type { Address } from "@/types/address";
@@ -399,6 +400,22 @@ export function AccountSettings() {
           </div>
         </form>
         )}
+
+        {/* Donor Management Section */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-black mb-4">Donor Management</h2>
+          {userId ? (
+            <DonorManagement
+              userId={userId}
+              addressId={formData.addressId}
+              onAddressChange={(newAddressId) => {
+                setFormData((prev) => ({ ...prev, addressId: newAddressId }));
+              }}
+            />
+          ) : (
+            <div className="text-gray-600">Vui lòng đăng nhập để quản lý donor</div>
+          )}
+        </div>
         </div>
       </div>
     </div>

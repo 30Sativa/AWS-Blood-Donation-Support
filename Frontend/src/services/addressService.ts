@@ -29,6 +29,37 @@ export const addressService = {
   },
 
   /**
+   * Lấy địa chỉ của user hiện tại
+   * GET /api/Addresses/me
+   * Trả về null nếu user chưa có address (404)
+   */
+  async getMyAddress(): Promise<AddressResponse | null> {
+    try {
+      const response = await apiClient.get<AddressResponse>(
+        "/api/Addresses/me"
+      );
+      
+      if (!response.data) {
+        throw new Error("Response data is empty");
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to get address");
+      }
+
+      return response.data;
+    } catch (error: any) {
+      // Xử lý trường hợp 404 - user chưa có address (không phải lỗi)
+      if (error.response?.status === 404) {
+        console.log("User does not have an address yet");
+        return null;
+      }
+      console.error("Get my address error:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Lấy thông tin địa chỉ theo ID
    * GET /api/Addresses/{id}
    */

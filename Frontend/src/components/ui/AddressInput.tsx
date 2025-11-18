@@ -27,6 +27,7 @@ export function AddressInput({
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false); // Track xem đã load address xong chưa
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -99,31 +100,18 @@ export function AddressInput({
     loadDistricts();
   }, [selectedProvinceCode, provinces]);
 
-  // Load existing address from API if addressId is provided
+  // Load existing address from API using /api/Addresses/me
   useEffect(() => {
     const loadAddress = async () => {
-      if (!value) {
-        // Reset form if no addressId
-        setSelectedAddress(null);
-        setManualAddress({
-          line1: "",
-          district: "",
-          city: "",
-          province: "",
-          country: "Vietnam",
-          postalCode: "",
-        });
-        setSelectedProvinceCode("");
-        setSelectedDistrictCode("");
-        setDistricts([]);
-        return;
-      }
-
       try {
         setIsLoading(true);
-        // Luôn load address từ API, không dùng localStorage
-        const response = await addressService.getAddress(value);
-        if (response.success && response.data) {
+        setError("");
+        
+        // Ưu tiên sử dụng endpoint /api/Addresses/me để lấy address của user hiện tại
+        const response = await addressService.getMyAddress();
+        
+        if (response && response.success && response.data) {
+          // User đã có address
           const addressData = response.data;
           setSelectedAddress(addressData);
           setManualAddress({
@@ -134,6 +122,11 @@ export function AddressInput({
             country: addressData.country || "Vietnam",
             postalCode: addressData.postalCode || "",
           });
+
+          // Update onChange callback với addressId
+          if (onChange && addressData.id) {
+            onChange(addressData.id, addressData);
+          }
 
           // Match province và district sau khi provinces đã load
           if (addressData.province && provinces.length > 0) {
@@ -161,19 +154,70 @@ export function AddressInput({
               }
             }
           }
-        } else {
-          console.error("Failed to load address:", response.message);
+        } else if (response === null) {
+          // User chưa có address (404) - đây là trường hợp bình thường, không phải lỗi
+          setSelectedAddress(null);
+          setManualAddress({
+            line1: "",
+            district: "",
+            city: "",
+            province: "",
+            country: "Vietnam",
+            postalCode: "",
+          });
+          setSelectedProvinceCode("");
+          setSelectedDistrictCode("");
+          setDistricts([]);
+          
+          // Nếu có value (addressId) từ parent, thử load bằng getAddress như fallback
+          if (value) {
+            try {
+              const fallbackResponse = await addressService.getAddress(value);
+              if (fallbackResponse.success && fallbackResponse.data) {
+                const addressData = fallbackResponse.data;
+                setSelectedAddress(addressData);
+                setManualAddress({
+                  line1: addressData.line1 || "",
+                  district: addressData.district || "",
+                  city: addressData.city || "",
+                  province: addressData.province || "",
+                  country: addressData.country || "Vietnam",
+                  postalCode: addressData.postalCode || "",
+                });
+                if (onChange && addressData.id) {
+                  onChange(addressData.id, addressData);
+                }
+              }
+            } catch (fallbackErr) {
+              console.log("Fallback getAddress also failed:", fallbackErr);
+            }
+          }
         }
-      } catch (err) {
-        console.error("Error loading address from API:", err);
-        setError("Không thể tải địa chỉ từ server. Vui lòng thử lại.");
+      } catch (err: any) {
+        // Chỉ hiển thị error nếu không phải 404 (user chưa có address)
+        if (err.response?.status !== 404) {
+          console.error("Error loading address from API:", err);
+          setError("Không thể tải địa chỉ từ server. Vui lòng thử lại.");
+        } else {
+          // 404 là bình thường - user chưa có address
+          setSelectedAddress(null);
+          setManualAddress({
+            line1: "",
+            district: "",
+            city: "",
+            province: "",
+            country: "Vietnam",
+            postalCode: "",
+          });
+        }
       } finally {
         setIsLoading(false);
+        setHasLoaded(true); // Đánh dấu đã load xong
       }
     };
 
     loadAddress();
-  }, [value]); // Chỉ phụ thuộc vào value (addressId), không phụ thuộc vào provinces
+  }, []); // Chỉ chạy một lần khi component mount, không phụ thuộc vào value
 
   // Match province và district sau khi provinces đã load
   useEffect(() => {
@@ -272,8 +316,10 @@ export function AddressInput({
       let addressId: number;
       let savedAddress: Address;
       
-      if (value) {
-        const updateResponse = await addressService.updateAddress(value, addressData);
+      // Nếu đã có address (từ /api/Addresses/me), thì update
+      // Nếu chưa có, thì create mới
+      if (selectedAddress?.id) {
+        const updateResponse = await addressService.updateAddress(selectedAddress.id, addressData);
         if (updateResponse.success && updateResponse.data) {
           addressId = updateResponse.data.id!;
           savedAddress = updateResponse.data;
@@ -316,256 +362,283 @@ export function AddressInput({
         {required && <span className="text-red-600">*</span>}
       </Label>
 
-      {/* Manual Input Form */}
-      <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1 md:col-span-2">
-            <Label htmlFor="line1" className="text-sm">
-              Địa chỉ đường/phố <span className="text-red-600">*</span>
-            </Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <Input
-                id="line1"
-                value={manualAddress.line1}
-                onChange={(e) =>
-                  setManualAddress({ ...manualAddress, line1: e.target.value })
-                }
-                placeholder="Số nhà, tên đường"
-                className={`pl-10 ${validationErrors.line1 ? "border-red-500" : ""}`}
-              />
+      {/* Hiển thị thông báo khi chưa có address (chưa là donor) */}
+      {hasLoaded && !isLoading && !selectedAddress && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
+          <div className="flex items-start gap-2">
+            <MapPin className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <strong className="text-blue-900">Thông báo:</strong>
+              <p className="mt-1 text-sm">
+                Bạn chưa có địa chỉ. Vui lòng đăng ký làm donor để thêm địa chỉ.
+              </p>
             </div>
-            {validationErrors.line1 && (
-              <p className="text-xs text-red-600">{validationErrors.line1}</p>
-            )}
           </div>
+        </div>
+      )}
 
-          <div className="space-y-1">
-            <Label htmlFor="province" className="text-sm">
-              Tỉnh/Thành phố <span className="text-red-600">*</span>
-            </Label>
-            <div className="relative" ref={provinceDropdownRef}>
-              <div
-                className={`flex items-center border rounded-md cursor-pointer ${
-                  validationErrors.province ? "border-red-500" : "border-gray-300"
-                } ${loadingProvinces ? "opacity-50" : ""}`}
-                onClick={() => !loadingProvinces && setShowProvinceDropdown(!showProvinceDropdown)}
-              >
-                <Input
-                  type="text"
-                  placeholder="Tìm kiếm hoặc chọn Tỉnh/Thành phố"
-                  value={
-                    showProvinceDropdown
-                      ? provinceSearch
-                      : selectedProvinceCode
-                      ? provinces.find((p) => p.code === selectedProvinceCode)?.name || ""
-                      : ""
-                  }
-                  onChange={(e) => {
-                    setProvinceSearch(e.target.value);
-                    setShowProvinceDropdown(true);
-                  }}
-                  onFocus={() => {
-                    setShowProvinceDropdown(true);
-                    setProvinceSearch("");
-                  }}
-                  className="border-0 focus:ring-0 cursor-pointer"
-                  disabled={loadingProvinces}
-                />
-                <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
+      {/* Chỉ hiển thị form address khi user đã có address (đã là donor) */}
+      {hasLoaded && !isLoading && selectedAddress && (
+        <>
+          {/* Hiển thị thông tin address đã lưu */}
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md mb-4">
+            <div className="flex items-start gap-2">
+              <MapPin className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <strong className="text-green-900">Địa chỉ hiện tại:</strong>
+                <p className="mt-1 text-sm">
+                  {selectedAddress.normalizedAddress || 
+                    `${selectedAddress.line1}${selectedAddress.district ? `, ${selectedAddress.district}` : ""}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}${selectedAddress.province ? `, ${selectedAddress.province}` : ""}`.trim()}
+                </p>
               </div>
-
-              {showProvinceDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
-                  <div className="p-2 border-b sticky top-0 bg-white">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        type="text"
-                        placeholder="Tìm kiếm tỉnh/thành phố..."
-                        value={provinceSearch}
-                        onChange={(e) => setProvinceSearch(e.target.value)}
-                        className="pl-8"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-auto">
-                    {loadingProvinces ? (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Đang tải...
-                      </div>
-                    ) : filteredProvinces.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Không tìm thấy kết quả
-                      </div>
-                    ) : (
-                      filteredProvinces.map((province) => (
-                        <button
-                          key={province.code}
-                          type="button"
-                          onClick={() => {
-                            setSelectedProvinceCode(province.code);
-                            setProvinceSearch("");
-                            setShowProvinceDropdown(false);
-                            setSelectedDistrictCode("");
-                            setManualAddress((prev) => ({ ...prev, district: "" }));
-                          }}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
-                            selectedProvinceCode === province.code ? "bg-blue-50" : ""
-                          }`}
-                        >
-                          {province.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-            {validationErrors.province && (
-              <p className="text-xs text-red-600">{validationErrors.province}</p>
-            )}
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="district" className="text-sm">Quận/Huyện</Label>
-            <div className="relative" ref={districtDropdownRef}>
-              <div
-                className={`flex items-center border rounded-md cursor-pointer ${
-                  !selectedProvinceCode || loadingDistricts ? "opacity-50" : ""
-                } border-gray-300`}
-                onClick={() =>
-                  selectedProvinceCode &&
-                  !loadingDistricts &&
-                  setShowDistrictDropdown(!showDistrictDropdown)
-                }
-              >
-                <Input
-                  type="text"
-                  placeholder={
-                    selectedProvinceCode
-                      ? "Tìm kiếm hoặc chọn Quận/Huyện"
-                      : "Vui lòng chọn Tỉnh/Thành phố trước"
-                  }
-                  value={
-                    showDistrictDropdown
-                      ? districtSearch
-                      : selectedDistrictCode
-                      ? districts.find((d) => d.code === selectedDistrictCode)?.name || ""
-                      : ""
-                  }
-                  onChange={(e) => {
-                    setDistrictSearch(e.target.value);
-                    setShowDistrictDropdown(true);
-                  }}
-                  onFocus={() => {
-                    if (selectedProvinceCode) {
-                      setShowDistrictDropdown(true);
-                      setDistrictSearch("");
+          {/* Manual Input Form - Chỉ hiện khi đã có address để update */}
+          <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="line1" className="text-sm">
+                  Địa chỉ đường/phố <span className="text-red-600">*</span>
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <Input
+                    id="line1"
+                    value={manualAddress.line1}
+                    onChange={(e) =>
+                      setManualAddress({ ...manualAddress, line1: e.target.value })
                     }
-                  }}
-                  className="border-0 focus:ring-0 cursor-pointer"
-                  disabled={!selectedProvinceCode || loadingDistricts}
-                />
-                <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
+                    placeholder="Số nhà, tên đường"
+                    className={`pl-10 ${validationErrors.line1 ? "border-red-500" : ""}`}
+                  />
+                </div>
+                {validationErrors.line1 && (
+                  <p className="text-xs text-red-600">{validationErrors.line1}</p>
+                )}
               </div>
 
-              {showDistrictDropdown && selectedProvinceCode && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
-                  <div className="p-2 border-b sticky top-0 bg-white">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        type="text"
-                        placeholder="Tìm kiếm quận/huyện..."
-                        value={districtSearch}
-                        onChange={(e) => setDistrictSearch(e.target.value)}
-                        className="pl-8"
-                        autoFocus
-                      />
+              <div className="space-y-1">
+                <Label htmlFor="province" className="text-sm">
+                  Tỉnh/Thành phố <span className="text-red-600">*</span>
+                </Label>
+                <div className="relative" ref={provinceDropdownRef}>
+                  <div
+                    className={`flex items-center border rounded-md cursor-pointer ${
+                      validationErrors.province ? "border-red-500" : "border-gray-300"
+                    } ${loadingProvinces ? "opacity-50" : ""}`}
+                    onClick={() => !loadingProvinces && setShowProvinceDropdown(!showProvinceDropdown)}
+                  >
+                    <Input
+                      type="text"
+                      placeholder="Tìm kiếm hoặc chọn Tỉnh/Thành phố"
+                      value={
+                        showProvinceDropdown
+                          ? provinceSearch
+                          : selectedProvinceCode
+                          ? provinces.find((p) => p.code === selectedProvinceCode)?.name || ""
+                          : ""
+                      }
+                      onChange={(e) => {
+                        setProvinceSearch(e.target.value);
+                        setShowProvinceDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setShowProvinceDropdown(true);
+                        setProvinceSearch("");
+                      }}
+                      className="border-0 focus:ring-0 cursor-pointer"
+                      disabled={loadingProvinces}
+                    />
+                    <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
+                  </div>
+
+                  {showProvinceDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+                      <div className="p-2 border-b sticky top-0 bg-white">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            type="text"
+                            placeholder="Tìm kiếm tỉnh/thành phố..."
+                            value={provinceSearch}
+                            onChange={(e) => setProvinceSearch(e.target.value)}
+                            className="pl-8"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-auto">
+                        {loadingProvinces ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Đang tải...
+                          </div>
+                        ) : filteredProvinces.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Không tìm thấy kết quả
+                          </div>
+                        ) : (
+                          filteredProvinces.map((province) => (
+                            <button
+                              key={province.code}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProvinceCode(province.code);
+                                setProvinceSearch("");
+                                setShowProvinceDropdown(false);
+                                setSelectedDistrictCode("");
+                                setManualAddress((prev) => ({ ...prev, district: "" }));
+                              }}
+                              className={`w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
+                                selectedProvinceCode === province.code ? "bg-blue-50" : ""
+                              }`}
+                            >
+                              {province.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="max-h-48 overflow-auto">
-                    {loadingDistricts ? (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Đang tải...
-                      </div>
-                    ) : filteredDistricts.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Không tìm thấy kết quả
-                      </div>
-                    ) : (
-                      filteredDistricts.map((district) => (
-                        <button
-                          key={district.code}
-                          type="button"
-                          onClick={() => {
-                            setSelectedDistrictCode(district.code);
-                            setDistrictSearch("");
-                            setShowDistrictDropdown(false);
-                            setManualAddress((prev) => ({
-                              ...prev,
-                              district: district.name,
-                            }));
-                          }}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
-                            selectedDistrictCode === district.code ? "bg-blue-50" : ""
-                          }`}
-                        >
-                          {district.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
+                  )}
                 </div>
-              )}
+                {validationErrors.province && (
+                  <p className="text-xs text-red-600">{validationErrors.province}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="district" className="text-sm">Quận/Huyện</Label>
+                <div className="relative" ref={districtDropdownRef}>
+                  <div
+                    className={`flex items-center border rounded-md cursor-pointer ${
+                      !selectedProvinceCode || loadingDistricts ? "opacity-50" : ""
+                    } border-gray-300`}
+                    onClick={() =>
+                      selectedProvinceCode &&
+                      !loadingDistricts &&
+                      setShowDistrictDropdown(!showDistrictDropdown)
+                    }
+                  >
+                    <Input
+                      type="text"
+                      placeholder={
+                        selectedProvinceCode
+                          ? "Tìm kiếm hoặc chọn Quận/Huyện"
+                          : "Vui lòng chọn Tỉnh/Thành phố trước"
+                      }
+                      value={
+                        showDistrictDropdown
+                          ? districtSearch
+                          : selectedDistrictCode
+                          ? districts.find((d) => d.code === selectedDistrictCode)?.name || ""
+                          : ""
+                      }
+                      onChange={(e) => {
+                        setDistrictSearch(e.target.value);
+                        setShowDistrictDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (selectedProvinceCode) {
+                          setShowDistrictDropdown(true);
+                          setDistrictSearch("");
+                        }
+                      }}
+                      className="border-0 focus:ring-0 cursor-pointer"
+                      disabled={!selectedProvinceCode || loadingDistricts}
+                    />
+                    <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
+                  </div>
+
+                  {showDistrictDropdown && selectedProvinceCode && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+                      <div className="p-2 border-b sticky top-0 bg-white">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            type="text"
+                            placeholder="Tìm kiếm quận/huyện..."
+                            value={districtSearch}
+                            onChange={(e) => setDistrictSearch(e.target.value)}
+                            className="pl-8"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-auto">
+                        {loadingDistricts ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Đang tải...
+                          </div>
+                        ) : filteredDistricts.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Không tìm thấy kết quả
+                          </div>
+                        ) : (
+                          filteredDistricts.map((district) => (
+                            <button
+                              key={district.code}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDistrictCode(district.code);
+                                setDistrictSearch("");
+                                setShowDistrictDropdown(false);
+                                setManualAddress((prev) => ({
+                                  ...prev,
+                                  district: district.name,
+                                }));
+                              }}
+                              className={`w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
+                                selectedDistrictCode === district.code ? "bg-blue-50" : ""
+                              }`}
+                            >
+                              {district.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="postalCode" className="text-sm">Mã bưu điện</Label>
+                <Input
+                  id="postalCode"
+                  value={manualAddress.postalCode}
+                  onChange={(e) =>
+                    setManualAddress({ ...manualAddress, postalCode: e.target.value })
+                  }
+                  placeholder="Mã bưu điện"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                onClick={handleSaveManualAddress}
+                disabled={isLoading}
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  "Lưu địa chỉ"
+                )}
+              </Button>
             </div>
           </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="postalCode" className="text-sm">Mã bưu điện</Label>
-            <Input
-              id="postalCode"
-              value={manualAddress.postalCode}
-              onChange={(e) =>
-                setManualAddress({ ...manualAddress, postalCode: e.target.value })
-              }
-              placeholder="Mã bưu điện"
-            />
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="flex gap-2 justify-end">
-          <Button
-            type="button"
-            onClick={handleSaveManualAddress}
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Đang lưu...
-              </>
-            ) : (
-              "Lưu địa chỉ"
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {selectedAddress && !error && (
-        <div className="text-sm text-gray-600 bg-green-50 border border-green-200 p-3 rounded">
-          <strong>Địa chỉ đã lưu:</strong> {selectedAddress.normalizedAddress || 
-            `${selectedAddress.line1}, ${selectedAddress.district || ""}, ${selectedAddress.city}, ${selectedAddress.province}`}
-        </div>
+        </>
       )}
     </div>
   );
