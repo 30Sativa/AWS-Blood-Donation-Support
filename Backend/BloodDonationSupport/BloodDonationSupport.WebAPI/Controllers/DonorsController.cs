@@ -26,7 +26,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
-        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)
         {
             var result = await _mediator.Send(new RegisterDonorCommand(request));
