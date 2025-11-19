@@ -2,13 +2,9 @@
 {
     public class UpdateAvailabilityRequest
     {
-        public List<AvailabilityItem> Availabilities { get; set; } = new();
+        public long DonorId { get; set; }
 
-        public class AvailabilityItem
-        {
-            public byte Weekday { get; set; }     // 0=CN..6=Thứ 7
-            public short TimeFromMin { get; set; }
-            public short TimeToMin { get; set; }
-        }
+        public List<DonorAvailabilityDto> Availabilities { get; set; }
+            = new();
     }
 }

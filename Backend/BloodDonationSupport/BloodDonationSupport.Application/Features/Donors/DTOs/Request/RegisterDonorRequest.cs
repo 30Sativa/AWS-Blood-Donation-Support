@@ -2,29 +2,17 @@
 {
     public class RegisterDonorRequest
     {
-        // --- Liên kết bắt buộc ---
         public long UserId { get; set; }
-
-        // --- Thông tin hồ sơ hiến máu ---
-        public int? BloodTypeId { get; set; }
-
-        public long? AddressId { get; set; }
-
-        // --- Phạm vi & vị trí ---
+        public int BloodTypeId { get; set; }
         public decimal TravelRadiusKm { get; set; } = 10;
 
-        public double? Latitude { get; set; }
-        public double? Longitude { get; set; }
+        // Address từ client chỉ cần 1 field
+        public string FullAddress { get; set; } = string.Empty;
 
-        // --- Trạng thái & điều kiện ---
-        public bool IsReady { get; set; } = false;
-
+        public bool IsReady { get; set; }
         public DateOnly? NextEligibleDate { get; set; }
 
-        // --- Lịch rảnh hiến máu (optional) ---
         public List<DonorAvailabilityDto>? Availabilities { get; set; }
-
-        // --- Tình trạng sức khỏe (optional) ---
         public List<int>? HealthConditionIds { get; set; }
     }
 

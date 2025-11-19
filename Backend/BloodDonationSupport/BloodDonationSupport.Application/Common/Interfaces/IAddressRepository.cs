@@ -1,14 +1,11 @@
-using BloodDonationSupport.Application.Features.Addresses.DTOs.Response;
+using BloodDonationSupport.Domain.Addresses.Entities;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
-    public interface IAddressRepository
+    public interface IAddressRepository : IGenericRepository<AddressDomain>
     {
-        Task<long> AddAsync(AddressData address);
-        Task<AddressData?> GetByIdAsync(long addressId);
-        Task<bool> UpdateAsync(long addressId, AddressData address);
-        Task<bool> DeleteAsync(long addressId);
-        Task<(IEnumerable<AddressData> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
+       Task<long> AddAndReturnIdAsync(AddressDomain domain);
+
     }
 }
 

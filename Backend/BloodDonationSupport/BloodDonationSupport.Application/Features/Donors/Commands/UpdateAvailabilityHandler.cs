@@ -7,35 +7,38 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
 {
     public class UpdateAvailabilityHandler : IRequestHandler<UpdateAvailabilityCommand, BaseResponse<string>>
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IDonorRepository _donorRepository;
+        private readonly IDonorRepository _donorRepo;
+        private readonly IUnitOfWork _uow;
 
-        public UpdateAvailabilityHandler(IUnitOfWork unitOfWork, IDonorRepository donorRepository)
+        public UpdateAvailabilityHandler(IDonorRepository donorRepo, IUnitOfWork uow)
         {
-            _unitOfWork = unitOfWork;
-            _donorRepository = donorRepository;
+            _donorRepo = donorRepo;
+            _uow = uow;
         }
 
-        public async Task<BaseResponse<string>> Handle(UpdateAvailabilityCommand request, CancellationToken cancellationToken)
+        public async Task<BaseResponse<string>> Handle(
+            UpdateAvailabilityCommand command,
+            CancellationToken cancellationToken)
         {
-            var donor = await _donorRepository.GetByIdWithAvailabilitiesAsync(request.DonorId);
+            var req = command.Request;
 
+            var donor = await _donorRepo.GetByIdWithAvailabilitiesAsync(req.DonorId);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor not found.");
 
-            // Xóa lịch cũ
+            // clear old
             donor.ClearAvailabilities();
 
-            // Thêm lịch mới
-            foreach (var a in request.Request.Availabilities)
+            // add new
+            foreach (var a in req.Availabilities)
             {
-                var availability = DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin);
-                donor.AddAvailability(availability);
+                donor.AddAvailability(
+                    DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin)
+                );
             }
 
-            // Cập nhật DB
-            _donorRepository.Update(donor);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _donorRepo.Update(donor);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return BaseResponse<string>.SuccessResponse("Availability updated successfully.");
         }

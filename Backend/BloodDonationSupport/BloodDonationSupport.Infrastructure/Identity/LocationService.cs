@@ -2,6 +2,7 @@
 using Amazon.LocationService;
 using Amazon.LocationService.Model;
 using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Features.Addresses.DTOs;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
@@ -15,9 +16,13 @@ namespace BloodDonationSupport.Infrastructure.Identity
         private readonly AppDbContext _context;
         private readonly string _region;
         private readonly string _routeCalculatorName;
+        private readonly string _placeIndexName;
         private readonly IAmazonLocationService _locationClient;
 
-        public LocationService(AppDbContext context, IConfiguration configuration, IAmazonLocationService locationClient)
+        public LocationService(
+            AppDbContext context,
+            IConfiguration configuration,
+            IAmazonLocationService locationClient)
         {
             _context = context;
 
@@ -25,11 +30,82 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _routeCalculatorName = configuration["AWS:LocationRouteCalculatorName"]
                       ?? throw new Exception("Missing AWS Location Route Calculator name");
 
-            // Use AWS SDK (SigV4) instead of API Key to avoid authorization issues
+            _placeIndexName = configuration["AWS:LocationPlaceIndexName"]
+                      ?? throw new Exception("Missing AWS Location Place Index name");
+
             _locationClient = locationClient;
         }
 
-        public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
+
+        // ============================================================
+        //  🔵 STEP 4: PARSE ADDRESS (AWS GEOCODING)
+        // ============================================================
+        public async Task<ParsedAddressResult?> ParseAddressAsync(string fullAddress)
+        {
+            var request = new SearchPlaceIndexForTextRequest
+            {
+                IndexName = _placeIndexName,
+                Text = fullAddress,
+                MaxResults = 1
+            };
+
+            var response = await _locationClient.SearchPlaceIndexForTextAsync(request);
+
+            if (response.Results == null || response.Results.Count == 0)
+                return null;
+
+            var result = response.Results[0];
+            var place = result.Place;
+
+            // AWS Geometry: [lng, lat]
+            double latitude = place.Geometry.Point[1];
+            double longitude = place.Geometry.Point[0];
+
+            // Label = full normalized address
+            string label = place.Label ?? fullAddress;
+
+            // ============================================
+            // TỰ TÁCH address components từ Label
+            // Example Label: "12 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh, Vietnam"
+            // ============================================
+
+            var parts = label.Split(',', StringSplitOptions.TrimEntries);
+
+            string line1 = parts.Length > 0 ? parts[0] : label;
+            string district = parts.Length > 1 ? parts[1] : "";
+            string city = parts.Length > 2 ? parts[2] : "";
+            string province = parts.Length > 3 ? parts[3] : "";
+            string country = parts.Length > 4 ? parts[4] : "Vietnam";
+
+            return new ParsedAddressResult
+            {
+                Line1 = line1,
+                District = district,
+                City = city,
+                Province = province,
+                Country = country,
+                PostalCode = "",
+
+                NormalizedAddress = label,
+                PlaceId = null,                 // SDK v4 không có
+                ConfidenceScore = result.Relevance,
+
+                Latitude = latitude,
+                Longitude = longitude
+            };
+        }
+
+
+
+
+
+        // ============================================================
+        //  🔵 GET NEARBY DONORS
+        // ============================================================
+        public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
+            double latitude,
+            double longitude,
+            double radiusKm)
         {
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
@@ -55,21 +131,20 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // Prefilter to avoid AWS RouteMatrix 400 km constraint from origin to any destination
-            // Use a quick Haversine estimation to keep only donors within 400 km of the request point
+            // Prefilter for AWS 400km limit
             const double awsMaxKm = 400.0;
             double ToRadians(double deg) => deg * Math.PI / 180.0;
+
             double HaversineKm(double lat1, double lon1, double lat2, double lon2)
             {
-                const double earthRadiusKm = 6371.0;
+                const double R = 6371.0;
                 var dLat = ToRadians(lat2 - lat1);
                 var dLon = ToRadians(lon2 - lon1);
-                var a =
-                    Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-                return earthRadiusKm * c;
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                         Math.Cos(ToRadians(lat1)) *
+                         Math.Cos(ToRadians(lat2)) *
+                         Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                return R * (2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a)));
             }
 
             var prefiltered = donors
@@ -78,21 +153,21 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     Donor = d,
                     ApproxKm = HaversineKm(latitude, longitude, d.Latitude ?? 0, d.Longitude ?? 0)
                 })
-                .Where(x => x.ApproxKm <= awsMaxKm) // ensure compatibility with AWS limitation
+                .Where(x => x.ApproxKm <= awsMaxKm)
                 .Select(x => x.Donor)
                 .ToList();
 
             if (!prefiltered.Any())
                 return new List<NearbyDonorResponse>();
 
-            // ✅ Use AWS SDK CalculateRouteMatrix (SigV4)
+            // AWS Route Matrix Request
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
                 DeparturePositions = new List<List<double>>
                 {
-                    new List<double> { longitude, latitude } // [lng, lat]
+                    new List<double> { longitude, latitude }
                 },
                 DestinationPositions = prefiltered
                     .Select(d => new List<double> { d.Longitude ?? 0, d.Latitude ?? 0 })
@@ -100,16 +175,17 @@ namespace BloodDonationSupport.Infrastructure.Identity
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
-            var matrix = resp.RouteMatrix; // List<List<RouteMatrixEntry>>
 
             var results = new List<NearbyDonorResponse>();
-            for (int i = 0; i < matrix.Count; i++)
+
+            for (int i = 0; i < resp.RouteMatrix.Count; i++)
             {
-                var cell = matrix[i][0];
-                if (cell == null || cell.Distance == null)
+                var cell = resp.RouteMatrix[i][0];
+                if (cell?.Distance == null)
                     continue;
 
-                var distanceKm = (cell.Distance.Value) / 1000.0;
+                var distanceKm = cell.Distance.Value / 1000.0;
+
                 if (distanceKm <= radiusKm)
                 {
                     var d = prefiltered[i];
@@ -128,61 +204,51 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 }
             }
 
-            Console.WriteLine($"[AWS V2] Found {results.Count} donors within {radiusKm} km.");
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
 
-        public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm)
+
+        // ============================================================
+        //  🔵 GET NEARBY REQUESTS
+        // ============================================================
+        public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(
+            double latitude,
+            double longitude,
+            double radiusKm)
         {
             var requests = await _context.Requests
                 .Include(r => r.RequesterUser).ThenInclude(u => u.UserProfile)
                 .Include(r => r.BloodType)
                 .Include(r => r.Component)
-                .Where(r => r.Status == "REQUESTED"
-                            && r.Latitude != null
-                            && r.Longitude != null)
-                .Select(r => new
-                {
-                    r.RequestId,
-                    r.RequesterUserId,
-                    FullName = r.RequesterUser.UserProfile.FullName,
-                    BloodGroup = r.BloodType != null ? $"{r.BloodType.Abo} {r.BloodType.Rh}" : "Unknown",
-                    Component = r.Component.ComponentName,
-                    AddressDisplay = $"{r.Latitude}, {r.Longitude}",
-                    r.Status,
-                    r.Urgency,
-                    r.QuantityUnits,
-                    r.NeedBeforeUtc,
-                    r.CreatedAt,
-                    r.Latitude,
-                    r.Longitude
-                })
+                .Where(r => r.Status == "REQUESTED" &&
+                            r.Latitude != null &&
+                            r.Longitude != null)
                 .ToListAsync();
 
             if (!requests.Any())
                 return new List<NearbyRequestResponse>();
 
             double ToRadians(double deg) => deg * Math.PI / 180.0;
-            double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+            double Haversine(double lat1, double lon1, double lat2, double lon2)
             {
-                const double R = 6371.0;
+                const double R = 6371;
                 var dLat = ToRadians(lat2 - lat1);
                 var dLon = ToRadians(lon2 - lon1);
-                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
-                        + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2))
-                        * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-                return R * c;
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                        Math.Cos(ToRadians(lat1)) *
+                        Math.Cos(ToRadians(lat2)) *
+                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             }
 
-            var results = requests
+            return requests
                 .Select(r => new NearbyRequestResponse
                 {
                     RequestId = r.RequestId,
-                    FullName = r.FullName,
-                    BloodGroup = r.BloodGroup,
-                    ComponentName = r.Component,
-                    AddressDisplay = r.AddressDisplay,
+                    FullName = r.RequesterUser.UserProfile.FullName,
+                    BloodGroup = $"{r.BloodType.Abo} {r.BloodType.Rh}",
+                    ComponentName = r.Component.ComponentName,
+                    AddressDisplay = $"{r.Latitude}, {r.Longitude}",
                     Status = r.Status,
                     Urgency = r.Urgency.ToString(),
                     QuantityUnits = r.QuantityUnits,
@@ -190,16 +256,11 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     CreatedAt = r.CreatedAt,
                     Latitude = r.Latitude,
                     Longitude = r.Longitude,
-                    DistanceKm = HaversineKm(latitude, longitude, r.Latitude ?? 0, r.Longitude ?? 0)
+                    DistanceKm = Haversine(latitude, longitude, r.Latitude ?? 0, r.Longitude ?? 0)
                 })
                 .Where(x => x.DistanceKm <= radiusKm)
                 .OrderBy(x => x.DistanceKm)
                 .ToList();
-
-            return results;
         }
-
-
-
     }
 }

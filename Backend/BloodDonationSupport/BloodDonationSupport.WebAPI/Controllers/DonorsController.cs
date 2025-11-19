@@ -20,31 +20,9 @@ namespace BloodDonationSupport.WebAPI.Controllers
             _logger = logger;
         }
 
-        // [GET] api/donors (Get all donors with pagination)
-        [HttpGet]
-        [Authorize(Policy = "AdminOrStaff")]
-        public async Task<IActionResult> GetDonorStatus([FromQuery] int pagenumber = 1, [FromQuery] int pageSize = 10)
-        {
-            var result = await _mediator.Send(new GetAllDonorsQuery(pagenumber, pageSize));
-            if (result == null)
-            {
-                return NotFound();
-            }
-            return Ok(result);
-        }
+       
 
-        // [GET] api/donors/{id} (Get donor by Id)
-        [HttpGet("{id:long}")]
-        [Authorize(Policy = "AdminOrStaff")]
-        public async Task<IActionResult> GetDonorById(long id)
-        {
-            var result = await _mediator.Send(new GetDonorByIdQuery(id));
-            if (result == null)
-            {
-                return NotFound();
-            }
-            return Ok(result);
-        }
+        
 
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
@@ -55,23 +33,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
-        // [PUT] api/donors/{id}/availability (Update donor availability)
-        [HttpPut("{id:long}/availability")]
-        [Authorize(Policy = "UserOrAdmin")]
-        public async Task<IActionResult> UpdateAvailability(long id, [FromBody] UpdateAvailabilityRequest request)
-        {
-            var result = await _mediator.Send(new UpdateAvailabilityCommand(id, request));
-            return result.Success ? Ok(result) : BadRequest(result);
-        }
 
-        // [PUT] api/donors/{id}/ready-status (Update donor ready status)
-        [HttpPut("{id:long}/ready-status")]
-        [Authorize(Policy = "UserOrAdmin")]
-        public async Task<IActionResult> UpdateReadyStatus(long id, [FromBody] UpdateReadyStatusRequest request)
+
+        [HttpPut("{id}/availability")]
+        public async Task<IActionResult> UpdateAvailability(long id, UpdateAvailabilityRequest request)
         {
             request.DonorId = id;
-            var result = await _mediator.Send(new UpdateReadyStatusCommand(request));
-            return result.Success ? Ok(result) : BadRequest(result);
+            var result = await _mediator.Send(new UpdateAvailabilityCommand(request));
+            return Ok(result);
         }
 
         // [GET] api/donors/nearby (Get nearby donors)
@@ -91,32 +60,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
 
-        // [GET] api/donors/user/{userId} (Get donor by user ID)
-        [HttpGet("user/{userId:long}")]
-        [Authorize(Policy = "UserOrAdmin")]
-        public async Task<IActionResult> GetDonorByUserId(long userId)
-        {
-            var result = await _mediator.Send(new GetDonorByUserIdQuery(userId));
-            return result.Success ? Ok(result) : NotFound(result);
-        }
-
-        // [GET] api/donors/me (Get current user's donor profile)
-        [HttpGet("me")]
-        [Authorize]
-        public async Task<IActionResult> GetCurrentDonor()
-        {
-            var result = await _mediator.Send(new GetCurrentDonorQuery());
-            return result.Success ? Ok(result) : NotFound(result);
-        }
-
-        // [GET] api/donors/me/availability (Get availability of current donor)
-        [HttpGet("me/availability")]
-        [Authorize]
-        public async Task<IActionResult> GetMyAvailability()
-        {
-            var result = await _mediator.Send(new GetMyDonorAvailabilityQuery());
-            return result.Success ? Ok(result) : NotFound(result);
-        }
 
         // [PUT] api/donors/me (Update current user's donor profile)
         [HttpPut("me")]
@@ -136,22 +79,53 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
-        // [PUT] api/donors/{id}/location (Update donor location)
-        [HttpPut("{id:long}/location")]
-        [Authorize(Policy = "UserOrAdmin")]
-        public async Task<IActionResult> UpdateDonorLocation(long id, [FromBody] UpdateDonorLocationRequest request)
-        {
-            var result = await _mediator.Send(new UpdateDonorLocationCommand(id, request));
-            return result.Success ? Ok(result) : BadRequest(result);
-        }
+
+
 
         // [DELETE] api/donors/{id} (Delete donor)
-        [HttpDelete("{id:long}")]
-        [Authorize(Policy = "AdminOnly")]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDonor(long id)
         {
             var result = await _mediator.Send(new DeleteDonorCommand(id));
-            return result.Success ? Ok(result) : BadRequest(result);
+            return Ok(result);
+        }
+
+
+        // [GET] api/donors/{id}/profile (Get donor profile by Id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetDonorProfile(long id)
+        {
+            var result = await _mediator.Send(new GetDonorProfileQuery(id));
+            return Ok(result);
+        }
+
+
+        // [PUT] api/donors/{id}/location (Update donor location)
+        [HttpPut("{id}/location")]
+        public async Task<IActionResult> UpdateLocation(long id, UpdateDonorLocationRequest request)
+        {
+            request.DonorId = id;
+            var result = await _mediator.Send(new UpdateDonorLocationCommand(request));
+            return Ok(result);
+        }
+
+        // [PUT] api/donors/{id}/ready-status (Update donor ready status)
+        [HttpPut("{id}/ready-status")]
+        public async Task<IActionResult> UpdateReadyStatus(long id, UpdateReadyStatusRequest request)
+        {
+            request.DonorId = id;
+
+            var result = await _mediator.Send(new UpdateReadyStatusCommand(request));
+            return Ok(result);
+        }
+
+        // [PUT] api/donors/{id}/health-conditions (Update donor health conditions)
+        [HttpPut("{id}/health-conditions")]
+        public async Task<IActionResult> UpdateHealthConditions(long id, UpdateHealthConditionsRequest request)
+        {
+            request.DonorId = id;
+            var result = await _mediator.Send(new UpdateHealthConditionsCommand(request));
+            return Ok(result);
         }
     }
 }

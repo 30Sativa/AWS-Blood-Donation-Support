@@ -1,4 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Responses;
+using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,8 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Commands
 {
-    public record DeleteDonorCommand(long DonorId) : IRequest<BaseResponse<string>>
+    public record UpdateHealthConditionsCommand(UpdateHealthConditionsRequest Request)
+    : IRequest<BaseResponse<string>>
     {
-
     }
 }

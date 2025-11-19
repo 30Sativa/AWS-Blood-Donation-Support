@@ -16,20 +16,9 @@
 
         public DateTime CreatedAt { get; set; }
 
-        public List<AvailabilityItem>? Availabilities { get; set; }
-        public List<HealthConditionItem>? HealthConditions { get; set; }
+        public List<DonorAvailabilityResponse>? Availabilities { get; set; }
+        public List<DonorHealthConditionItemResponse>? HealthConditions { get; set; }
     }
 
-    public class AvailabilityItem
-    {
-        public byte Weekday { get; set; }
-        public short TimeFromMin { get; set; }
-        public short TimeToMin { get; set; }
-    }
 
-    public class HealthConditionItem
-    {
-        public int ConditionId { get; set; }
-        public string? ConditionName { get; set; }
-    }
 }

@@ -29,5 +29,9 @@
         {
             UpdateAt = DateTime.UtcNow;
         }
+        public void SetId(TId id)
+        {
+            Id = id;
+        }
     }
 }

@@ -4,7 +4,7 @@ using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Donors.Commands
 {
-    public record UpdateAvailabilityCommand(long DonorId, UpdateAvailabilityRequest Request) : IRequest<BaseResponse<string>>
+    public record UpdateAvailabilityCommand(UpdateAvailabilityRequest Request) : IRequest<BaseResponse<string>>
     {
     }
 }

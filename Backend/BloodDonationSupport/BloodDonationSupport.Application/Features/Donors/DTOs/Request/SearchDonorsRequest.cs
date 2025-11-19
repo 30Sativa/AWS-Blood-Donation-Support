@@ -5,8 +5,9 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
         public string? Keyword { get; set; }
         public int? BloodTypeId { get; set; }
         public bool? IsReady { get; set; }
+
         public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        public int PageSize { get; set; } = 20;
     }
 }
 

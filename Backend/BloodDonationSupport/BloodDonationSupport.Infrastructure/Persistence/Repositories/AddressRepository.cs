@@ -1,8 +1,10 @@
-using BloodDonationSupport.Application.Common.Interfaces;
+﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Addresses.DTOs.Response;
+using BloodDonationSupport.Domain.Addresses.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -15,33 +17,67 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
-        public async Task<long> AddAsync(AddressData address)
+        // =========================================================
+        // CREATE (UnitOfWork handles SaveChanges)
+        // =========================================================
+        public async Task AddAsync(AddressDomain domain)
         {
             var entity = new Address
             {
-                Line1 = address.Line1,
-                District = address.District,
-                City = address.City,
-                Province = address.Province,
-                Country = address.Country ?? "Vietnam",
-                PostalCode = address.PostalCode,
-                NormalizedAddress = address.NormalizedAddress,
-                PlaceId = address.PlaceId,
-                ConfidenceScore = address.ConfidenceScore,
-                Latitude = address.Latitude,
-                Longitude = address.Longitude
+                Line1 = domain.Line1,
+                District = domain.District,
+                City = domain.City,
+                Province = domain.Province,
+                Country = domain.Country,
+                PostalCode = domain.PostalCode,
+                NormalizedAddress = domain.NormalizedAddress,
+                PlaceId = domain.PlaceId,
+                ConfidenceScore = domain.ConfidenceScore,
+                Latitude = domain.Latitude,
+                Longitude = domain.Longitude
             };
 
             await _context.Addresses.AddAsync(entity);
-            // Note: SaveChanges should be managed by UnitOfWork in the handler
-            // But for Address, we need the ID immediately, so we save here
-            await _context.SaveChangesAsync();
 
+            // Không SaveChanges ở đây (UnitOfWork sẽ xử lý)
+            domain.SetId(entity.AddressId);
+        }
+
+        // =========================================================
+        // CREATE + RETURN ID (Dùng cho UpdateDonorLocation)
+        // =========================================================
+        public async Task<long> AddAndReturnIdAsync(AddressDomain domain)
+        {
+            var entity = new Address
+            {
+                Line1 = domain.Line1,
+                District = domain.District,
+                City = domain.City,
+                Province = domain.Province,
+                Country = domain.Country,
+                PostalCode = domain.PostalCode,
+                NormalizedAddress = domain.NormalizedAddress,
+                PlaceId = domain.PlaceId,
+                ConfidenceScore = domain.ConfidenceScore,
+                Latitude = domain.Latitude,
+                Longitude = domain.Longitude
+            };
+
+            _context.Addresses.Add(entity);
+            await _context.SaveChangesAsync(); // cần ID ngay lập tức
+
+            domain.SetId(entity.AddressId);
             return entity.AddressId;
         }
 
-        public async Task<AddressData?> GetByIdAsync(long addressId)
+        // =========================================================
+        // GET BY ID
+        // =========================================================
+        public async Task<AddressDomain?> GetByIdAsync(object id)
         {
+            if (id is not long addressId)
+                return null;
+
             var entity = await _context.Addresses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.AddressId == addressId);
@@ -49,88 +85,132 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             if (entity == null)
                 return null;
 
-            return new AddressData
-            {
-                AddressId = entity.AddressId,
-                Line1 = entity.Line1,
-                District = entity.District,
-                City = entity.City,
-                Province = entity.Province,
-                Country = entity.Country,
-                PostalCode = entity.PostalCode,
-                NormalizedAddress = entity.NormalizedAddress,
-                PlaceId = entity.PlaceId,
-                ConfidenceScore = entity.ConfidenceScore,
-                Latitude = entity.Latitude,
-                Longitude = entity.Longitude
-            };
+            return AddressDomain.Rehydrate(
+                id: entity.AddressId,
+                line1: entity.Line1,
+                district: entity.District,
+                city: entity.City,
+                province: entity.Province,
+                country: entity.Country,
+                postalCode: entity.PostalCode,
+                normalizedAddress: entity.NormalizedAddress,
+                placeId: entity.PlaceId,
+                confidenceScore: entity.ConfidenceScore,
+                latitude: entity.Latitude ?? 0,
+                longitude: entity.Longitude ?? 0
+            );
         }
 
-        public async Task<bool> UpdateAsync(long addressId, AddressData address)
+        // =========================================================
+        // GET ALL
+        // =========================================================
+        public async Task<IEnumerable<AddressDomain>> GetAllAsync()
         {
-            var entity = await _context.Addresses.FindAsync(addressId);
-            if (entity == null)
-                return false;
+            var entities = await _context.Addresses.AsNoTracking().ToListAsync();
 
-            entity.Line1 = address.Line1 ?? entity.Line1;
-            entity.District = address.District ?? entity.District;
-            entity.City = address.City ?? entity.City;
-            entity.Province = address.Province ?? entity.Province;
-            entity.Country = address.Country ?? entity.Country;
-            entity.PostalCode = address.PostalCode ?? entity.PostalCode;
-            entity.NormalizedAddress = address.NormalizedAddress ?? entity.NormalizedAddress;
-            entity.PlaceId = address.PlaceId ?? entity.PlaceId;
-            entity.ConfidenceScore = address.ConfidenceScore ?? entity.ConfidenceScore;
-            entity.Latitude = address.Latitude ?? entity.Latitude;
-            entity.Longitude = address.Longitude ?? entity.Longitude;
+            return entities.Select(e =>
+                AddressDomain.Rehydrate(
+                    e.AddressId,
+                    e.Line1,
+                    e.District,
+                    e.City,
+                    e.Province,
+                    e.Country,
+                    e.PostalCode,
+                    e.NormalizedAddress,
+                    e.PlaceId,
+                    e.ConfidenceScore,
+                    e.Latitude ?? 0,
+                    e.Longitude ?? 0
+                )
+            );
+        }
+
+        // =========================================================
+        // FIND
+        // =========================================================
+        public async Task<IEnumerable<AddressDomain>> FindAsync(Expression<Func<AddressDomain, bool>> predicate)
+        {
+            var all = await GetAllAsync();
+            return all.AsQueryable().Where(predicate);
+        }
+
+        // =========================================================
+        // EXISTS
+        // =========================================================
+        public async Task<bool> ExistsAsync(Expression<Func<AddressDomain, bool>> predicate)
+        {
+            var all = await GetAllAsync();
+            return all.AsQueryable().Any(predicate);
+        }
+
+        // =========================================================
+        // UPDATE
+        // =========================================================
+        public void Update(AddressDomain domain)
+        {
+            var entity = _context.Addresses.FirstOrDefault(a => a.AddressId == domain.Id);
+            if (entity == null) return;
+
+            entity.Line1 = domain.Line1;
+            entity.District = domain.District;
+            entity.City = domain.City;
+            entity.Province = domain.Province;
+            entity.Country = domain.Country;
+            entity.PostalCode = domain.PostalCode;
+            entity.NormalizedAddress = domain.NormalizedAddress;
+            entity.PlaceId = domain.PlaceId;
+            entity.ConfidenceScore = domain.ConfidenceScore;
+            entity.Latitude = domain.Latitude;
+            entity.Longitude = domain.Longitude;
 
             _context.Addresses.Update(entity);
-            await _context.SaveChangesAsync();
-
-            return true;
         }
 
-        public async Task<bool> DeleteAsync(long addressId)
+        // =========================================================
+        // DELETE
+        // =========================================================
+        public void Delete(AddressDomain domain)
         {
-            var entity = await _context.Addresses.FindAsync(addressId);
-            if (entity == null)
-                return false;
-
-            _context.Addresses.Remove(entity);
-            await _context.SaveChangesAsync();
-
-            return true;
+            var entity = _context.Addresses.FirstOrDefault(a => a.AddressId == domain.Id);
+            if (entity != null)
+                _context.Addresses.Remove(entity);
         }
 
-        public async Task<(IEnumerable<AddressData> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        // =========================================================
+        // PAGED
+        // =========================================================
+        public async Task<(IEnumerable<AddressDomain> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
         {
             var query = _context.Addresses.AsNoTracking();
-            var totalCount = await query.CountAsync();
+            var total = await query.CountAsync();
 
-            var addresses = await query
+            var entities = await query
                 .OrderByDescending(a => a.AddressId)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            var items = addresses.Select(a => new AddressData
-            {
-                AddressId = a.AddressId,
-                Line1 = a.Line1,
-                District = a.District,
-                City = a.City,
-                Province = a.Province,
-                Country = a.Country,
-                PostalCode = a.PostalCode,
-                NormalizedAddress = a.NormalizedAddress,
-                PlaceId = a.PlaceId,
-                ConfidenceScore = a.ConfidenceScore,
-                Latitude = a.Latitude,
-                Longitude = a.Longitude
-            });
+            var domains = entities.Select(e =>
+                AddressDomain.Rehydrate(
+                    e.AddressId,
+                    e.Line1,
+                    e.District,
+                    e.City,
+                    e.Province,
+                    e.Country,
+                    e.PostalCode,
+                    e.NormalizedAddress,
+                    e.PlaceId,
+                    e.ConfidenceScore,
+                    e.Latitude ?? 0,
+                    e.Longitude ?? 0
+                )
+            );
 
-            return (items, totalCount);
+            return (domains, total);
         }
+
+        
     }
 }
-

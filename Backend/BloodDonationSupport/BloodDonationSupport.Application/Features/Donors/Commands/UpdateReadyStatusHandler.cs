@@ -6,27 +6,38 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
 {
     public class UpdateReadyStatusHandler : IRequestHandler<UpdateReadyStatusCommand, BaseResponse<string>>
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IDonorRepository _donorRepository;
+        private readonly IDonorRepository _donorRepo;
+        private readonly IUnitOfWork _uow;
 
-        public UpdateReadyStatusHandler(IUnitOfWork unitOfWork, IDonorRepository donorRepository)
+        public UpdateReadyStatusHandler(IDonorRepository donorRepo, IUnitOfWork uow)
         {
-            _unitOfWork = unitOfWork;
-            _donorRepository = donorRepository;
+            _donorRepo = donorRepo;
+            _uow = uow;
         }
 
-        public async Task<BaseResponse<string>> Handle(UpdateReadyStatusCommand request, CancellationToken cancellationToken)
+        public async Task<BaseResponse<string>> Handle(
+            UpdateReadyStatusCommand command,
+            CancellationToken cancellationToken)
         {
-            var donor = await _donorRepository.GetByIdAsync(request.Request.DonorId);
+            var req = command.Request;
+
+            var donor = await _donorRepo.GetByIdAsync(req.DonorId);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor not found.");
-            donor.MarkReady(request.Request.IsReady);
-            _donorRepository.Update(donor);
-            await _unitOfWork.SaveChangesAsync();
-            var msg = request.Request.IsReady
-                ? "Donor is now marked as ready to donate."
-                : "Donor is no longer marked as ready.";
-            return BaseResponse<string>.SuccessResponse(msg);
+
+            try
+            {
+                donor.MarkReady(req.IsReady);
+            }
+            catch (Exception ex)
+            {
+                return BaseResponse<string>.FailureResponse(ex.Message);
+            }
+
+            _donorRepo.Update(donor);
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            return BaseResponse<string>.SuccessResponse("Ready status updated successfully.");
         }
     }
 }
