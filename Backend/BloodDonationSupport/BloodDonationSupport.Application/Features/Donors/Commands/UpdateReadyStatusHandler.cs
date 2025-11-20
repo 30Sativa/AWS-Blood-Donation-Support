@@ -1,5 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
+using BloodDonationSupport.Domain.Donors.Rules;
 using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Donors.Commands
@@ -8,22 +9,38 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
     {
         private readonly IDonorRepository _donorRepo;
         private readonly IUnitOfWork _uow;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public UpdateReadyStatusHandler(IDonorRepository donorRepo, IUnitOfWork uow)
+        public UpdateReadyStatusHandler(
+            IDonorRepository donorRepo,
+            IUnitOfWork uow,
+            IDateTimeProvider dateTimeProvider)
         {
             _donorRepo = donorRepo;
             _uow = uow;
+            _dateTimeProvider = dateTimeProvider;
         }
 
         public async Task<BaseResponse<string>> Handle(
             UpdateReadyStatusCommand command,
             CancellationToken cancellationToken)
         {
-
             var donor = await _donorRepo.GetByIdAsync(command.DonorId);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor not found.");
 
+            // ======================================================
+            // 1) CHECK ELIGIBILITY (DOMAIN RULE)
+            // ======================================================
+            var today = _dateTimeProvider.Today();
+
+            var rule = new DonorEligibilityRule(donor.NextEligibleDate, today);
+            if (rule.IsBroken())
+                return BaseResponse<string>.FailureResponse(rule.Message);
+
+            // ======================================================
+            // 2) UPDATE READY STATUS
+            // ======================================================
             try
             {
                 donor.MarkReady(command.Request.IsReady);

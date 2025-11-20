@@ -9,9 +9,6 @@
         // Address từ client chỉ cần 1 field
         public string FullAddress { get; set; } = string.Empty;
 
-        public bool IsReady { get; set; }
-        public DateOnly? NextEligibleDate { get; set; }
-
         public List<DonorAvailabilityDto>? Availabilities { get; set; }
         public List<int>? HealthConditionIds { get; set; }
     }
