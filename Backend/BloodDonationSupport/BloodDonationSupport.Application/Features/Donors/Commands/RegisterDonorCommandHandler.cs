@@ -1,4 +1,4 @@
-﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Addresses.DTOs;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
@@ -16,14 +16,14 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDonorRepository _donorRepository;
         private readonly IUserRepository _userRepository;
-        private readonly IGenericRepository<AddressDomain> _addressRepository;
+        private readonly IAddressRepository _addressRepository;
         private readonly ILocationService _locationService;
 
         public RegisterDonorCommandHandler(
             IUnitOfWork unitOfWork,
             IDonorRepository donorRepository,
             IUserRepository userRepository,
-            IGenericRepository<AddressDomain> addressRepository,
+            IAddressRepository addressRepository,
             ILocationService locationService)
         {
             _unitOfWork = unitOfWork;
@@ -179,3 +179,4 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
         }
     }
 }
+

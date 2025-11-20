@@ -29,7 +29,6 @@ namespace BloodDonationSupport.Infrastructure
                     }));
 
             // Register Repositories
-            services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();

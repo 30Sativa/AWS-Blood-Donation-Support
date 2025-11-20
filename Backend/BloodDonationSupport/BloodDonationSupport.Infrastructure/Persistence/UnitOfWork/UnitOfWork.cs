@@ -34,11 +34,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
             _context.Dispose();
         }
 
-        public IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : class
-        {
-            return new GenericRepository<TEntity>(_context);
-        }
-
         public async Task RollbackTransactionAsync()
         {
             if (_transaction != null)

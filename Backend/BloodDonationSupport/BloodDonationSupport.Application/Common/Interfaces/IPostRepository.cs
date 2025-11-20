@@ -1,9 +1,26 @@
 ﻿using BloodDonationSupport.Domain.Posts.Entities;
+using System.Linq.Expressions;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
-    public interface IPostRepository : IGenericRepository<Post>
+    public interface IPostRepository
     {
+        Task<IEnumerable<Post>> GetAllAsync();
+
+        Task<(IEnumerable<Post> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize);
+
+        Task<Post?> GetByIdAsync(object id);
+
+        Task<IEnumerable<Post>> FindAsync(Expression<Func<Post, bool>> predicate);
+
+        Task AddAsync(Post entity);
+
+        void Update(Post entity);
+
+        void Delete(Post entity);
+
+        Task<bool> ExistsAsync(Expression<Func<Post, bool>> predicate);
+
         Task<(IEnumerable<Post> Items, int TotalCount)> GetPagedWithTagsAsync(int pageNumber, int pageSize);
 
         Task<Post?> GetBySlugAsync(string slug);

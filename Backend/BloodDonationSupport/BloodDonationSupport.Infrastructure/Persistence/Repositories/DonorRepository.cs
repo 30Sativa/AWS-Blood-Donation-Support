@@ -87,9 +87,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
             var donors = await _context.Donors
-        .AsNoTracking()
-        .Select(d => DonorRepository.MapToDomain(d))
-        .ToListAsync();
+                         .AsNoTracking()
+                         .Select(d => DonorRepository.MapToDomain(d))
+                            .ToListAsync();
 
             return donors.Any(predicate.Compile());
         }
