@@ -103,109 +103,103 @@ namespace BloodDonationSupport.Infrastructure.Identity
         //  🔵 GET NEARBY DONORS
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
-            double latitude,
-            double longitude,
-            double radiusKm)
+    double latitude,
+    double longitude,
+    double radiusKm)
         {
+            // STEP 1 — Query donors who are ready + have coordinates
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
                 .Include(d => d.BloodType)
                 .Include(d => d.Address)
                 .Where(d => d.IsReady && d.Latitude != null && d.Longitude != null)
-                .Select(d => new
-                {
-                    d.DonorId,
-                    FullName = d.User.UserProfile.FullName,
-                    BloodGroup = d.BloodType != null
-                        ? $"{d.BloodType.Abo} {d.BloodType.Rh}"
-                        : "Unknown",
-                    AddressDisplay = d.Address != null
-                        ? $"{d.Address.Line1}, {d.Address.District}, {d.Address.City}"
-                        : "Chưa có địa chỉ",
-                    d.NextEligibleDate,
-                    d.Latitude,
-                    d.Longitude
-                })
                 .ToListAsync();
 
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // Prefilter for AWS 400km limit
-            const double awsMaxKm = 400.0;
-            double ToRadians(double deg) => deg * Math.PI / 180.0;
 
+            // STEP 2 — Haversine prefilter for AWS 400km limit
+            const double awsMaxKm = 400.0;
+
+            double ToRadians(double deg) => deg * Math.PI / 180.0;
             double HaversineKm(double lat1, double lon1, double lat2, double lon2)
             {
                 const double R = 6371.0;
                 var dLat = ToRadians(lat2 - lat1);
                 var dLon = ToRadians(lon2 - lon1);
-                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                         Math.Cos(ToRadians(lat1)) *
-                         Math.Cos(ToRadians(lat2)) *
-                         Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-                return R * (2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a)));
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                        + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2))
+                        * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             }
 
             var prefiltered = donors
-                .Select(d => new
+                .Where(d =>
                 {
-                    Donor = d,
-                    ApproxKm = HaversineKm(latitude, longitude, d.Latitude ?? 0, d.Longitude ?? 0)
+                    double approx = HaversineKm(latitude, longitude, d.Latitude!.Value, d.Longitude!.Value);
+                    return approx <= awsMaxKm;
                 })
-                .Where(x => x.ApproxKm <= awsMaxKm)
-                .Select(x => x.Donor)
                 .ToList();
 
             if (!prefiltered.Any())
                 return new List<NearbyDonorResponse>();
 
-            // AWS Route Matrix Request
+
+            // STEP 3 — Build Route Matrix request
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
                 DeparturePositions = new List<List<double>>
-                {
-                    new List<double> { longitude, latitude }
-                },
+        {
+            new List<double> { longitude, latitude }
+        },
                 DestinationPositions = prefiltered
-                    .Select(d => new List<double> { d.Longitude ?? 0, d.Latitude ?? 0 })
+                    .Select(d => new List<double> { d.Longitude!.Value, d.Latitude!.Value })
                     .ToList()
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
 
+
+            // STEP 4 — Parse results (IMPORTANT: matrix[OriginIndex][DestinationIndex])
             var results = new List<NearbyDonorResponse>();
 
-            for (int i = 0; i < resp.RouteMatrix.Count; i++)
+            var row = resp.RouteMatrix[0]; // only 1 origin
+
+            for (int j = 0; j < row.Count; j++)
             {
-                var cell = resp.RouteMatrix[i][0];
-                if (cell?.Distance == null)
-                    continue;
+                var entry = row[j];
+                if (entry?.Distance == null) continue;
 
-                var distanceKm = cell.Distance.Value / 1000.0;
+                var distanceKm = entry.Distance.Value / 1000.0;
 
-                if (distanceKm <= radiusKm)
+                var donor = prefiltered[j];
+
+                // Must also check donor's own TravelRadiusKm
+                if (distanceKm <= radiusKm && distanceKm <= (double)donor.TravelRadiusKm)
                 {
-                    var d = prefiltered[i];
                     results.Add(new NearbyDonorResponse
                     {
-                        DonorId = d.DonorId,
-                        FullName = d.FullName,
-                        BloodGroup = d.BloodGroup,
-                        AddressDisplay = d.AddressDisplay,
-                        NextEligibleDate = d.NextEligibleDate,
-                        Latitude = d.Latitude,
-                        Longitude = d.Longitude,
+                        DonorId = donor.DonorId,
+                        FullName = donor.User.UserProfile.FullName,
+                        BloodGroup = donor.BloodType != null
+                            ? $"{donor.BloodType.Abo} {donor.BloodType.Rh}"
+                            : "Unknown",
+                        AddressDisplay = donor.Address?.NormalizedAddress,
+                        NextEligibleDate = donor.NextEligibleDate,
+                        Latitude = donor.Latitude,
+                        Longitude = donor.Longitude,
                         DistanceKm = distanceKm,
-                        IsReady = true
+                        IsReady = donor.IsReady
                     });
                 }
             }
 
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
+
 
 
         // ============================================================

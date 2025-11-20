@@ -84,6 +84,7 @@ public class RegisterDonorCommandHandler
         // 8) Save
         await _donorRepository.AddAsync(donor);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var donorId = donor.Id;
 
         // 9) Response
         return BaseResponse<RegisterDonorResponse>.SuccessResponse(
