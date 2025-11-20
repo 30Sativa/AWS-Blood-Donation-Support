@@ -19,15 +19,14 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             UpdateReadyStatusCommand command,
             CancellationToken cancellationToken)
         {
-            var req = command.Request;
 
-            var donor = await _donorRepo.GetByIdAsync(req.DonorId);
+            var donor = await _donorRepo.GetByIdAsync(command.DonorId);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor not found.");
 
             try
             {
-                donor.MarkReady(req.IsReady);
+                donor.MarkReady(command.Request.IsReady);
             }
             catch (Exception ex)
             {

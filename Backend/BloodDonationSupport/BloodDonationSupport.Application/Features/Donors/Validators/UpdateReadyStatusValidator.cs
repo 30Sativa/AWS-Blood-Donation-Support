@@ -12,7 +12,10 @@ namespace BloodDonationSupport.Application.Features.Donors.Validators
     {
         public UpdateReadyStatusValidator()
         {
-            RuleFor(x => x.DonorId).GreaterThan(0);
+            RuleFor(x => x.IsReady)
+                .NotNull()
+                .WithMessage("IsReady must be provided.");
+
         }
     }
 }

@@ -101,9 +101,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpPut("{id}/ready-status")]
         public async Task<IActionResult> UpdateReadyStatus(long id, UpdateReadyStatusRequest request)
         {
-            request.DonorId = id;
-
-            var result = await _mediator.Send(new UpdateReadyStatusCommand(request));
+            var result = await _mediator.Send(new UpdateReadyStatusCommand(id,request));
             return Ok(result);
         }
 
