@@ -39,8 +39,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             await _context.Addresses.AddAsync(entity);
 
-            // Không SaveChanges ở đây (UnitOfWork sẽ xử lý)
-            domain.SetId(entity.AddressId);
         }
 
         // =========================================================
