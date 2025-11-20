@@ -1,143 +1,93 @@
-using BloodDonationSupport.Application.Common.Interfaces;
+﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
-using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
+using BloodDonationSupport.Application.Features.Donors.Commands;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Domain.Addresses.Entities;
 using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using MediatR;
 
-namespace BloodDonationSupport.Application.Features.Donors.Commands
+public class RegisterDonorCommandHandler
+    : IRequestHandler<RegisterDonorCommand, BaseResponse<RegisterDonorResponse>>
 {
-    public class RegisterDonorCommandHandler
-        : IRequestHandler<RegisterDonorCommand, BaseResponse<RegisterDonorResponse>>
-    {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IDonorRepository _donorRepository;
-        private readonly IUserRepository _userRepository;
-        private readonly IAddressRepository _addressRepository;
-        private readonly ILocationService _locationService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDonorRepository _donorRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAddressRepository _addressRepository;
+    private readonly ILocationService _locationService;
 
-        public RegisterDonorCommandHandler(
-            IUnitOfWork unitOfWork,
-            IDonorRepository donorRepository,
-            IUserRepository userRepository,
-            IAddressRepository addressRepository,
-            ILocationService locationService)
+    public RegisterDonorCommandHandler(
+        IUnitOfWork unitOfWork,
+        IDonorRepository donorRepository,
+        IUserRepository userRepository,
+        IAddressRepository addressRepository,
+        ILocationService locationService)
+    {
+        _unitOfWork = unitOfWork;
+        _donorRepository = donorRepository;
+        _userRepository = userRepository;
+        _addressRepository = addressRepository;
+        _locationService = locationService;
+    }
+
+    public async Task<BaseResponse<RegisterDonorResponse>> Handle(RegisterDonorCommand request, CancellationToken cancellationToken)
+    {
+        var reg = request.request;
+
+        // 1) Check user exists
+        var user = await _userRepository.GetByIdAsync(reg.UserId);
+        if (user == null)
+            return BaseResponse<RegisterDonorResponse>.FailureResponse("User not found.");
+
+        // 2) Check donor exists
+        if (await _donorRepository.ExistsAsync(d => d.UserId == reg.UserId))
+            return BaseResponse<RegisterDonorResponse>.FailureResponse("Donor profile already exists.");
+
+        // 3) Parse address via AWS Location
+        var parsed = await _locationService.ParseAddressAsync(reg.FullAddress);
+        if (parsed == null)
+            return BaseResponse<RegisterDonorResponse>.FailureResponse("Invalid address.");
+
+        // 4) Save Address first
+        var address = AddressDomain.Create(
+            parsed.Line1, parsed.District, parsed.City, parsed.Province,
+            parsed.Country, parsed.PostalCode, parsed.NormalizedAddress,
+            parsed.PlaceId, (decimal?)parsed.ConfidenceScore, parsed.Latitude, parsed.Longitude
+        );
+
+        long addressId = await _addressRepository.AddAndReturnIdAsync(address);
+
+        // 5) Create Donor (Clean)
+        var donor = DonorDomain.Create(reg.UserId, reg.TravelRadiusKm);
+        donor.SetBloodType(reg.BloodTypeId);
+        donor.SetAddress(addressId);
+        donor.UpdateLocation(GeoLocation.Create(parsed.Latitude, parsed.Longitude));
+
+        // Chuẩn thực tế: Donor mới → không Ready, không NextEligibleDate
+        donor.MarkReady(false);
+        donor.UpdateEligibility(null);
+
+        // 6) Availabilities
+        if (reg.Availabilities != null)
         {
-            _unitOfWork = unitOfWork;
-            _donorRepository = donorRepository;
-            _userRepository = userRepository;
-            _addressRepository = addressRepository;
-            _locationService = locationService;
+            foreach (var a in reg.Availabilities)
+                donor.AddAvailability(DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin));
         }
 
-        public async Task<BaseResponse<RegisterDonorResponse>> Handle(
-            RegisterDonorCommand request,
-            CancellationToken cancellationToken)
+        // 7) Health Conditions
+        if (reg.HealthConditionIds != null)
         {
-            var reg = request.request;
+            foreach (var id in reg.HealthConditionIds)
+                donor.AddHealthCondition(DonorHealthConditionDomain.Create(0, id));
+        }
 
-            // ============================================================
-            // 1) VALIDATE USER EXISTS
-            // ============================================================
-            var user = await _userRepository.GetByIdAsync(reg.UserId);
-            if (user == null)
-                return BaseResponse<RegisterDonorResponse>.FailureResponse(
-                    $"User with ID {reg.UserId} does not exist."
-                );
+        // 8) Save
+        await _donorRepository.AddAsync(donor);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ============================================================
-            // 2) CHECK DONOR EXISTS
-            // ============================================================
-            var donorExists = await _donorRepository.ExistsAsync(d => d.UserId == reg.UserId);
-            if (donorExists)
-                return BaseResponse<RegisterDonorResponse>.FailureResponse(
-                    $"Donor profile for User ID {reg.UserId} already exists."
-                );
-
-            // ============================================================
-            // 3) PARSE ADDRESS VIA AWS LOCATION
-            // ============================================================
-            var parsed = await _locationService.ParseAddressAsync(reg.FullAddress);
-
-            if (parsed == null)
-                return BaseResponse<RegisterDonorResponse>.FailureResponse(
-                    "Unable to parse address. Please check the address again."
-                );
-
-            // ============================================================
-            // 4) CREATE ADDRESS DOMAIN + SAVE FIRST (get real ID)
-            // ============================================================
-            var addressDomain = AddressDomain.Create(
-                line1: parsed.Line1,
-                district: parsed.District,
-                city: parsed.City,
-                province: parsed.Province,
-                country: parsed.Country,
-                postalCode: parsed.PostalCode,
-                normalizedAddress: parsed.NormalizedAddress,
-                placeId: parsed.PlaceId,
-                confidenceScore: parsed.ConfidenceScore.HasValue
-                    ? (decimal?)parsed.ConfidenceScore.Value
-                    : null,
-                latitude: parsed.Latitude,
-                longitude: parsed.Longitude
-            );
-
-            // Save immediately and get ID
-            long addressId = await _addressRepository.AddAndReturnIdAsync(addressDomain);
-
-            // ============================================================
-            // 5) CREATE DONOR DOMAIN
-            // ============================================================
-            var donor = DonorDomain.Create(reg.UserId, reg.TravelRadiusKm);
-
-            donor.SetBloodType(reg.BloodTypeId);
-            donor.SetAddress(addressId);
-
-            donor.UpdateLocation(GeoLocation.Create(parsed.Latitude, parsed.Longitude));
-
-            if (reg.IsReady)
-                donor.MarkReady(true);
-
-            if (reg.NextEligibleDate.HasValue)
-                donor.UpdateEligibility(reg.NextEligibleDate.Value);
-
-            // ============================================================
-            // 6) ADD AVAILABILITIES
-            // ============================================================
-            if (reg.Availabilities != null)
-            {
-                foreach (var a in reg.Availabilities)
-                {
-                    donor.AddAvailability(
-                        DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin)
-                    );
-                }
-            }
-
-            // ============================================================
-            // 7) ADD HEALTH CONDITIONS
-            // ============================================================
-            if (reg.HealthConditionIds != null)
-            {
-                foreach (var cond in reg.HealthConditionIds)
-                {
-                    donor.AddHealthCondition(DonorHealthConditionDomain.Create(0, cond));
-                }
-            }
-
-            // ============================================================
-            // 8) SAVE DONOR (transaction controlled by UoW)
-            // ============================================================
-            await _donorRepository.AddAsync(donor);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // ============================================================
-            // 9) BUILD RESPONSE
-            // ============================================================
-            var response = new RegisterDonorResponse
+        // 9) Response
+        return BaseResponse<RegisterDonorResponse>.SuccessResponse(
+            new RegisterDonorResponse
             {
                 DonorId = donor.Id,
                 UserId = donor.UserId,
@@ -149,22 +99,18 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
                 CreatedAt = donor.CreatedAt,
                 Latitude = donor.LastKnownLocation?.Latitude,
                 Longitude = donor.LastKnownLocation?.Longitude,
-                Availabilities = donor.Availabilities.Select(a => new DonorAvailabilityResponse
+                Availabilities = donor.Availabilities.Select(x => new DonorAvailabilityResponse
                 {
-                    Weekday = a.Weekday,
-                    TimeFromMin = a.TimeFromMin,
-                    TimeToMin = a.TimeToMin
+                    Weekday = x.Weekday,
+                    TimeFromMin = x.TimeFromMin,
+                    TimeToMin = x.TimeToMin
                 }).ToList(),
                 HealthConditions = donor.HealthConditions.Select(h => new DonorHealthConditionItemResponse
                 {
                     ConditionId = h.ConditionId
                 }).ToList()
-            };
-
-            return BaseResponse<RegisterDonorResponse>.SuccessResponse(
-                response,
-                "Donor registered successfully."
-            );
-        }
+            },
+            "Donor registered successfully."
+        );
     }
 }

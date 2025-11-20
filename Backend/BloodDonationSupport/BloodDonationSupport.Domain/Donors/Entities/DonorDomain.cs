@@ -1,6 +1,5 @@
 ﻿using BloodDonationSupport.Domain.Common;
 using BloodDonationSupport.Domain.Donors.Events;
-using BloodDonationSupport.Domain.Donors.Rules;
 using BloodDonationSupport.Domain.Shared.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using BloodDonationSupport.Domain.Users.Entities;
@@ -16,36 +15,34 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public int? BloodTypeId { get; private set; }
         public long? AddressId { get; private set; }
         public decimal TravelRadiusKm { get; private set; } = 10;
-        public DateOnly? NextEligibleDate { get; private set; }
-        public bool IsReady { get; private set; }
+        public DateOnly? NextEligibleDate { get; private set; }         // null = chưa từng hiến máu
+        public bool IsReady { get; private set; }                       // donor mới tạo luôn false
         public GeoLocation? LastKnownLocation { get; private set; }
         public DateTime? LocationUpdatedAt { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
         public string? AddressDisplay { get; private set; }
 
-        // ✅Navigation Properties
+        // Navigation
         public UserDomain? User { get; private set; }
-
         public BloodType? BloodType { get; private set; }
 
-        // ✅Navigation domain collections
         public IReadOnlyCollection<DonorAvailability> Availabilities => _availabilities.AsReadOnly();
-
         public IReadOnlyCollection<DonorHealthConditionDomain> HealthConditions => _healthConditions.AsReadOnly();
 
-        private DonorDomain()
-        { } // EF cần constructor rỗng
+        private DonorDomain() { }   // EF Core bắt buộc
 
-        // Constructor gốc khi khởi tạo domain mới
+        // Constructor dùng khi tạo mới Donor
         private DonorDomain(long userId, decimal travelRadiusKm)
         {
             UserId = userId;
             TravelRadiusKm = travelRadiusKm;
             IsReady = false;
-            CreatedAt = DateTime.UtcNow;
+            NextEligibleDate = null;  // ← người mới chưa hiến máu lần nào
 
-            // Phát domain event khi tạo donor mới
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+
             AddDomainEvent(new DonorRegisteredEvent(Id, userId));
         }
 
@@ -53,6 +50,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             => new DonorDomain(userId, travelRadiusKm);
 
         // ========= Behavior methods =========
+
         public void SetBloodType(int bloodTypeId)
         {
             BloodTypeId = bloodTypeId;
@@ -70,24 +68,19 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             AddressDisplay = addressDisplay;
         }
 
+        // ❗Không kiểm tra Eligibility trong Domain
+        // Eligibility sẽ được kiểm tra ở Application Handler
         public void MarkReady(bool ready)
         {
-            //  Kiểm tra quy tắc nghiệp vụ: chỉ cho phép bật "Ready" nếu đủ điều kiện hiến máu
-            if (ready)
-            {
-                CheckRule(new DonorEligibilityRule(NextEligibleDate));
-            }
-
             IsReady = ready;
             UpdatedAt = DateTime.UtcNow;
 
-            //  Phát Domain Event khi thay đổi trạng thái sẵn sàng
             AddDomainEvent(new DonorStatusUpdatedEvent(Id, ready));
         }
 
         public void UpdateEligibility(DateOnly? nextEligibleDate)
         {
-            NextEligibleDate = nextEligibleDate;
+            NextEligibleDate = nextEligibleDate; // null = allow first donation
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -95,6 +88,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         {
             if (travelRadiusKm < 0)
                 throw new DomainException("Travel radius cannot be negative.");
+
             TravelRadiusKm = travelRadiusKm;
             UpdatedAt = DateTime.UtcNow;
         }
@@ -105,7 +99,6 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             LocationUpdatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
 
-            //  Phát Domain Event khi cập nhật vị trí
             AddDomainEvent(new DonorLocationUpdatedEvent(Id, location));
         }
 
@@ -130,7 +123,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         public void ClearHealthConditions() => _healthConditions.Clear();
 
-        //  Factory (Rehydrate) – khi load từ DB
+        // Rehydrate (load từ DB)
         public static DonorDomain Rehydrate(
             long id,
             long userId,
@@ -160,7 +153,6 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             };
         }
 
-        // Factory (Rehydrate kèm navigation)
         public static DonorDomain RehydrateWithRelations(
             long id,
             long userId,
@@ -176,8 +168,9 @@ namespace BloodDonationSupport.Domain.Donors.Entities
             IEnumerable<DonorAvailability> availabilities,
             IEnumerable<DonorHealthConditionDomain> healthConditions)
         {
-            var donor = Rehydrate(id, userId, bloodTypeId, addressId, travelRadiusKm, nextEligibleDate, isReady,
-                                  lastKnownLocation, locationUpdatedAt, createdAt, updatedAt);
+            var donor = Rehydrate(id, userId, bloodTypeId, addressId, travelRadiusKm,
+                                  nextEligibleDate, isReady, lastKnownLocation,
+                                  locationUpdatedAt, createdAt, updatedAt);
 
             foreach (var a in availabilities)
                 donor.AddAvailability(a);

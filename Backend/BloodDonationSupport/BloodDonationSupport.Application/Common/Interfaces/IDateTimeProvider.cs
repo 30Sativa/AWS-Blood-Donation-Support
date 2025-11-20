@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BloodDonationSupport.Domain.Donors.Entities
+namespace BloodDonationSupport.Application.Common.Interfaces
 {
-    internal class AddressDomain
+    public interface IDateTimeProvider
     {
+        DateOnly Today();
     }
 }

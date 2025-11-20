@@ -49,6 +49,8 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IAwsRouteCalculator, AwsRouteCalculator>();
             services.AddScoped<ICompatibilityRepository, CompatibilityRepository>();
             services.AddAWSService<IAmazonLocationService>();
+            services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+
             // HttpContext accessor (lifetime managed by framework)
             services.AddHttpContextAccessor();
 
