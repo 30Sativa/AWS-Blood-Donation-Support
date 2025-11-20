@@ -28,11 +28,19 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
             GetDonorProfileQuery query,
             CancellationToken cancellationToken)
         {
+            // Load donor + user + bloodtype + availabilities + health conditions
             var donor = await _donorRepo.GetByIdWithRelationsAsync(query.DonorId);
             if (donor == null)
                 return BaseResponse<DonorProfileResponse>.FailureResponse("Donor not found.");
 
-            // build response
+            // Load address (optional)
+            string? addressDisplay = null;
+            if (donor.AddressId.HasValue)
+            {
+                var address = await _addressRepo.GetByIdAsync(donor.AddressId.Value);
+                addressDisplay = address?.NormalizedAddress;
+            }
+
             var response = new DonorProfileResponse
             {
                 DonorId = donor.Id,
@@ -48,7 +56,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                     : null,
 
                 AddressId = donor.AddressId,
-                AddressDisplay = donor.AddressDisplay,
+                AddressDisplay = addressDisplay,
 
                 Latitude = donor.LastKnownLocation?.Latitude,
                 Longitude = donor.LastKnownLocation?.Longitude,
@@ -61,7 +69,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                 UpdatedAt = donor.UpdatedAt
             };
 
-            // Map availabilities
+            // Availability mapping
             response.Availabilities = donor.Availabilities
                 .Select(a => new DonorAvailabilityResponse
                 {
@@ -71,7 +79,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                 })
                 .ToList();
 
-            // Map health conditions
+            // Health conditions mapping
             response.HealthConditions = donor.HealthConditions
                 .Select(h => new DonorHealthConditionItemResponse
                 {
