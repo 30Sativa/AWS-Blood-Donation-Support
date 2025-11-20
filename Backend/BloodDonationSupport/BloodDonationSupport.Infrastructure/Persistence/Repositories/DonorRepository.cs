@@ -86,10 +86,12 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            var bin = (BinaryExpression)predicate.Body;
-            var userId = (long)((ConstantExpression)bin.Right).Value;
+            var donors = await _context.Donors
+        .AsNoTracking()
+        .Select(d => DonorRepository.MapToDomain(d))
+        .ToListAsync();
 
-            return await _context.Donors.AnyAsync(d => d.UserId == userId);
+            return donors.Any(predicate.Compile());
         }
 
         // =========================
