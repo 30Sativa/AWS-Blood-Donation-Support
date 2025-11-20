@@ -2,11 +2,12 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
 {
     public class UpdateDonorRequest
     {
-        public int? BloodTypeId { get; set; }
-        public long? AddressId { get; set; }
-        public decimal? TravelRadiusKm { get; set; }
-        public double? Latitude { get; set; }
-        public double? Longitude { get; set; }
+        public int BloodTypeId { get; set; }
+        public string FullAddress { get; set; } = null!;
+        public decimal TravelRadiusKm { get; set; }
+
+        public List<DonorAvailabilityDto> Availabilities { get; set; } = new();
+        public List<int> HealthConditionIds { get; set; } = new();
     }
 }
 

@@ -66,7 +66,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             // Add Donor entity (with related entities) - let UnitOfWork handle SaveChanges
             await _context.Donors.AddAsync(entity);
-            
+            domainEntity.SetId(entity.DonorId);
             // Note: Don't SaveChanges here - let UnitOfWork manage it
             // The DonorId will be set after SaveChangesAsync is called
         }

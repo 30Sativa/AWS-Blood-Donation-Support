@@ -60,25 +60,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
         }
 
 
-        // [PUT] api/donors/me (Update current user's donor profile)
-        [HttpPut("me")]
-        [Authorize]
-        public async Task<IActionResult> UpdateMyDonor([FromBody] UpdateDonorRequest request)
-        {
-            var result = await _mediator.Send(new UpdateMyDonorCommand(request));
-            return result.Success ? Ok(result) : BadRequest(result);
-        }
 
         // [PUT] api/donors/{id} (Update donor profile)
         [HttpPut("{id:long}")]
-        [Authorize(Policy = "UserOrAdmin")]
         public async Task<IActionResult> UpdateDonor(long id, [FromBody] UpdateDonorRequest request)
         {
             var result = await _mediator.Send(new UpdateDonorCommand(id, request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
-
-
 
 
         // [DELETE] api/donors/{id} (Delete donor)
