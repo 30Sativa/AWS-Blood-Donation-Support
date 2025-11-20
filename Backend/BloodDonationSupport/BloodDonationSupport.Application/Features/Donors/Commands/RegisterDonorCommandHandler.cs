@@ -1,6 +1,5 @@
 using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Responses;
-using BloodDonationSupport.Application.Features.Addresses.DTOs;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Domain.Addresses.Entities;
@@ -32,7 +31,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             _addressRepository = addressRepository;
             _locationService = locationService;
         }
-
 
         public async Task<BaseResponse<RegisterDonorResponse>> Handle(
             RegisterDonorCommand request,
@@ -69,31 +67,26 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
                 );
 
             // ============================================================
-            // 4) CREATE ADDRESS DOMAIN
+            // 4) CREATE ADDRESS DOMAIN + SAVE FIRST (get real ID)
             // ============================================================
             var addressDomain = AddressDomain.Create(
-    line1: parsed.Line1,
-    district: parsed.District,
-    city: parsed.City,
-    province: parsed.Province,
-    country: parsed.Country,
-    postalCode: parsed.PostalCode,
-    normalizedAddress: parsed.NormalizedAddress,
-    placeId: parsed.PlaceId,
-    confidenceScore: parsed.ConfidenceScore.HasValue
-        ? (decimal?)parsed.ConfidenceScore.Value
-        : null,
-    latitude: parsed.Latitude,
-    longitude: parsed.Longitude
-);
+                line1: parsed.Line1,
+                district: parsed.District,
+                city: parsed.City,
+                province: parsed.Province,
+                country: parsed.Country,
+                postalCode: parsed.PostalCode,
+                normalizedAddress: parsed.NormalizedAddress,
+                placeId: parsed.PlaceId,
+                confidenceScore: parsed.ConfidenceScore.HasValue
+                    ? (decimal?)parsed.ConfidenceScore.Value
+                    : null,
+                latitude: parsed.Latitude,
+                longitude: parsed.Longitude
+            );
 
-
-            // Add to repository
-            await _addressRepository.AddAsync(addressDomain);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            long addressId = addressDomain.Id;   // Id populated after save
-
+            // Save immediately and get ID
+            long addressId = await _addressRepository.AddAndReturnIdAsync(addressDomain);
 
             // ============================================================
             // 5) CREATE DONOR DOMAIN
@@ -103,7 +96,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             donor.SetBloodType(reg.BloodTypeId);
             donor.SetAddress(addressId);
 
-            // Set location
             donor.UpdateLocation(GeoLocation.Create(parsed.Latitude, parsed.Longitude));
 
             if (reg.IsReady)
@@ -137,11 +129,10 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             }
 
             // ============================================================
-            // 8) SAVE DONOR
+            // 8) SAVE DONOR (transaction controlled by UoW)
             // ============================================================
             await _donorRepository.AddAsync(donor);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-
 
             // ============================================================
             // 9) BUILD RESPONSE
@@ -158,18 +149,16 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
                 CreatedAt = donor.CreatedAt,
                 Latitude = donor.LastKnownLocation?.Latitude,
                 Longitude = donor.LastKnownLocation?.Longitude,
-                Availabilities = donor.Availabilities
-                    .Select(a => new DonorAvailabilityResponse
-                    {
-                        Weekday = a.Weekday,
-                        TimeFromMin = a.TimeFromMin,
-                        TimeToMin = a.TimeToMin
-                    }).ToList(),
-                HealthConditions = donor.HealthConditions
-                    .Select(h => new DonorHealthConditionItemResponse
-                    {
-                        ConditionId = h.ConditionId
-                    }).ToList()
+                Availabilities = donor.Availabilities.Select(a => new DonorAvailabilityResponse
+                {
+                    Weekday = a.Weekday,
+                    TimeFromMin = a.TimeFromMin,
+                    TimeToMin = a.TimeToMin
+                }).ToList(),
+                HealthConditions = donor.HealthConditions.Select(h => new DonorHealthConditionItemResponse
+                {
+                    ConditionId = h.ConditionId
+                }).ToList()
             };
 
             return BaseResponse<RegisterDonorResponse>.SuccessResponse(
@@ -179,4 +168,3 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
         }
     }
 }
-
