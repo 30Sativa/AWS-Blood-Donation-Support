@@ -86,8 +86,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public async Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate)
         {
-            // ⚙️ Đơn giản hóa — để GenericRepository xử lý thực sự
-            return await _context.Donors.AnyAsync();
+            var bin = (BinaryExpression)predicate.Body;
+            var userId = (long)((ConstantExpression)bin.Right).Value;
+
+            return await _context.Donors.AnyAsync(d => d.UserId == userId);
         }
 
         // =========================
