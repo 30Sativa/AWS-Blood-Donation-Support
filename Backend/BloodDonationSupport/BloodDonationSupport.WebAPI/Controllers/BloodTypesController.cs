@@ -17,7 +17,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
         }
 
         [HttpGet]
-        [Authorize]
         public async Task<IActionResult> GetAllBloodTypes()
         {
             var result = await _mediator.Send(new GetAllBloodTypesQuery());
