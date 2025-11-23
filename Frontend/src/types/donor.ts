@@ -6,19 +6,32 @@ export interface Availability {
   timeToMin: number; // Minutes from midnight (0-1440)
 }
 
+export interface HealthConditionItem {
+  conditionId: number;
+  conditionName: string | null;
+}
+
 export interface Donor {
-  id?: number;
+  donorId?: number; // API returns donorId
+  id?: number; // Keep for backward compatibility
   userId: number;
+  fullName?: string;
+  phoneNumber?: string;
+  email?: string;
   bloodTypeId?: number;
-  bloodType?: string; // For display
+  bloodGroup?: string; // API returns bloodGroup (e.g., "O -")
+  bloodType?: string; // For display (backward compatibility)
   addressId?: number;
-  travelRadiusKm?: number;
+  addressDisplay?: string; // API returns addressDisplay
+  travelRadiusKm?: number; // API uses capital K
+  travelRadiuskm?: number; // Keep for backward compatibility
   latitude?: number;
   longitude?: number;
   isReady: boolean;
-  nextEligibleDate?: string; // ISO date string
+  nextEligibleDate?: string | null; // ISO date string
   availabilities?: Availability[];
-  healthConditionIds?: number[];
+  healthConditions?: HealthConditionItem[]; // API returns array of {conditionId, conditionName}
+  healthConditionIds?: number[]; // For backward compatibility
   createdAt?: string;
   updatedAt?: string;
 }
@@ -26,14 +39,10 @@ export interface Donor {
 export interface RegisterDonorRequest {
   userId: number;
   bloodTypeId: number;
-  addressId: number;
-  travelRadiusKm?: number;
-  latitude?: number;
-  longitude?: number;
-  isReady?: boolean;
-  nextEligibleDate?: string;
-  availabilities?: Availability[];
-  healthConditionIds?: number[];
+  travelRadiusKm: number;
+  fullAddress: string;
+  availabilities: Availability[];
+  healthConditionIds: number[];
 }
 
 export interface UpdateDonorRequest {

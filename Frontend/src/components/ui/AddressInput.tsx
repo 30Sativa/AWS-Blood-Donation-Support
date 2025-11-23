@@ -1,19 +1,184 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "./input";
 import { Label } from "./label";
-import { Button } from "./button";
-import { MapPin, Loader2, Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { addressService } from "@/services/addressService";
 import { locationDataService, type Province, type District } from "@/services/locationDataService";
-import type { Address, CreateAddressRequest } from "@/types/address";
+import type { Address } from "@/types/address";
 
 interface AddressInputProps {
   label?: string;
-  value?: number | null; // addressId
+  value?: number | null; // addressId (deprecated, kept for backward compatibility)
   onChange?: (addressId: number | null, address: Address | null) => void;
   required?: boolean;
   className?: string;
-  onSaveSuccess?: (addressId: number) => void; // Callback khi lưu address thành công
+  // New props for simple text input mode
+  simpleMode?: boolean;
+  onAddressChange?: (address: string) => void; // Callback when address text changes
+}
+
+// Simple Address Input Component with Province and District selects
+function SimpleAddressInput({
+  label,
+  required,
+  className,
+  onAddressChange,
+  onChange,
+}: {
+  label?: string;
+  required?: boolean;
+  className?: string;
+  onAddressChange?: (address: string) => void;
+  onChange?: (addressId: number | null, address: Address | null) => void;
+}) {
+  const [streetAddress, setStreetAddress] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState<string>("");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+
+  // Load provinces on mount
+  useEffect(() => {
+    const loadProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const data = await locationDataService.getProvinces();
+        setProvinces(data);
+      } catch (error) {
+        console.error("Error loading provinces:", error);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    loadProvinces();
+  }, []);
+
+  // Load districts when province is selected
+  useEffect(() => {
+    if (selectedProvince) {
+      const loadDistricts = async () => {
+        setLoadingDistricts(true);
+        try {
+          const data = await locationDataService.getDistrictsByProvince(selectedProvince);
+          setDistricts(data);
+        } catch (error) {
+          console.error("Error loading districts:", error);
+        } finally {
+          setLoadingDistricts(false);
+        }
+      };
+      loadDistricts();
+      // Reset district when province changes
+      setSelectedDistrict("");
+    } else {
+      setDistricts([]);
+      setSelectedDistrict("");
+    }
+  }, [selectedProvince]);
+
+  // Use refs to store callbacks to avoid infinite loops
+  const onAddressChangeRef = useRef(onAddressChange);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onAddressChangeRef.current = onAddressChange;
+    onChangeRef.current = onChange;
+  }, [onAddressChange, onChange]);
+
+  // Update full address when any part changes
+  useEffect(() => {
+    const parts: string[] = [];
+    if (streetAddress.trim()) parts.push(streetAddress.trim());
+    if (selectedDistrict) {
+      const districtName = districts.find(d => d.code === selectedDistrict)?.name;
+      if (districtName) parts.push(districtName);
+    }
+    if (selectedProvince) {
+      const provinceName = provinces.find(p => p.code === selectedProvince)?.name;
+      if (provinceName) parts.push(provinceName);
+    }
+    
+    const fullAddress = parts.join(", ");
+    
+    if (onAddressChangeRef.current) {
+      onAddressChangeRef.current(fullAddress);
+    }
+    if (onChangeRef.current) {
+      onChangeRef.current(null, null);
+    }
+  }, [streetAddress, selectedProvince, selectedDistrict, provinces, districts]);
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {label && (
+        <Label className="text-sm font-semibold text-gray-700">
+          {label}
+          {required && <span className="text-red-600">*</span>}
+        </Label>
+      )}
+      
+      {/* Street Address */}
+      <div className="space-y-1">
+        <Label htmlFor="street-address" className="text-sm font-semibold text-gray-700">
+          Địa chỉ đường/phố {required && <span className="text-red-600">*</span>}
+        </Label>
+        <Input
+          id="street-address"
+          type="text"
+          value={streetAddress}
+          onChange={(e) => setStreetAddress(e.target.value)}
+          placeholder="Số nhà, tên đường"
+          className="w-full border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+          required={required}
+        />
+      </div>
+
+      {/* Province Select */}
+      <div className="space-y-1">
+        <Label htmlFor="province-select" className="text-sm font-semibold text-gray-700">
+          Tỉnh/Thành phố {required && <span className="text-red-600">*</span>}
+        </Label>
+        <select
+          id="province-select"
+          value={selectedProvince}
+          onChange={(e) => setSelectedProvince(e.target.value)}
+          className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+          required={required}
+          disabled={loadingProvinces}
+        >
+          <option value="">-- Chọn Tỉnh/Thành phố --</option>
+          {provinces.map((province) => (
+            <option key={province.code} value={province.code}>
+              {province.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* District Select */}
+      <div className="space-y-1">
+        <Label htmlFor="district-select" className="text-sm font-semibold text-gray-700">
+          Quận/Huyện
+        </Label>
+        <select
+          id="district-select"
+          value={selectedDistrict}
+          onChange={(e) => setSelectedDistrict(e.target.value)}
+          className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!selectedProvince || loadingDistricts}
+        >
+          <option value="">-- Chọn Quận/Huyện --</option>
+          {districts.map((district) => (
+            <option key={district.code} value={district.code}>
+              {district.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
 }
 
 export function AddressInput({
@@ -22,8 +187,23 @@ export function AddressInput({
   onChange,
   required = false,
   className = "",
-  onSaveSuccess,
+  simpleMode = false,
+  onAddressChange,
 }: AddressInputProps) {
+  // Nếu là simple mode, render component đơn giản - return ngay lập tức TRƯỚC KHI gọi bất kỳ hook nào
+  if (simpleMode === true) {
+    return (
+      <SimpleAddressInput
+        label={label}
+        required={required}
+        className={className}
+        onAddressChange={onAddressChange}
+        onChange={onChange}
+      />
+    );
+  }
+
+  // Complex mode: giữ nguyên logic cũ
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -145,8 +325,8 @@ export function AddressInput({
               if (addressData.district && districtsData.length > 0) {
                 const district = districtsData.find(
                   d => d.name === addressData.district ||
-                       addressData.district?.includes(d.name) ||
-                       d.name.includes(addressData.district)
+                       (addressData.district && addressData.district.includes(d.name)) ||
+                       (addressData.district && d.name.includes(addressData.district))
                 );
                 if (district) {
                   setSelectedDistrictCode(district.code);
@@ -239,8 +419,8 @@ export function AddressInput({
           if (selectedAddress.district && districtsData.length > 0) {
             const district = districtsData.find(
               d => d.name === selectedAddress.district ||
-                   selectedAddress.district?.includes(d.name) ||
-                   d.name.includes(selectedAddress.district)
+                   (selectedAddress.district && selectedAddress.district.includes(d.name)) ||
+                   (selectedAddress.district && d.name.includes(selectedAddress.district))
             );
             if (district) {
               setSelectedDistrictCode(district.code);
@@ -284,149 +464,47 @@ export function AddressInput({
     district.name.toLowerCase().includes(districtSearch.toLowerCase())
   );
 
-  const validateManualAddress = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    if (!manualAddress.line1.trim()) {
-      errors.line1 = "Địa chỉ đường/phố là bắt buộc";
-    }
-    if (!selectedProvinceCode) {
-      errors.province = "Vui lòng chọn Tỉnh/Thành phố";
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSaveManualAddress = async () => {
-    if (!validateManualAddress()) {
-      setError("Vui lòng điền đầy đủ thông tin bắt buộc");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const addressData: CreateAddressRequest = {
-        ...manualAddress,
-        normalizedAddress: `${manualAddress.line1}, ${manualAddress.district || ""}, ${manualAddress.city}, ${manualAddress.province}`.trim(),
-      };
-
-      let addressId: number;
-      let savedAddress: Address;
-      
-      // Nếu đã có address (từ /api/Addresses/me), thì update
-      // Nếu chưa có, thì create mới
-      if (selectedAddress?.id) {
-        const updateResponse = await addressService.updateAddress(selectedAddress.id, addressData);
-        if (updateResponse.success && updateResponse.data) {
-          addressId = updateResponse.data.id!;
-          savedAddress = updateResponse.data;
-          setSelectedAddress(savedAddress);
-        } else {
-          throw new Error(updateResponse.message || "Failed to update address");
-        }
-      } else {
-        const createResponse = await addressService.createAddress(addressData);
-        if (createResponse.success && createResponse.data) {
-          addressId = createResponse.data.id!;
-          savedAddress = createResponse.data;
-          setSelectedAddress(savedAddress);
-        } else {
-          throw new Error(createResponse.message || "Failed to create address");
-        }
-      }
-
-      if (onChange) {
-        onChange(addressId, savedAddress);
-      }
-
-      // Gọi callback nếu có
-      if (onSaveSuccess) {
-        onSaveSuccess(addressId);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Không thể lưu địa chỉ. Vui lòng thử lại.";
-      setError(errorMessage);
-      console.error("Error saving manual address:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className={`space-y-4 ${className}`}>
-      <Label htmlFor="address" className="text-black">
-        {label}
-        {required && <span className="text-red-600">*</span>}
-      </Label>
-
-      {/* Hiển thị thông báo khi chưa có address */}
-      {hasLoaded && !isLoading && !selectedAddress && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
-          <div className="flex items-start gap-2">
-            <MapPin className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <strong className="text-blue-900">Thông báo:</strong>
-              <p className="mt-1 text-sm">
-                Bạn chưa có địa chỉ. Vui lòng nhập địa chỉ cư trú của bạn vào form bên dưới để tiếp tục.
-              </p>
-            </div>
-          </div>
-        </div>
+      {label && (
+        <Label htmlFor="address" className="text-black">
+          {label}
+          {required && <span className="text-red-600">*</span>}
+        </Label>
       )}
 
       {/* Form địa chỉ luôn hiển thị sau khi đã load xong (dùng để tạo hoặc cập nhật địa chỉ) */}
       {hasLoaded && !isLoading && (
         <>
-          {/* Hiển thị thông tin address đã lưu (nếu có) */}
-          {selectedAddress && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md mb-4">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <strong className="text-green-900">Địa chỉ hiện tại:</strong>
-                  <p className="mt-1 text-sm">
-                    {selectedAddress.normalizedAddress || 
-                      `${selectedAddress.line1}${selectedAddress.district ? `, ${selectedAddress.district}` : ""}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}${selectedAddress.province ? `, ${selectedAddress.province}` : ""}`.trim()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Manual Input Form - tạo mới hoặc cập nhật địa chỉ */}
-          <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="line1" className="text-sm">
+                <Label htmlFor="line1" className="text-sm font-semibold text-gray-700">
                   Địa chỉ đường/phố <span className="text-red-600">*</span>
                 </Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <Input
-                    id="line1"
-                    value={manualAddress.line1}
-                    onChange={(e) =>
-                      setManualAddress({ ...manualAddress, line1: e.target.value })
-                    }
-                    placeholder="Số nhà, tên đường"
-                    className={`pl-10 ${validationErrors.line1 ? "border-red-500" : ""}`}
-                  />
-                </div>
+                <Input
+                  id="line1"
+                  value={manualAddress.line1}
+                  onChange={(e) =>
+                    setManualAddress({ ...manualAddress, line1: e.target.value })
+                  }
+                  placeholder="Số nhà, tên đường"
+                  className={`border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200 ${validationErrors.line1 ? "border-red-500" : ""}`}
+                />
                 {validationErrors.line1 && (
                   <p className="text-xs text-red-600">{validationErrors.line1}</p>
                 )}
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="province" className="text-sm">
+                <Label htmlFor="province" className="text-sm font-semibold text-gray-700">
                   Tỉnh/Thành phố <span className="text-red-600">*</span>
                 </Label>
                 <div className="relative" ref={provinceDropdownRef}>
                   <div
-                    className={`flex items-center border rounded-md cursor-pointer ${
+                    className={`flex items-center border rounded-md cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/20 transition-all duration-200 ${
                       validationErrors.province ? "border-red-500" : "border-gray-300"
                     } ${loadingProvinces ? "opacity-50" : ""}`}
                     onClick={() => !loadingProvinces && setShowProvinceDropdown(!showProvinceDropdown)}
@@ -509,10 +587,10 @@ export function AddressInput({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="district" className="text-sm">Quận/Huyện</Label>
+                <Label htmlFor="district" className="text-sm font-semibold text-gray-700">Quận/Huyện</Label>
                 <div className="relative" ref={districtDropdownRef}>
                   <div
-                    className={`flex items-center border rounded-md cursor-pointer ${
+                    className={`flex items-center border rounded-md cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/20 transition-all duration-200 ${
                       !selectedProvinceCode || loadingDistricts ? "opacity-50" : ""
                     } border-gray-300`}
                     onClick={() =>
@@ -603,17 +681,7 @@ export function AddressInput({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="postalCode" className="text-sm">Mã bưu điện</Label>
-                <Input
-                  id="postalCode"
-                  value={manualAddress.postalCode}
-                  onChange={(e) =>
-                    setManualAddress({ ...manualAddress, postalCode: e.target.value })
-                  }
-                  placeholder="Mã bưu điện"
-                />
-              </div>
+              {/* Removed postal code field as per user request */}
             </div>
 
             {error && (
@@ -621,24 +689,6 @@ export function AddressInput({
                 {error}
               </div>
             )}
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                onClick={handleSaveManualAddress}
-                disabled={isLoading}
-                className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Đang lưu...
-                  </>
-                ) : (
-                  "Lưu địa chỉ"
-                )}
-              </Button>
-            </div>
           </div>
         </>
       )}

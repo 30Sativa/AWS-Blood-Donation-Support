@@ -4,25 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Droplet, Loader2 } from "lucide-react";
+import { Droplet, Loader2, MapPin } from "lucide-react";
 import { AddressInput } from "@/components/ui/AddressInput";
 import { profileService } from "@/services/profileService";
 import { addressService } from "@/services/addressService";
 import { donorService } from "@/services/donorService";
-import { appointmentService } from "@/services/appointmentService";
-import type { BloodType, HealthCondition } from "@/types/donor";
+import type { BloodType, HealthCondition, Availability } from "@/types/donor";
 import type { Address } from "@/types/address";
 
-const DEFAULT_BLOOD_TYPES: BloodType[] = [
-  { id: 1, name: "O-", code: "O-" },
-  { id: 2, name: "O+", code: "O+" },
-  { id: 3, name: "A-", code: "A-" },
-  { id: 4, name: "A+", code: "A+" },
-  { id: 5, name: "B-", code: "B-" },
-  { id: 6, name: "B+", code: "B+" },
-  { id: 7, name: "AB-", code: "AB-" },
-  { id: 8, name: "AB+", code: "AB+" },
-];
 
 const DEFAULT_HEALTH_CONDITIONS: HealthCondition[] = [
   { id: 1, name: "HIV/AIDS" },
@@ -35,17 +24,16 @@ const DEFAULT_HEALTH_CONDITIONS: HealthCondition[] = [
   { id: 8, name: "Other chronic conditions" },
 ];
 
-const DONATION_VOLUMES = [
-  { value: "350", label: "350ml" },
-  { value: "450", label: "450ml" },
-];
 
-// TODO: Replace with real hospital/location API once available
-const DEFAULT_HOSPITALS = [
-  { id: "1", name: "Cho Ray Hospital" },
-  { id: "2", name: "Ung Buou Hospital" },
-  { id: "3", name: "Bach Mai Hospital" },
-  { id: "4", name: "Viet Duc Hospital" },
+
+const WEEKDAYS = [
+  { value: 0, label: "Chủ nhật" },
+  { value: 1, label: "Thứ 2" },
+  { value: 2, label: "Thứ 3" },
+  { value: 3, label: "Thứ 4" },
+  { value: 4, label: "Thứ 5" },
+  { value: 5, label: "Thứ 6" },
+  { value: 6, label: "Thứ 7" },
 ];
 
 interface RegisterFormData {
@@ -55,13 +43,13 @@ interface RegisterFormData {
   email: string;
   permanentAddress: string;
   currentAddress: string;
-  bloodTypeCode: string;
-  donatedBefore: boolean;
-  preferredDate: string;
-  hospitalId: string;
-  bloodVolumeMl: string;
+  bloodTypeId: number;
+  travelRadiusKm: number;
+  fullAddress: string;
+  selectedWeekdays: number[];
+  timeFrom: string;
+  timeTo: string;
   healthConditionIds: number[];
-  notes: string;
   confirm: boolean;
 }
 
@@ -72,20 +60,14 @@ export function RegisterDonation() {
   const [error, setError] = useState("");
   const [optionsError, setOptionsError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [donorWarning, setDonorWarning] = useState("");
 
-  const [bloodTypes, setBloodTypes] = useState<BloodType[]>(DEFAULT_BLOOD_TYPES);
+  const [bloodTypes, setBloodTypes] = useState<BloodType[]>([]);
   const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
     DEFAULT_HEALTH_CONDITIONS
   );
-  const [hospitals] = useState(DEFAULT_HOSPITALS);
   const [donorId, setDonorId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-  const [addressId, setAddressId] = useState<number | null>(null);
-  const [address, setAddress] = useState<Address | null>(null);
-  const setAddressIdSafe = (value?: number | null) => {
-    setAddressId(value ?? null);
-  };
+  // Removed addressId and address as they're not used with simpleMode
 
   const [formData, setFormData] = useState<RegisterFormData>({
     fullName: "",
@@ -94,13 +76,13 @@ export function RegisterDonation() {
     email: "",
     permanentAddress: "",
     currentAddress: "",
-    bloodTypeCode: "",
-    donatedBefore: false,
-    preferredDate: "",
-    hospitalId: "",
-    bloodVolumeMl: "",
+    bloodTypeId: 0,
+    travelRadiusKm: 10,
+    fullAddress: "",
+    selectedWeekdays: [],
+    timeFrom: "08:00",
+    timeTo: "17:00",
     healthConditionIds: [],
-    notes: "",
     confirm: false,
   });
 
@@ -121,6 +103,21 @@ export function RegisterDonation() {
         : [...prev.healthConditionIds, conditionId];
       return { ...prev, healthConditionIds: updated };
     });
+  };
+
+  const handleWeekdayToggle = (weekday: number) => {
+    setFormData((prev) => {
+      const exists = prev.selectedWeekdays.includes(weekday);
+      const updated = exists
+        ? prev.selectedWeekdays.filter((w) => w !== weekday)
+        : [...prev.selectedWeekdays, weekday];
+      return { ...prev, selectedWeekdays: updated };
+    });
+  };
+
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes;
   };
 
   const formatAddress = (address?: Address | null) => {
@@ -150,36 +147,32 @@ export function RegisterDonation() {
         if (profileResponse.success && profileResponse.data) {
           const profile = profileResponse.data;
           setUserId(profile.userId || null);
-          setAddressIdSafe(profile.addressId);
+          // Removed setAddressIdSafe as addressId is not used with simpleMode
           setFormData((prev) => ({
             ...prev,
             fullName: profile.fullName || "",
             gender: profile.gender || "",
             phone: profile.phoneNumber || "",
             email: profile.email || "",
-            bloodTypeCode: profile.bloodType || "",
-            donatedBefore: donorResponse?.data ? true : prev.donatedBefore,
+            // bloodTypeId will be set after loading bloodTypes from API
           }));
         }
 
         if (donorResponse?.data) {
           setDonorId(donorResponse.data.id ?? null);
-          setDonorWarning("");
         } else {
           setDonorId(null);
-          setDonorWarning(
-            "Bạn chưa có hồ sơ donor. Hệ thống sẽ tự tạo khi bạn gửi đăng ký, chỉ cần đảm bảo đã có địa chỉ và chọn nhóm máu."
-          );
         }
 
         if (addressResponse?.data) {
-          setAddressIdSafe(addressResponse.data.id);
-          setAddress(addressResponse.data);
+          // Removed addressId and address handling as they're not used with simpleMode
           const formatted = formatAddress(addressResponse.data);
+          const fullAddress = addressResponse.data.normalizedAddress || formatted;
           setFormData((prev) => ({
             ...prev,
             permanentAddress: formatted,
             currentAddress: formatted,
+            fullAddress: fullAddress,
           }));
         }
       } catch (err) {
@@ -205,6 +198,19 @@ export function RegisterDonation() {
 
         if (bloodTypeData.length) {
           setBloodTypes(bloodTypeData);
+          // Set default bloodTypeId from profile if available
+          const profileResponse = await profileService.getCurrentUser().catch(() => null);
+          if (profileResponse?.data?.bloodType) {
+            const defaultBloodType = bloodTypeData.find(
+              (bt) => bt.code === profileResponse.data.bloodType
+            );
+            if (defaultBloodType) {
+              setFormData((prev) => ({
+                ...prev,
+                bloodTypeId: defaultBloodType.id,
+              }));
+            }
+          }
         }
 
         if (healthConditionData.length) {
@@ -213,7 +219,7 @@ export function RegisterDonation() {
       } catch (err) {
         console.error("Error loading blood types/health conditions:", err);
         setOptionsError(
-          "Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe. Đang dùng dữ liệu mặc định."
+          "Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe. Vui lòng tải lại trang."
         );
       } finally {
         setLoadingOptions(false);
@@ -228,16 +234,6 @@ export function RegisterDonation() {
     setSuccessMessage("");
     setError("");
 
-    if (!formData.preferredDate) {
-      setError("Vui lòng chọn ngày hiến máu.");
-      return;
-    }
-
-    if (!formData.hospitalId) {
-      setError("Vui lòng chọn bệnh viện muốn hiến máu.");
-      return;
-    }
-
     try {
       setSubmitting(true);
       let currentDonorId = donorId;
@@ -247,37 +243,35 @@ export function RegisterDonation() {
           setError("Không xác định được tài khoản người dùng. Vui lòng đăng nhập lại.");
           return;
         }
-        if (!addressId) {
-          setError("Vui lòng thêm địa chỉ cư trú trước khi đăng ký.");
+        if (!formData.fullAddress || formData.fullAddress.trim() === "") {
+          setError("Vui lòng nhập địa chỉ cư trú trước khi đăng ký.");
           return;
         }
-        if (!formData.bloodTypeCode) {
-          setError("Vui lòng chọn nhóm máu.");
+        // Chỉ cần bloodTypeId nếu chưa có donor profile
+        if (!currentDonorId && (!formData.bloodTypeId || formData.bloodTypeId === 0)) {
+          setError("Vui lòng chọn nhóm máu để đăng ký làm donor.");
           return;
         }
 
-        const bloodType = bloodTypes.find(
-          (bt) => bt.code === formData.bloodTypeCode
-        );
-        if (!bloodType) {
-          setError("Không tìm thấy mã nhóm máu phù hợp. Vui lòng chọn lại.");
-          return;
-        }
+        // Tạo availabilities từ selected weekdays
+        const availabilities: Availability[] = formData.selectedWeekdays.map((weekday) => ({
+          weekday,
+          timeFromMin: timeToMinutes(formData.timeFrom),
+          timeToMin: timeToMinutes(formData.timeTo),
+        }));
 
         const registerResponse = await donorService.registerDonor({
-          userId,
-          bloodTypeId: bloodType.id,
-          addressId,
-          travelRadiusKm: 10,
-          isReady: true,
-          nextEligibleDate: formData.preferredDate,
+          userId: userId!,
+          bloodTypeId: formData.bloodTypeId,
+          travelRadiusKm: formData.travelRadiusKm,
+          fullAddress: formData.fullAddress,
+          availabilities: availabilities,
           healthConditionIds: formData.healthConditionIds,
         });
 
         const newlyCreatedDonorId = registerResponse.data.id ?? null;
         currentDonorId = newlyCreatedDonorId;
         setDonorId(newlyCreatedDonorId);
-        setDonorWarning("");
       }
 
       if (!currentDonorId) {
@@ -285,28 +279,15 @@ export function RegisterDonation() {
         return;
       }
 
-      const scheduledAt = new Date(`${formData.preferredDate}T09:00:00`).toISOString();
-      const locationId = Number(formData.hospitalId);
-
-      const payload = {
-        requestId: 0,
-        donorId: currentDonorId,
-        scheduledAt,
-        locationId,
-        status: "Pending",
-      };
-
-      const response = await appointmentService.createAppointment(payload);
-      if (response.success) {
-        setSuccessMessage("Đặt lịch hiến máu thành công! Bộ phận điều phối sẽ liên hệ bạn sớm nhất.");
-        setFormData((prev) => ({ ...prev, confirm: false }));
-      }
+      // Đăng ký donor thành công
+      setSuccessMessage("Đăng ký donor thành công! Bạn có thể đặt lịch hiến máu trong phần My Appointments.");
+      setFormData((prev) => ({ ...prev, confirm: false }));
     } catch (err: any) {
-      console.error("Create appointment error:", err);
+      console.error("Register donor error:", err);
       const message =
         err?.response?.data?.message ||
         err?.message ||
-        "Không thể tạo lịch hiến máu. Vui lòng thử lại.";
+        "Không thể đăng ký donor. Vui lòng thử lại.";
       setError(message);
     } finally {
       setSubmitting(false);
@@ -349,11 +330,6 @@ export function RegisterDonation() {
         </div>
       )}
 
-      {donorWarning && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm">
-          {donorWarning}
-        </div>
-      )}
 
       {/* Registration Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-lg p-10 space-y-10">
@@ -448,49 +424,20 @@ export function RegisterDonation() {
             </h2>
           </div>
 
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Địa chỉ sẽ dùng để xác định phạm vi hiến máu và liên hệ. Bạn có thể chỉnh sửa trực tiếp tại đây, thông tin sẽ đồng bộ với hồ sơ.
-            </p>
+          <div className="space-y-2">
             <AddressInput
-              value={addressId}
-              onChange={(newAddressId, addressData) => {
-                setAddressIdSafe(newAddressId);
-                if (addressData) {
-                  setAddress(addressData);
-                  const formatted = formatAddress(addressData);
-                  setFormData((prev) => ({
-                    ...prev,
-                    permanentAddress: formatted,
-                    currentAddress: formatted,
-                  }));
-                }
+              simpleMode={true}
+              onAddressChange={(address) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  fullAddress: address,
+                  permanentAddress: address,
+                  currentAddress: address,
+                }));
               }}
-              onSaveSuccess={async (newAddressId) => {
-                if (newAddressId != null) {
-                  setAddressIdSafe(newAddressId);
-                  if (userId) {
-                    try {
-                      await profileService.updateProfile(userId, {
-                        id: userId,
-                        addressId: newAddressId,
-                      });
-                      setSuccessMessage("Địa chỉ đã được cập nhật cho hồ sơ của bạn.");
-                    } catch (updateError) {
-                      console.error("Update profile address error:", updateError);
-                      setError("Đã lưu địa chỉ nhưng chưa đồng bộ được lên hồ sơ. Vui lòng kiểm tra lại trong Account Settings.");
-                    }
-                  }
-                }
-              }}
-              className="w-full"
+              required
+              label=""
             />
-            {address && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
-                <div className="font-semibold text-gray-900">Địa chỉ hiện tại:</div>
-                <p className="mt-1">{formatAddress(address)}</p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -504,100 +451,105 @@ export function RegisterDonation() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Droplet className="w-5 h-5 text-red-600 fill-red-600" />
-                <Label htmlFor="bloodType" className="text-sm font-semibold text-gray-700">
-                  Blood Type<span className="text-red-600 ml-1">*</span>
-                </Label>
+            {!donorId && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-5 h-5 text-red-600 fill-red-600" />
+                  <Label htmlFor="bloodType" className="text-sm font-semibold text-gray-700">
+                    Blood Type<span className="text-red-600 ml-1">*</span>
+                  </Label>
+                </div>
+                <Select
+                  id="bloodType"
+                  value={formData.bloodTypeId}
+                  onChange={(e) => handleInputChange("bloodTypeId", parseInt(e.target.value) || 0)}
+                  required={!donorId}
+                  className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+                >
+                  <option value={0}>-- Chọn nhóm máu --</option>
+                  {bloodTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.code} - {type.name}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-gray-500 italic">
+                  Cần chọn nhóm máu để đăng ký làm donor (nếu bạn chưa có hồ sơ donor)
+                </p>
               </div>
-              <Select
-                id="bloodType"
-                value={formData.bloodTypeCode}
-                onChange={(e) => handleInputChange("bloodTypeCode", e.target.value)}
-                required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
-              >
-                <option value="">Choose blood type</option>
-                {bloodTypes.map((type) => (
-                  <option key={type.id} value={type.code}>
-                    {type.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bloodVolumeMl" className="text-sm font-semibold text-gray-700">
-                Donation Volume (ml)
-              </Label>
-              <Select
-                id="bloodVolumeMl"
-                value={formData.bloodVolumeMl}
-                onChange={(e) => handleInputChange("bloodVolumeMl", e.target.value)}
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
-              >
-                <option value="">Select volume</option>
-                {DONATION_VOLUMES.map((volume) => (
-                  <option key={volume.value} value={volume.value}>
-                    {volume.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-red-600" />
-                <Label htmlFor="preferredDate" className="text-sm font-semibold text-gray-700">
-                  Preferred Donation Date<span className="text-red-600 ml-1">*</span>
+                <MapPin className="w-5 h-5 text-red-600" />
+                <Label htmlFor="travelRadiusKm" className="text-sm font-semibold text-gray-700">
+                  Bán Kính Di Chuyển (km)<span className="text-red-600 ml-1">*</span>
                 </Label>
               </div>
               <Input
-                id="preferredDate"
-                type="date"
-                value={formData.preferredDate}
-                onChange={(e) => handleInputChange("preferredDate", e.target.value)}
+                id="travelRadiusKm"
+                type="number"
+                min="1"
+                max="100"
+                value={formData.travelRadiusKm}
+                onChange={(e) => handleInputChange("travelRadiusKm", parseInt(e.target.value) || 0)}
                 required
                 className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
               />
+              <p className="text-xs text-gray-500 italic">
+                Bán kính bạn sẵn sàng di chuyển để hiến máu (1-100 km)
+              </p>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-600 fill-red-600" />
-                <Label htmlFor="hospitalId" className="text-sm font-semibold text-gray-700">
-                  Preferred Location (Hospital)<span className="text-red-600 ml-1">*</span>
-                </Label>
-              </div>
-              <Select
-                id="hospitalId"
-                value={formData.hospitalId}
-                onChange={(e) => handleInputChange("hospitalId", e.target.value)}
-                required
-                className="border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
-              >
-                <option value="">Select hospital</option>
-                {hospitals.map((hospital) => (
-                  <option key={hospital.id} value={hospital.id}>
-                    {hospital.name}
-                  </option>
+          {/* Availability Schedule */}
+          <div className="space-y-4 pt-6">
+            <h3 className="text-lg font-semibold text-gray-900">Lịch Có Thể Hiến Máu (Tùy chọn)</h3>
+            <p className="text-sm text-gray-600">
+              Chọn các ngày trong tuần và khung giờ bạn có thể hiến máu
+            </p>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {WEEKDAYS.map((day) => (
+                  <div key={day.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`weekday-${day.value}`}
+                      checked={formData.selectedWeekdays.includes(day.value)}
+                      onChange={() => handleWeekdayToggle(day.value)}
+                    />
+                    <Label htmlFor={`weekday-${day.value}`} className="cursor-pointer text-sm">
+                      {day.label}
+                    </Label>
+                  </div>
                 ))}
-              </Select>
+              </div>
+
+              {formData.selectedWeekdays.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 max-w-md">
+                  <div className="space-y-2">
+                    <Label htmlFor="timeFrom">Từ giờ</Label>
+                    <Input
+                      id="timeFrom"
+                      type="time"
+                      value={formData.timeFrom}
+                      onChange={(e) => handleInputChange("timeFrom", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timeTo">Đến giờ</Label>
+                    <Input
+                      id="timeTo"
+                      type="time"
+                      value={formData.timeTo}
+                      onChange={(e) => handleInputChange("timeTo", e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Donated Before Checkbox */}
-          <div className="flex items-center gap-3 pt-4 p-4 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100/50 transition-colors duration-200">
-            <Checkbox
-              id="donatedBefore"
-              checked={formData.donatedBefore}
-              onChange={(e) => handleInputChange("donatedBefore", e.target.checked)}
-            />
-            <Label htmlFor="donatedBefore" className="font-semibold cursor-pointer text-gray-800 text-base">
-              Have you donated before?<span className="text-red-600 ml-1">*</span>
-            </Label>
-          </div>
         </div>
 
         {/* Health Conditions and Notes Section */}
@@ -637,21 +589,6 @@ export function RegisterDonation() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Additional Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-semibold text-gray-700">
-              Additional Notes <span className="text-gray-500 font-normal">(Optional)</span>
-            </Label>
-            <textarea
-              id="notes"
-              placeholder="Additional notes (e.g., taking medication, tired,...)"
-              value={formData.notes}
-              onChange={(e) => handleInputChange("notes", e.target.value)}
-              className="flex min-h-[120px] w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20 focus-visible:border-red-500 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
-              rows={4}
-            />
           </div>
         </div>
 

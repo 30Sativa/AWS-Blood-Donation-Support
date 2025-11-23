@@ -17,14 +17,13 @@ import ProtectedRoute from "./PrivateRoutes";
 import { Layout } from "@/components/layout/Layout"; // Layout chung cho cả Member và Admin
 // Member Pages
 import { BloodDonationHistory } from "@/pages/member/BloodDonationHistory";
-import { RegisterDonation } from "@/pages/member/RegisterDonation";
+import { RegisterDonor } from "@/pages/member/RegisterDonor";
 import { HealthCheck } from "@/pages/member/HealthCheck";
 import { Dashboard } from "@/pages/member/Dashboard";
 import { SOS } from "@/pages/member/SOS";
 import { AccountSettings } from "@/pages/member/AccountSettings";
 import { DonorProfile } from "@/pages/member/DonorProfile";
 import { Notifications } from "@/pages/member/Notifications";
-import { CompleteProfile } from "@/pages/member/CompleteProfile";
 // Admin Pages
 import ManageAccounts from "@/pages/admin/ManageAccounts";
 import ManageBlog from "@/pages/admin/ManageBlog";
@@ -83,9 +82,8 @@ const routes = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
-      { path: "complete-profile", element: <CompleteProfile /> },
       { path: "history", element: <BloodDonationHistory /> },
-      { path: "register-donation", element: <RegisterDonation /> },
+      { path: "register-donor", element: <RegisterDonor /> },
       { path: "donor-profile", element: <DonorProfile /> },
       { path: "health-check", element: <HealthCheck /> },
       { path: "notifications", element: <Notifications /> },

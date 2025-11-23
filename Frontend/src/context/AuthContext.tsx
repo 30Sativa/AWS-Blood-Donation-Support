@@ -29,6 +29,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
+  // Hàm Đăng xuất
+  const logout = useCallback(() => {
+    // Xóa tất cả thông tin xác thực
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("tokenExpiry");
+    sessionStorage.removeItem("token");
+
+    // Reset state
+    setIsAuthenticated(false);
+    setUser(null);
+  }, []);
+
   // Hàm tải trạng thái người dùng từ localStorage
   const loadAuthState = useCallback(() => {
     // Lấy dữ liệu từ localStorage
@@ -36,7 +52,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const role = localStorage.getItem("role") as Role | null;
     const userEmail = localStorage.getItem("userEmail");
     const userName = localStorage.getItem("userName");
-    const userId = localStorage.getItem("userId"); // ⭐️ SỬA 2: Lấy thêm userId
+    const userId = localStorage.getItem("userId");
+    const tokenExpiry = localStorage.getItem("tokenExpiry");
+
+    // Kiểm tra token expiration
+    if (tokenExpiry) {
+      const expirationTime = parseInt(tokenExpiry, 10);
+      const now = Date.now();
+      
+      // Nếu token đã hết hạn, xóa tất cả và logout
+      if (now >= expirationTime) {
+        logout();
+        return;
+      }
+    }
 
     // ⭐️ SỬA 3: Kiểm tra token, role, userEmail VÀ userId
     if (token && role && userEmail && userId) {
@@ -52,27 +81,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(false);
       setUser(null);
     }
-  }, []);
+  }, [logout]);
 
   // Tải trạng thái khi ứng dụng khởi động (chỉ chạy 1 lần)
   useEffect(() => {
     loadAuthState();
   }, [loadAuthState]);
 
-  // Hàm Đăng xuất
-  const logout = () => {
-    // Xóa tất cả thông tin xác thực
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userId"); // ⭐️ SỬA 4: Xóa thêm userId
-    sessionStorage.removeItem("token"); // Nếu bạn cũng dùng sessionStorage
+  // Kiểm tra token expiration định kỳ (mỗi phút)
+  useEffect(() => {
+    const checkTokenExpiry = () => {
+      const tokenExpiry = localStorage.getItem("tokenExpiry");
+      if (tokenExpiry) {
+        const expirationTime = parseInt(tokenExpiry, 10);
+        const now = Date.now();
+        
+        // Nếu token đã hết hạn, logout
+        if (now >= expirationTime) {
+          logout();
+        }
+      }
+    };
 
-    // Reset state
-    setIsAuthenticated(false);
-    setUser(null);
-  };
+    // Kiểm tra ngay lập tức
+    checkTokenExpiry();
+
+    // Kiểm tra mỗi phút
+    const interval = setInterval(checkTokenExpiry, 60000); // 60000ms = 1 phút
+
+    return () => clearInterval(interval);
+  }, [logout]);
 
   // Giá trị Context được cung cấp
   const value = useMemo(() => ({
@@ -80,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     logout,
     refreshAuth: loadAuthState,
-  }), [isAuthenticated, user, loadAuthState]);
+  }), [isAuthenticated, user, loadAuthState, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

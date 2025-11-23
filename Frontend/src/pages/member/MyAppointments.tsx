@@ -17,7 +17,7 @@ export function MyAppointments() {
           </p>
         </div>
         <Button
-          onClick={() => navigate("/member/register-donation")}
+          onClick={() => navigate("/member/register-donor")}
           className="bg-red-600 hover:bg-red-700 text-white"
         >
           <Plus className="w-4 h-4 mr-2" />

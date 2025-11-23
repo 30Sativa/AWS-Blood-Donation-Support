@@ -11,7 +11,32 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem("token"); // 👈 đảm bảo key này đúng chỗ bạn lưu
+    const token = localStorage.getItem("token");
+    const tokenExpiry = localStorage.getItem("tokenExpiry");
+    
+    // Kiểm tra token expiration trước khi gửi request
+    if (tokenExpiry) {
+      const expirationTime = parseInt(tokenExpiry, 10);
+      const now = Date.now();
+      
+      // Nếu token đã hết hạn, xóa token và redirect về login
+      if (now >= expirationTime) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("tokenExpiry");
+        sessionStorage.removeItem("token");
+        
+        if (window.location.pathname !== "/auth/login") {
+          window.location.href = "/auth/login";
+        }
+        
+        return Promise.reject(new Error("Token đã hết hạn. Vui lòng đăng nhập lại."));
+      }
+    }
+    
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
@@ -21,6 +46,23 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Nếu token hết hạn (401 Unauthorized), xóa token và redirect về login
+    if (error.response?.status === 401) {
+      // Xóa tất cả thông tin xác thực
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("tokenExpiry");
+      sessionStorage.removeItem("token");
+      
+      // Redirect về login page
+      if (window.location.pathname !== "/auth/login") {
+        window.location.href = "/auth/login";
+      }
+    }
+
     // Giữ nguyên error object để có thể check status code
     if (error.response) {
       const payload = error.response.data as any;

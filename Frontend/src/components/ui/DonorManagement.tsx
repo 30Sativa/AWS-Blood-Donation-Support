@@ -72,12 +72,25 @@ export function DonorManagement({
           donorService.getBloodTypes(),
           donorService.getHealthConditions(),
         ]);
-        setBloodTypes(bloodTypeList);
+        
+        // Sort blood types by code for better UX
+        const sortedBloodTypes = [...bloodTypeList].sort((a, b) => {
+          const order = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+          const indexA = order.indexOf(a.code);
+          const indexB = order.indexOf(b.code);
+          if (indexA === -1 && indexB === -1) return 0;
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+        
+        setBloodTypes(sortedBloodTypes);
         setHealthConditions(healthConditionList);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error loading reference data:", err);
+        const errorMessage = err?.response?.data?.message || err?.message || "Không thể tải dữ liệu";
         setReferenceError(
-          "Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe."
+          `Không thể tải danh sách nhóm máu hoặc tình trạng sức khỏe: ${errorMessage}`
         );
       } finally {
         setLoadingReference(false);
@@ -93,17 +106,31 @@ export function DonorManagement({
       try {
         setLoadingDonor(true);
         setError("");
-        const response = await donorService.getMyDonor();
+        // Thử getMyDonor trước, nếu không được thì thử getDonorByUserId
+        let response = await donorService.getMyDonor();
+        
+        // Nếu getMyDonor trả về null, thử dùng userId để lấy
+        if (!response && userId) {
+          console.log("[DEBUG] DonorManagement: getMyDonor returned null, trying getDonorByUserId with userId:", userId);
+          response = await donorService.getDonorByUserId(userId);
+        }
         if (response && response.success && response.data) {
-          setDonor(response.data);
+          const donorData = response.data;
+          setDonor(donorData);
+          
+          // Map healthConditions array to healthConditionIds array
+          const healthConditionIds = donorData.healthConditions
+            ? donorData.healthConditions.map(hc => hc.conditionId)
+            : (donorData.healthConditionIds || []);
+          
           setFormData({
-            bloodTypeId: response.data.bloodTypeId || 0,
-            addressId: response.data.addressId || addressId || 0,
-            travelRadiusKm: response.data.travelRadiusKm || 10,
-            isReady: response.data.isReady || false,
-            nextEligibleDate: response.data.nextEligibleDate || "",
-            availabilities: response.data.availabilities || [],
-            healthConditionIds: response.data.healthConditionIds || [],
+            bloodTypeId: donorData.bloodTypeId || 0,
+            addressId: donorData.addressId || addressId || 0,
+            travelRadiusKm: donorData.travelRadiusKm || donorData.travelRadiuskm || 10,
+            isReady: donorData.isReady || false,
+            nextEligibleDate: donorData.nextEligibleDate || "",
+            availabilities: donorData.availabilities || [],
+            healthConditionIds: healthConditionIds,
           });
           setIsRegistering(false);
         } else {
@@ -205,14 +232,15 @@ export function DonorManagement({
   };
 
   const handleToggleReadyStatus = async () => {
-    if (!donor?.id) return;
+    const donorId = donor?.donorId || donor?.id;
+    if (!donorId) return;
 
     try {
       setLoading(true);
       setError("");
       const newReadyStatus = !formData.isReady;
-      const response = await donorService.updateReadyStatus(donor.id, {
-        donorId: donor.id,
+      const response = await donorService.updateReadyStatus(donorId, {
+        donorId: donorId,
         isReady: newReadyStatus,
       });
       if (response.success && response.data) {
@@ -275,6 +303,57 @@ export function DonorManagement({
             </p>
           </div>
 
+          {/* Display donor information from API */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="font-semibold text-blue-900 mb-4">Thông tin Donor:</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {donor.fullName && (
+                <div>
+                  <span className="text-blue-700 font-medium">Họ tên:</span>{" "}
+                  <span className="text-blue-900">{donor.fullName}</span>
+                </div>
+              )}
+              {donor.bloodGroup && (
+                <div>
+                  <span className="text-blue-700 font-medium">Nhóm máu:</span>{" "}
+                  <span className="text-blue-900">{donor.bloodGroup}</span>
+                </div>
+              )}
+              {donor.phoneNumber && (
+                <div>
+                  <span className="text-blue-700 font-medium">Số điện thoại:</span>{" "}
+                  <span className="text-blue-900">{donor.phoneNumber}</span>
+                </div>
+              )}
+              {donor.email && (
+                <div>
+                  <span className="text-blue-700 font-medium">Email:</span>{" "}
+                  <span className="text-blue-900">{donor.email}</span>
+                </div>
+              )}
+              {donor.addressDisplay && (
+                <div className="md:col-span-2">
+                  <span className="text-blue-700 font-medium">Địa chỉ:</span>{" "}
+                  <span className="text-blue-900">{donor.addressDisplay}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-blue-700 font-medium">Bán kính di chuyển:</span>{" "}
+                <span className="text-blue-900">
+                  {donor.travelRadiusKm || donor.travelRadiuskm || 0} km
+                </span>
+              </div>
+              {donor.nextEligibleDate && (
+                <div>
+                  <span className="text-blue-700 font-medium">Ngày có thể hiến tiếp:</span>{" "}
+                  <span className="text-blue-900">
+                    {new Date(donor.nextEligibleDate).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="border border-gray-300 rounded-lg p-6 bg-gray-50 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -290,11 +369,16 @@ export function DonorManagement({
                   className="w-full"
                 >
                   <option value="0">Chọn nhóm máu</option>
-                  {bloodTypes.map((bt) => (
-                    <option key={bt.id} value={bt.id}>
-                      {bt.name}
-                    </option>
-                  ))}
+                  {bloodTypes.map((bt) => {
+                    const displayText = bt.name && bt.name.trim() && bt.name !== bt.code 
+                      ? `${bt.code} (${bt.name})` 
+                      : bt.code;
+                    return (
+                      <option key={bt.id} value={bt.id}>
+                        {displayText}
+                      </option>
+                    );
+                  })}
                 </Select>
               </div>
 
@@ -437,11 +521,16 @@ export function DonorManagement({
                   className="w-full"
                 >
                   <option value="0">Chọn nhóm máu</option>
-                  {bloodTypes.map((bt) => (
-                    <option key={bt.id} value={bt.id}>
-                      {bt.name}
-                    </option>
-                  ))}
+                  {bloodTypes.map((bt) => {
+                    const displayText = bt.name && bt.name.trim() && bt.name !== bt.code 
+                      ? `${bt.code} (${bt.name})` 
+                      : bt.code;
+                    return (
+                      <option key={bt.id} value={bt.id}>
+                        {displayText}
+                      </option>
+                    );
+                  })}
                 </Select>
               </div>
 

@@ -11,7 +11,7 @@ interface ProfileCompletionGuardProps {
 
 /**
  * Component này kiểm tra xem user đã điền đầy đủ thông tin chưa
- * Nếu chưa đủ, redirect đến trang complete-profile
+ * (Không redirect nữa, chỉ để kiểm tra)
  */
 export function ProfileCompletionGuard({ children }: ProfileCompletionGuardProps) {
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,6 @@ export function ProfileCompletionGuard({ children }: ProfileCompletionGuardProps
   // Các trang được phép truy cập mà không cần profile đầy đủ
   const allowedPaths = [
     "/member/account-settings",
-    "/member/complete-profile",
     "/login",
     "/register",
   ];
@@ -52,11 +51,9 @@ export function ProfileCompletionGuard({ children }: ProfileCompletionGuardProps
       // Kiểm tra các thông tin bắt buộc
       const isProfileComplete = checkRequiredFields(userProfile);
 
+      // Không redirect nữa, chỉ log để debug nếu cần
       if (!isProfileComplete) {
-        // Profile chưa đầy đủ, redirect đến complete-profile
-        navigate("/member/complete-profile", {
-          state: { from: location.pathname },
-        });
+        console.log("Profile chưa đầy đủ, nhưng không redirect nữa");
       }
     } catch (error) {
       console.error("Check profile completion error:", error);

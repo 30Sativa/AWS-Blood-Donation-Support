@@ -42,30 +42,29 @@ export const donorService = {
 
   /**
    * Lấy thông tin donor của user hiện tại
-   * GET /api/Donors/me
+   * Sử dụng GET /api/Donors/user/{userId} 
    * Trả về null nếu user chưa đăng ký làm donor
    */
   async getMyDonor(): Promise<DonorResponse | null> {
     try {
-      const response = await apiClient.get<DonorResponse>("/api/Donors/me");
-
-      if (!response.data) {
-        throw new Error("Response data is empty");
-      }
-
-      if (!response.data.success) {
-        throw new Error(response.data.message || "Failed to get donor");
-      }
-
-      return response.data;
-    } catch (error: any) {
-      // Xử lý trường hợp 404 - user chưa đăng ký làm donor (không phải lỗi)
-      if (error.response?.status === 404) {
-        console.log("User is not registered as a donor yet");
+      // Lấy userId từ localStorage
+      const userIdStr = localStorage.getItem("userId");
+      if (!userIdStr) {
+        console.log("No userId found in localStorage");
         return null;
       }
+      
+      const userId = parseInt(userIdStr, 10);
+      if (isNaN(userId)) {
+        console.log("Invalid userId in localStorage");
+        return null;
+      }
+
+      // Sử dụng endpoint GET /api/Donors/user/{userId}
+      return await this.getDonorByUserId(userId);
+    } catch (error: any) {
       console.error("Get my donor error:", error);
-      throw error;
+      return null;
     }
   },
 

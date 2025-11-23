@@ -10,8 +10,6 @@ import { useAuth } from "../context/AuthContext";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
-import { donorService } from "@/services/donorService";
-import { profileService } from "@/services/profileService";
 
 type AuthMode = "login" | "register";
 
@@ -144,6 +142,11 @@ export default function LoginPage() {
               localStorage.setItem("token", response.token);
               sessionStorage.setItem("token", response.token);
 
+              // Lưu expiration time (sử dụng expiresIn từ backend hoặc mặc định 24 giờ)
+              const expiresIn = response.expiresIn || 86400; // 86400 seconds = 24 hours
+              const expirationTime = Date.now() + (expiresIn * 1000);
+              localStorage.setItem("tokenExpiry", String(expirationTime));
+
               const userId = response.user.id;
               const userName =
                 (response.user as { fullName?: string }).fullName || "";
@@ -159,34 +162,8 @@ export default function LoginPage() {
               // Update AuthContext
               refreshAuth();
 
-              // ✅ Sau khi login, kiểm tra xem user đã có donor hay chưa
-              try {
-                // Lấy profile để chắc chắn có userId và các thông tin cơ bản
-                const profileRes = await profileService.getCurrentUser().catch(
-                  () => null
-                );
-
-                // Kiểm tra donor hiện tại
-                const donorRes = await donorService.getMyDonor().catch(
-                  () => null
-                );
-
-                if (!donorRes?.data) {
-                  // Chưa có donor -> đánh dấu cần hoàn tất hồ sơ & chuyển sang trang Complete Profile
-                  localStorage.setItem("needsCompleteProfile", "true");
-                  navigate("/member/complete-profile", { replace: true });
-                } else {
-                  // Đã là donor -> về home như cũ
-                  localStorage.removeItem("needsCompleteProfile");
-                  navigate("/", { replace: true });
-                }
-              } catch (checkErr) {
-                console.error(
-                  "Error checking donor/profile after login, fallback to home:",
-                  checkErr
-                );
-                navigate("/", { replace: true });
-              }
+              // Sau khi login, chuyển về trang chủ
+              navigate("/", { replace: true });
             } catch (e) {
               console.warn("Unable to save token to storage:", e);
             }
