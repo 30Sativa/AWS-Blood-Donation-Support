@@ -78,6 +78,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
 
+        // [GET] api/donors/me/profile (Get my donor profile)
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var result = await _mediator.Send(new GetMyDonorProfileQuery());
+            return Ok(result);
+        }
+
 
         // [GET] api/donors/{id}/profile (Get donor profile by Id)
         [HttpGet("{id}")]
