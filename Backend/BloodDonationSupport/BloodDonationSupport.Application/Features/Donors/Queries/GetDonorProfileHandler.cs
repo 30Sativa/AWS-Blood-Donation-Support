@@ -25,8 +25,8 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
         }
 
         public async Task<BaseResponse<DonorProfileResponse>> Handle(
-            GetDonorProfileQuery query,
-            CancellationToken cancellationToken)
+    GetDonorProfileQuery query,
+    CancellationToken cancellationToken)
         {
             // Load donor + user + bloodtype + availabilities + health conditions
             var donor = await _donorRepo.GetByIdWithRelationsAsync(query.DonorId);
@@ -38,7 +38,8 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
             if (donor.AddressId.HasValue)
             {
                 var address = await _addressRepo.GetByIdAsync(donor.AddressId.Value);
-                addressDisplay = address?.NormalizedAddress;
+                addressDisplay = address?.NormalizedAddress
+                                 ?? $"{address?.Line1}, {address?.District}, {address?.City}";
             }
 
             var response = new DonorProfileResponse
@@ -90,5 +91,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
 
             return BaseResponse<DonorProfileResponse>.SuccessResponse(response);
         }
+
     }
 }
