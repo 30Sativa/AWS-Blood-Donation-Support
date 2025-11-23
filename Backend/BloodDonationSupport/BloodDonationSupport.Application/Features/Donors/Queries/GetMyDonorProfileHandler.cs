@@ -15,28 +15,38 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
     {
         private readonly ICurrentUserService _currentUser;
         private readonly IDonorRepository _donorRepo;
+        private readonly IUserRepository _userRepo;
 
         public GetMyDonorProfileHandler(
             ICurrentUserService currentUser,
-            IDonorRepository donorRepo)
+            IDonorRepository donorRepo,
+            IUserRepository userRepo)
         {
             _currentUser = currentUser;
             _donorRepo = donorRepo;
+            _userRepo = userRepo;
         }
 
         public async Task<BaseResponse<DonorProfileResponse>> Handle(
             GetMyDonorProfileQuery request, CancellationToken cancellationToken)
         {
-            if (!_currentUser.IsAuthenticated || _currentUser.UserId == null)
+            // 1) Kiểm tra xác thực qua CognitoUserId
+            if (!_currentUser.IsAuthenticated || string.IsNullOrEmpty(_currentUser.CognitoUserId))
             {
                 return BaseResponse<DonorProfileResponse>
                     .FailureResponse("User is not authenticated.");
             }
 
-            long userId = _currentUser.UserId.Value;
+            // 2) Lấy user trong DB qua CognitoUserId (không phải UserId!)
+            var user = await _userRepo.GetByCognitoUserIdAsync(_currentUser.CognitoUserId);
+            if (user == null)
+            {
+                return BaseResponse<DonorProfileResponse>
+                    .FailureResponse("User not found in database.");
+            }
 
-            // lấy donor theo userId
-            var donor = await _donorRepo.GetByUserIdWithRelationsAsync(userId);
+            // 3) Lấy donor theo userId từ database
+            var donor = await _donorRepo.GetByUserIdWithRelationsAsync(user.Id);
 
             if (donor == null)
             {
@@ -44,7 +54,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                     .FailureResponse("Donor profile not found. Please register donor first.");
             }
 
-            // build response
+            // 4) Build response (giữ nguyên)
             var response = new DonorProfileResponse
             {
                 DonorId = donor.Id,
@@ -72,7 +82,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                 UpdatedAt = donor.UpdatedAt
             };
 
-            // add availabilities
             response.Availabilities = donor.Availabilities
                 .Select(a => new DonorAvailabilityResponse
                 {
@@ -81,7 +90,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
                     TimeToMin = a.TimeToMin
                 }).ToList();
 
-            // add health conditions
             response.HealthConditions = donor.HealthConditions
                 .Select(h => new DonorHealthConditionItemResponse
                 {
