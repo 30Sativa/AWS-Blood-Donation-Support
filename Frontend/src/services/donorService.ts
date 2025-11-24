@@ -42,27 +42,26 @@ export const donorService = {
 
   /**
    * Lấy thông tin donor của user hiện tại
-   * Sử dụng GET /api/Donors/user/{userId} 
-   * Trả về null nếu user chưa đăng ký làm donor
+   * Sử dụng GET /api/Donors/me
+   * Trả về null nếu user chưa đăng ký làm donor (404)
    */
   async getMyDonor(): Promise<DonorResponse | null> {
     try {
-      // Lấy userId từ localStorage
-      const userIdStr = localStorage.getItem("userId");
-      if (!userIdStr) {
-        console.log("No userId found in localStorage");
-        return null;
-      }
-      
-      const userId = parseInt(userIdStr, 10);
-      if (isNaN(userId)) {
-        console.log("Invalid userId in localStorage");
-        return null;
+      const response = await apiClient.get<DonorResponse>("/api/Donors/me");
+
+      if (!response.data) {
+        throw new Error("Response data is empty");
       }
 
-      // Sử dụng endpoint GET /api/Donors/user/{userId}
-      return await this.getDonorByUserId(userId);
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to get donor");
+      }
+
+      return response.data;
     } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
       console.error("Get my donor error:", error);
       return null;
     }

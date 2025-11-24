@@ -29,6 +29,7 @@ export function RegisterDonor() {
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingReference, setLoadingReference] = useState(true);
+  const [checkingExistingDonor, setCheckingExistingDonor] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -47,8 +48,31 @@ export function RegisterDonor() {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const checkExistingDonor = async () => {
+      try {
+        const donorResponse = await donorService.getMyDonor();
+        if (donorResponse && donorResponse.data) {
+          navigate("/member/donor-profile", { replace: true });
+          return;
+        }
+      } catch (err) {
+        console.log(
+          "Could not check donor status, continuing with registration form",
+          err
+        );
+      } finally {
+        setCheckingExistingDonor(false);
+      }
+    };
+
+    checkExistingDonor();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!checkingExistingDonor) {
+      loadData();
+    }
+  }, [checkingExistingDonor]);
 
   const loadData = async () => {
     try {
@@ -64,19 +88,6 @@ export function RegisterDonor() {
 
       const userProfile = profileResponse.data;
       setProfile(userProfile);
-
-      // Kiểm tra xem đã đăng ký donor chưa (không block việc load data nếu lỗi)
-      try {
-        const donorResponse = await donorService.getMyDonor();
-        if (donorResponse && donorResponse.data) {
-          // Đã đăng ký donor rồi, redirect đến donor profile
-          navigate("/member/donor-profile");
-          return;
-        }
-      } catch (err) {
-        // Nếu lỗi khi check donor, vẫn tiếp tục load data để user có thể đăng ký
-        console.log("Could not check donor status, continuing with registration form");
-      }
 
       // Load reference data
       const [bloodTypeList, healthConditionList, addressResponse] = await Promise.all([
@@ -247,6 +258,15 @@ export function RegisterDonor() {
       setLoading(false);
     }
   };
+
+  if (checkingExistingDonor) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+        <p className="mt-4 text-gray-600 text-sm">Đang kiểm tra trạng thái donor của bạn...</p>
+      </div>
+    );
+  }
 
   if (loadingProfile || loadingReference) {
     return (

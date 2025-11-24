@@ -1,5 +1,5 @@
 // src/components/ui/DonorManagement.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "./button";
 import { Label } from "./label";
 import { Input } from "./input";
@@ -33,6 +33,40 @@ const WEEKDAYS = [
   { value: 6, label: "Thứ 7" },
 ];
 
+function formatMinutesToTime(minutes?: number) {
+  if (minutes === undefined || minutes === null) {
+    return "";
+  }
+  const hrs = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, "0");
+  const mins = Math.floor(minutes % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${hrs}:${mins}`;
+}
+
+function timeToMinutes(value: string) {
+  const [h, m] = value.split(":").map((part) => Number(part));
+  if (Number.isNaN(h) || Number.isNaN(m)) {
+    return 0;
+  }
+  return h * 60 + m;
+}
+
+interface DonorFormState {
+  bloodTypeId: number;
+  addressId: number;
+  travelRadiusKm: number;
+  isReady: boolean;
+  nextEligibleDate: string;
+  availabilities: Availability[];
+  healthConditionIds: number[];
+  selectedWeekdays: number[];
+  timeFrom: string;
+  timeTo: string;
+}
+
 export function DonorManagement({
   userId,
   addressId,
@@ -45,14 +79,14 @@ export function DonorManagement({
   const [error, setError] = useState("");
   const [referenceError, setReferenceError] = useState("");
   const [success, setSuccess] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [readyStatusLoading, setReadyStatusLoading] = useState(false);
   const [bloodTypes, setBloodTypes] = useState<BloodType[]>([]);
   const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
     []
   );
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<DonorFormState>({
     bloodTypeId: 0,
     addressId: addressId || 0,
     travelRadiusKm: 10,
@@ -60,6 +94,9 @@ export function DonorManagement({
     nextEligibleDate: "",
     availabilities: [] as Availability[],
     healthConditionIds: [] as number[],
+    selectedWeekdays: [] as number[],
+    timeFrom: "08:00",
+    timeTo: "17:00",
   });
 
   // Load reference data (blood types, health conditions)
@@ -100,29 +137,37 @@ export function DonorManagement({
     loadReferenceData();
   }, []);
 
-  // Load donor info
-  useEffect(() => {
-    const loadDonor = async () => {
+  const loadDonor = useCallback(
+    async (options: { showSpinner?: boolean } = {}) => {
+      if (!userId) return;
+      const { showSpinner = true } = options;
       try {
-        setLoadingDonor(true);
+        if (showSpinner) {
+          setLoadingDonor(true);
+        }
         setError("");
-        // Thử getMyDonor trước, nếu không được thì thử getDonorByUserId
         let response = await donorService.getMyDonor();
-        
-        // Nếu getMyDonor trả về null, thử dùng userId để lấy
+
         if (!response && userId) {
-          console.log("[DEBUG] DonorManagement: getMyDonor returned null, trying getDonorByUserId with userId:", userId);
+          console.log(
+            "[DEBUG] DonorManagement: getMyDonor returned null, trying getDonorByUserId with userId:",
+            userId
+          );
           response = await donorService.getDonorByUserId(userId);
         }
         if (response && response.success && response.data) {
           const donorData = response.data;
           setDonor(donorData);
-          
-          // Map healthConditions array to healthConditionIds array
+
           const healthConditionIds = donorData.healthConditions
-            ? donorData.healthConditions.map(hc => hc.conditionId)
-            : (donorData.healthConditionIds || []);
-          
+            ? donorData.healthConditions.map((hc) => hc.conditionId)
+            : donorData.healthConditionIds || [];
+
+          const uniqueWeekdays = donorData.availabilities
+            ? Array.from(new Set(donorData.availabilities.map((slot) => slot.weekday)))
+            : [];
+          const firstSlot = donorData.availabilities?.[0];
+
           setFormData({
             bloodTypeId: donorData.bloodTypeId || 0,
             addressId: donorData.addressId || addressId || 0,
@@ -130,26 +175,29 @@ export function DonorManagement({
             isReady: donorData.isReady || false,
             nextEligibleDate: donorData.nextEligibleDate || "",
             availabilities: donorData.availabilities || [],
-            healthConditionIds: healthConditionIds,
+            healthConditionIds,
+            selectedWeekdays: uniqueWeekdays,
+            timeFrom: firstSlot ? formatMinutesToTime(firstSlot.timeFromMin) : "08:00",
+            timeTo: firstSlot ? formatMinutesToTime(firstSlot.timeToMin) : "17:00",
           });
-          setIsRegistering(false);
         } else {
-          // User chưa đăng ký làm donor
           setDonor(null);
-          setIsRegistering(true);
         }
       } catch (err) {
         console.error("Error loading donor:", err);
         setError("Không thể tải thông tin donor. Vui lòng thử lại.");
       } finally {
-        setLoadingDonor(false);
+        if (showSpinner) {
+          setLoadingDonor(false);
+        }
       }
-    };
+    },
+    [userId, addressId]
+  );
 
-    if (userId) {
-      loadDonor();
-    }
-  }, [userId, addressId]);
+  useEffect(() => {
+    loadDonor();
+  }, [loadDonor]);
 
   const handleRegister = async () => {
     if (!formData.addressId) {
@@ -172,15 +220,21 @@ export function DonorManagement({
         addressId: formData.addressId,
         travelRadiusKm: formData.travelRadiusKm,
         isReady: formData.isReady,
-        nextEligibleDate: formData.nextEligibleDate || undefined,
-        availabilities: formData.availabilities.length > 0 ? formData.availabilities : undefined,
-        healthConditionIds: formData.healthConditionIds.length > 0 ? formData.healthConditionIds : undefined,
       };
+
+      if (formData.nextEligibleDate) {
+        registerData.nextEligibleDate = formData.nextEligibleDate;
+      }
+      if (formData.availabilities.length > 0) {
+        registerData.availabilities = formData.availabilities;
+      }
+      if (formData.healthConditionIds.length > 0) {
+        registerData.healthConditionIds = formData.healthConditionIds;
+      }
 
       const response = await donorService.registerDonor(registerData);
       if (response.success && response.data) {
-        setDonor(response.data);
-        setIsRegistering(false);
+        await loadDonor({ showSpinner: false });
         setSuccess("Đăng ký làm donor thành công!");
       } else {
         setError(response.message || "Đăng ký thất bại");
@@ -194,10 +248,55 @@ export function DonorManagement({
     }
   };
 
+  const handleAvailabilityUpdate = (
+    index: number,
+    field: "weekday" | "timeFromMin" | "timeToMin",
+    value: number | string
+  ) => {
+    setFormData((prev) => {
+      const updated = [...prev.availabilities];
+      const current = updated[index] || { weekday: 1, timeFromMin: 480, timeToMin: 1020 };
+      if (field === "weekday") {
+        current.weekday = Number(value);
+      } else if (field === "timeFromMin") {
+        current.timeFromMin = timeToMinutes(String(value));
+      } else if (field === "timeToMin") {
+        current.timeToMin = timeToMinutes(String(value));
+      }
+      updated[index] = { ...current };
+      return { ...prev, availabilities: updated };
+    });
+  };
+
+  const handleAddAvailability = () => {
+    setFormData((prev) => ({
+      ...prev,
+      availabilities: [
+        ...prev.availabilities,
+        { weekday: 1, timeFromMin: 540, timeToMin: 1020 },
+      ],
+    }));
+  };
+
+  const handleRemoveAvailability = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      availabilities: prev.availabilities.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleUpdate = async () => {
-    if (!donor?.id) {
+    if (!donor?.donorId && !donor?.id) {
       setError("Không tìm thấy thông tin donor");
       return;
+    }
+
+    // Validate availability slots if present
+    for (const slot of formData.availabilities) {
+      if (slot.timeFromMin >= slot.timeToMin) {
+        setError("Giờ bắt đầu phải nhỏ hơn giờ kết thúc trong lịch sẵn sàng.");
+        return;
+      }
     }
 
     try {
@@ -206,18 +305,24 @@ export function DonorManagement({
       setSuccess("");
 
       const updateData: UpdateDonorRequest = {
-        bloodTypeId: formData.bloodTypeId || undefined,
         addressId: formData.addressId || undefined,
         travelRadiusKm: formData.travelRadiusKm,
         isReady: formData.isReady,
-        nextEligibleDate: formData.nextEligibleDate || undefined,
-        availabilities: formData.availabilities.length > 0 ? formData.availabilities : undefined,
-        healthConditionIds: formData.healthConditionIds.length > 0 ? formData.healthConditionIds : undefined,
       };
+
+      if (formData.nextEligibleDate) {
+        updateData.nextEligibleDate = formData.nextEligibleDate;
+      }
+      if (formData.availabilities.length > 0) {
+        updateData.availabilities = formData.availabilities;
+      }
+      if (formData.healthConditionIds.length > 0) {
+        updateData.healthConditionIds = formData.healthConditionIds;
+      }
 
       const response = await donorService.updateMyDonor(updateData);
       if (response.success && response.data) {
-        setDonor(response.data);
+        await loadDonor({ showSpinner: false });
         setSuccess("Cập nhật thông tin donor thành công!");
       } else {
         setError(response.message || "Cập nhật thất bại");
@@ -236,24 +341,53 @@ export function DonorManagement({
     if (!donorId) return;
 
     try {
-      setLoading(true);
+      setReadyStatusLoading(true);
       setError("");
-      const newReadyStatus = !formData.isReady;
+      const newReadyStatus = !donor.isReady;
       const response = await donorService.updateReadyStatus(donorId, {
-        donorId: donorId,
+        donorId,
         isReady: newReadyStatus,
       });
       if (response.success && response.data) {
-        setDonor(response.data);
         setFormData((prev) => ({ ...prev, isReady: newReadyStatus }));
+        await loadDonor({ showSpinner: false });
         setSuccess(`Đã ${newReadyStatus ? "bật" : "tắt"} trạng thái sẵn sàng hiến máu`);
+      } else {
+        setError(response.message || "Không thể cập nhật trạng thái");
       }
     } catch (err: any) {
-      setError(err.message || "Không thể cập nhật trạng thái");
+      const errorMessage =
+        err?.response?.data?.message || err?.message || "Không thể cập nhật trạng thái";
+      setError(errorMessage);
     } finally {
-      setLoading(false);
+      setReadyStatusLoading(false);
     }
   };
+
+  const availabilityItems = useMemo(() => {
+    if (!donor?.availabilities || donor.availabilities.length === 0) {
+      return [];
+    }
+    return donor.availabilities.map((slot, index) => {
+      const weekdayLabel =
+        WEEKDAYS.find((day) => day.value === slot.weekday)?.label || `Thứ ${slot.weekday}`;
+      return {
+        id: `${slot.weekday}-${index}`,
+        label: weekdayLabel,
+        time: `${formatMinutesToTime(slot.timeFromMin)} - ${formatMinutesToTime(slot.timeToMin)}`,
+      };
+    });
+  }, [donor?.availabilities]);
+
+  const healthConditionItems = useMemo(() => {
+    if (!donor?.healthConditions || donor.healthConditions.length === 0) {
+      return [];
+    }
+    return donor.healthConditions.map((condition) => ({
+      id: condition.conditionId,
+      label: condition.conditionName || `Mã ${condition.conditionId}`,
+    }));
+  }, [donor?.healthConditions]);
 
   if (loadingDonor || loadingReference) {
     return (
@@ -288,102 +422,188 @@ export function DonorManagement({
 
       {donor ? (
         // Đã đăng ký làm donor - hiển thị thông tin và form update
-        <div className="space-y-6">
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-            <div className="flex items-center gap-2">
-              <Heart className="w-5 h-5 text-green-600" />
-              <strong>Bạn đã đăng ký làm donor</strong>
-            </div>
-            <p className="mt-1 text-sm">
-              Trạng thái: {donor.isReady ? (
-                <span className="text-green-700 font-semibold">Sẵn sàng hiến máu</span>
-              ) : (
-                <span className="text-gray-600">Chưa sẵn sàng</span>
-              )}
-            </p>
-          </div>
-
-          {/* Display donor information from API */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="font-semibold text-blue-900 mb-4">Thông tin Donor:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {donor.fullName && (
+        <div className="space-y-8">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 rounded-xl border border-blue-100 bg-white shadow-sm p-6 space-y-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-blue-700 font-medium">Họ tên:</span>{" "}
-                  <span className="text-blue-900">{donor.fullName}</span>
+                  <p className="text-sm uppercase tracking-wide text-blue-500 font-semibold">
+                    Hồ sơ người hiến
+                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900 mt-1">
+                    {donor.fullName || "Chưa cập nhật"}
+                  </h2>
                 </div>
-              )}
-              {donor.bloodGroup && (
-                <div>
-                  <span className="text-blue-700 font-medium">Nhóm máu:</span>{" "}
-                  <span className="text-blue-900">{donor.bloodGroup}</span>
-                </div>
-              )}
-              {donor.phoneNumber && (
-                <div>
-                  <span className="text-blue-700 font-medium">Số điện thoại:</span>{" "}
-                  <span className="text-blue-900">{donor.phoneNumber}</span>
-                </div>
-              )}
-              {donor.email && (
-                <div>
-                  <span className="text-blue-700 font-medium">Email:</span>{" "}
-                  <span className="text-blue-900">{donor.email}</span>
-                </div>
-              )}
-              {donor.addressDisplay && (
-                <div className="md:col-span-2">
-                  <span className="text-blue-700 font-medium">Địa chỉ:</span>{" "}
-                  <span className="text-blue-900">{donor.addressDisplay}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-blue-700 font-medium">Bán kính di chuyển:</span>{" "}
-                <span className="text-blue-900">
-                  {donor.travelRadiusKm || donor.travelRadiuskm || 0} km
+                <span
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                    donor.isReady
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {donor.isReady ? "Sẵn sàng hiến máu" : "Chưa sẵn sàng"}
                 </span>
               </div>
-              {donor.nextEligibleDate && (
-                <div>
-                  <span className="text-blue-700 font-medium">Ngày có thể hiến tiếp:</span>{" "}
-                  <span className="text-blue-900">
-                    {new Date(donor.nextEligibleDate).toLocaleDateString('vi-VN')}
-                  </span>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                {[
+                  { label: "Nhóm máu", value: donor.bloodGroup || "Chưa cập nhật" },
+                  { label: "Email", value: donor.email || "Chưa cập nhật" },
+                  { label: "Số điện thoại", value: donor.phoneNumber || "Chưa cập nhật" },
+                  {
+                    label: "Ngày có thể hiến tiếp",
+                    value: donor.nextEligibleDate
+                      ? new Date(donor.nextEligibleDate).toLocaleDateString("vi-VN")
+                      : "Chưa xác định",
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="space-y-1">
+                    <p className="text-gray-500 text-xs uppercase tracking-wide">{item.label}</p>
+                    <p className="text-gray-900 font-medium">{item.value}</p>
+                  </div>
+                ))}
+                <div className="space-y-1 sm:col-span-2">
+                  <p className="text-gray-500 text-xs uppercase tracking-wide">Địa chỉ</p>
+                  <p className="text-gray-900 font-medium">
+                    {donor.addressDisplay || "Chưa cập nhật"}
+                  </p>
                 </div>
-              )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Bán kính di chuyển</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {donor.travelRadiusKm || donor.travelRadiuskm || 0}
+                    <span className="text-base font-medium text-gray-500 ml-1">km</span>
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Tọa độ</p>
+                  <p className="text-sm font-medium text-gray-900 mt-1">
+                    {(donor.latitude && donor.latitude.toFixed(4)) || "?"},{" "}
+                    {(donor.longitude && donor.longitude.toFixed(4)) || "?"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                <span>
+                  Tạo lúc:{" "}
+                  <strong className="text-gray-800">
+                    {donor.createdAt
+                      ? new Date(donor.createdAt).toLocaleString("vi-VN")
+                      : "Chưa xác định"}
+                  </strong>
+                </span>
+                <span>
+                  Cập nhật:{" "}
+                  <strong className="text-gray-800">
+                    {donor.updatedAt
+                      ? new Date(donor.updatedAt).toLocaleString("vi-VN")
+                      : "Chưa xác định"}
+                  </strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl border border-green-100 bg-green-50 p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="rounded-lg bg-white/70 p-2">
+                    <Heart className="w-5 h-5 text-green-600" />
+                  </span>
+                  <div>
+                    <p className="text-sm text-green-700 font-semibold">Trạng thái hiến máu</p>
+                    <p className="text-sm text-green-800">
+                      {donor.isReady
+                        ? "Bạn đang mở trạng thái nhận lời mời hiến máu."
+                        : "Bạn đang tạm tắt trạng thái nhận lời mời."}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleToggleReadyStatus}
+                  disabled={readyStatusLoading}
+                  className="w-full mt-4 bg-green-600 hover:bg-green-700 disabled:opacity-60"
+                >
+                  {readyStatusLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Đang cập nhật...
+                    </>
+                  ) : donor.isReady ? (
+                    "Tạm tắt trạng thái"
+                  ) : (
+                    "Bật trạng thái sẵn sàng"
+                  )}
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-blue-900">Lịch sẵn sàng</p>
+                  {availabilityItems.length > 0 && (
+                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-semibold">
+                      {availabilityItems.length} khung giờ
+                    </span>
+                  )}
+                </div>
+                {availabilityItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {availabilityItems.map((slot) => (
+                      <div
+                        key={slot.id}
+                        className="flex items-center justify-between rounded-lg border border-blue-50 bg-blue-50/60 px-3 py-2 text-sm text-blue-900"
+                      >
+                        <span className="font-semibold">{slot.label}</span>
+                        <span>{slot.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Chưa thiết lập lịch cụ thể.</p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-purple-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold text-purple-900 mb-3">Tình trạng sức khỏe</p>
+                {healthConditionItems.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {healthConditionItems.map((condition) => (
+                      <span
+                        key={condition.id}
+                        className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-800"
+                      >
+                        {condition.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Không có ghi chú sức khỏe.</p>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="border border-gray-300 rounded-lg p-6 bg-gray-50 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="bloodType" className="text-black">
-                  Nhóm máu <span className="text-red-600">*</span>
-                </Label>
-                <Select
-                  id="bloodType"
-                  value={formData.bloodTypeId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bloodTypeId: Number(e.target.value) })
-                  }
-                  className="w-full"
-                >
-                  <option value="0">Chọn nhóm máu</option>
-                  {bloodTypes.map((bt) => {
-                    const displayText = bt.name && bt.name.trim() && bt.name !== bt.code 
-                      ? `${bt.code} (${bt.name})` 
-                      : bt.code;
-                    return (
-                      <option key={bt.id} value={bt.id}>
-                        {displayText}
-                      </option>
-                    );
-                  })}
-                </Select>
-              </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 space-y-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Cập nhật nhanh
+              </p>
+              <h3 className="text-xl font-bold text-gray-900 mt-1">
+                Điều chỉnh thông tin bạn có thể thay đổi
+              </h3>
+              <p className="text-sm text-gray-600">
+                Chỉ các trường ảnh hưởng đến khả năng điều phối hiến máu có thể chỉnh sửa trực
+                tiếp tại đây.
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="travelRadius" className="text-black">
+            <div className="grid gap-6 lg:grid-cols-[1fr,1.5fr]">
+              <div className="rounded-xl border border-white bg-white p-5 shadow-sm space-y-2">
+                <Label htmlFor="travelRadius" className="text-black font-semibold">
                   Bán kính di chuyển (km)
                 </Label>
                 <Input
@@ -395,58 +615,51 @@ export function DonorManagement({
                   onChange={(e) =>
                     setFormData({ ...formData, travelRadiusKm: Number(e.target.value) })
                   }
+                  className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500/20"
+                />
+                <p className="text-xs text-gray-500">
+                  Hệ thống ưu tiên mời bạn trong phạm vi bán kính này.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white bg-white p-5 shadow-sm space-y-3">
+                <div>
+                  <Label className="text-black font-semibold">Địa chỉ</Label>
+                  <p className="text-xs text-gray-500">
+                    Cập nhật địa chỉ giúp hệ thống điều phối gần nhất với bạn.
+                  </p>
+                </div>
+                <AddressInput
+                  value={formData.addressId || null}
+                  onChange={(newAddressId) => {
+                    setFormData({ ...formData, addressId: newAddressId || 0 });
+                    if (onAddressChange) {
+                      onAddressChange(newAddressId);
+                    }
+                  }}
                   className="w-full"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nextEligibleDate" className="text-black">
-                  Ngày có thể hiến máu tiếp theo
-                </Label>
-                <Input
-                  id="nextEligibleDate"
-                  type="date"
-                  value={formData.nextEligibleDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nextEligibleDate: e.target.value })
-                  }
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2 flex items-center">
-                <Checkbox
-                  id="isReady"
-                  checked={formData.isReady}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isReady: checked === true })
-                  }
-                />
-                <Label htmlFor="isReady" className="ml-2 cursor-pointer">
-                  Sẵn sàng hiến máu
-                </Label>
-              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-black">Địa chỉ</Label>
-              <AddressInput
-                value={formData.addressId || null}
-                onChange={(newAddressId) => {
-                  setFormData({ ...formData, addressId: newAddressId || 0 });
-                  if (onAddressChange) {
-                    onAddressChange(newAddressId);
-                  }
-                }}
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-black">Tình trạng sức khỏe</Label>
+            <div className="rounded-xl border border-white bg-white p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-black font-semibold">Tình trạng sức khỏe</Label>
+                  <p className="text-xs text-gray-500">
+                    Đánh dấu các bệnh lý hiện có để nhân viên y tế nắm thông tin.
+                  </p>
+                </div>
+                <span className="text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded-full font-semibold">
+                  {formData.healthConditionIds.length} mục
+                </span>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {healthConditions.map((hc) => (
-                  <div key={hc.id} className="flex items-center space-x-2">
+                  <div
+                    key={hc.id}
+                    className="flex items-center gap-2 rounded-lg border border-purple-100 bg-purple-50/60 px-2 py-1"
+                  >
                     <Checkbox
                       id={`health-${hc.id}`}
                       checked={formData.healthConditionIds.includes(hc.id)}
@@ -466,12 +679,97 @@ export function DonorManagement({
                         }
                       }}
                     />
-                    <Label htmlFor={`health-${hc.id}`} className="text-sm cursor-pointer">
+                    <Label
+                      htmlFor={`health-${hc.id}`}
+                      className="text-xs md:text-sm cursor-pointer text-gray-700"
+                    >
                       {hc.name}
                     </Label>
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-xl border border-white bg-white p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-black font-semibold">Lịch sẵn sàng</Label>
+                  <p className="text-xs text-gray-500">
+                    Cho biết những khung giờ bạn có thể nhận lời mời hiến máu.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-sm"
+                  onClick={handleAddAvailability}
+                >
+                  Thêm khung giờ
+                </Button>
+              </div>
+              {formData.availabilities.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Chưa có lịch sẵn sàng. Thêm khung giờ để các trung tâm biết khi nào nên liên hệ.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {formData.availabilities.map((slot, index) => (
+                    <div
+                      key={`${slot.weekday}-${index}`}
+                      className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end bg-white border border-gray-100 rounded-xl p-4 shadow-sm"
+                    >
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold uppercase text-gray-500">Ngày</Label>
+                        <Select
+                          value={slot.weekday}
+                          onChange={(e) =>
+                            handleAvailabilityUpdate(index, "weekday", Number(e.target.value))
+                          }
+                          className="w-full"
+                        >
+                          {WEEKDAYS.map((day) => (
+                            <option key={day.value} value={day.value}>
+                              {day.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold uppercase text-gray-500">
+                          Bắt đầu
+                        </Label>
+                        <Input
+                          type="time"
+                          value={formatMinutesToTime(slot.timeFromMin)}
+                          onChange={(e) =>
+                            handleAvailabilityUpdate(index, "timeFromMin", e.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold uppercase text-gray-500">
+                          Kết thúc
+                        </Label>
+                        <Input
+                          type="time"
+                          value={formatMinutesToTime(slot.timeToMin)}
+                          onChange={(e) =>
+                            handleAvailabilityUpdate(index, "timeToMin", e.target.value)
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-red-600"
+                        onClick={() => handleRemoveAvailability(index)}
+                      >
+                        Xóa
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 justify-end">

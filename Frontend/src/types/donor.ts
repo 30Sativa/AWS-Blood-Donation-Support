@@ -40,9 +40,12 @@ export interface RegisterDonorRequest {
   userId: number;
   bloodTypeId: number;
   travelRadiusKm: number;
-  fullAddress: string;
-  availabilities: Availability[];
-  healthConditionIds: number[];
+  fullAddress?: string;
+  addressId?: number;
+  isReady?: boolean;
+  nextEligibleDate?: string;
+  availabilities?: Availability[];
+  healthConditionIds?: number[];
 }
 
 export interface UpdateDonorRequest {
