@@ -63,7 +63,7 @@ public class GetMyDonorProfileHandler
                 : null,
 
             AddressId = donor.AddressId,
-            AddressDisplay = donor.AddressDisplay,
+            AddressDisplay = donor.AddressDisplay ?? "(Address unavailable)",  // 🔥 FALLBACK THÊM AN TOÀN
 
             Latitude = donor.LastKnownLocation?.Latitude,
             Longitude = donor.LastKnownLocation?.Longitude,
