@@ -39,7 +39,7 @@ public class RegisterDonorCommandHandler
         if (user == null)
             return BaseResponse<RegisterDonorResponse>.FailureResponse("User not found.");
 
-        // 2) Check donor exists
+        // 2) Check donor exists (đã fix ExistsAsync ở repo)
         if (await _donorRepository.ExistsAsync(d => d.UserId == reg.UserId))
             return BaseResponse<RegisterDonorResponse>.FailureResponse("Donor profile already exists.");
 
@@ -48,70 +48,91 @@ public class RegisterDonorCommandHandler
         if (parsed == null)
             return BaseResponse<RegisterDonorResponse>.FailureResponse("Invalid address.");
 
+        // Build fallback if AWS thiếu field
+        string fallbackDisplay = string.Join(", ", new[]
+        {
+            parsed.Line1, parsed.District, parsed.City, parsed.Province
+        }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
         // 4) Save Address first
         var address = AddressDomain.Create(
-            parsed.Line1, parsed.District, parsed.City, parsed.Province,
-            parsed.Country, parsed.PostalCode, parsed.NormalizedAddress,
-            parsed.PlaceId, (decimal?)parsed.ConfidenceScore, parsed.Latitude, parsed.Longitude
+            parsed.Line1,
+            parsed.District,
+            parsed.City,
+            parsed.Province,
+            parsed.Country,
+            parsed.PostalCode,
+            parsed.NormalizedAddress ?? fallbackDisplay, // đảm bảo không null
+            parsed.PlaceId,
+            (decimal?)parsed.ConfidenceScore,
+            parsed.Latitude,
+            parsed.Longitude
         );
 
         long addressId = await _addressRepository.AddAndReturnIdAsync(address);
 
-        // 5) Create Donor (Clean)
+        // 5) Create Donor (Clean Domain)
         var donor = DonorDomain.Create(reg.UserId, reg.TravelRadiusKm);
         donor.SetBloodType(reg.BloodTypeId);
         donor.SetAddress(addressId);
         donor.UpdateLocation(GeoLocation.Create(parsed.Latitude, parsed.Longitude));
+        donor.MarkReady(false);           // new donor không sẵn sàng
+        donor.UpdateEligibility(null);    // chưa từng hiến máu
 
-        // Chuẩn thực tế: Donor mới → không Ready, không NextEligibleDate
-        donor.MarkReady(false);
-        donor.UpdateEligibility(null);
-
-        // 6) Availabilities
+        // 6) Add Availabilities
         if (reg.Availabilities != null)
         {
             foreach (var a in reg.Availabilities)
-                donor.AddAvailability(DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin));
+            {
+                donor.AddAvailability(DonorAvailability.Create(
+                    a.Weekday, a.TimeFromMin, a.TimeToMin));
+            }
         }
 
-        // 7) Health Conditions
+        // 7) Add Health Conditions (không cần DonorId tại thời điểm này)
         if (reg.HealthConditionIds != null)
         {
             foreach (var id in reg.HealthConditionIds)
-                donor.AddHealthCondition(DonorHealthConditionDomain.Create(0, id));
+            {
+                donor.AddHealthCondition(DonorHealthConditionDomain.Create(0,id));
+            }
         }
 
-        // 8) Save
+        // 8) Save Donor
         await _donorRepository.AddAsync(donor);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        var donorId = donor.Id;
 
         // 9) Response
-        return BaseResponse<RegisterDonorResponse>.SuccessResponse(
-            new RegisterDonorResponse
+        var response = new RegisterDonorResponse
+        {
+            DonorId = donor.Id,
+            UserId = donor.UserId,
+            BloodTypeId = donor.BloodTypeId,
+            AddressId = donor.AddressId,
+            TravelRadiusKm = donor.TravelRadiusKm,
+            IsReady = donor.IsReady,
+            NextEligibleDate = donor.NextEligibleDate,
+            CreatedAt = donor.CreatedAt,
+            Latitude = donor.LastKnownLocation?.Latitude,
+            Longitude = donor.LastKnownLocation?.Longitude,
+
+            // Return display cho FE
+            AddressDisplay = parsed.NormalizedAddress ?? fallbackDisplay,
+
+            Availabilities = donor.Availabilities.Select(x => new DonorAvailabilityResponse
             {
-                DonorId = donor.Id,
-                UserId = donor.UserId,
-                BloodTypeId = donor.BloodTypeId,
-                AddressId = donor.AddressId,
-                TravelRadiusKm = donor.TravelRadiusKm,
-                IsReady = donor.IsReady,
-                NextEligibleDate = donor.NextEligibleDate,
-                CreatedAt = donor.CreatedAt,
-                Latitude = donor.LastKnownLocation?.Latitude,
-                Longitude = donor.LastKnownLocation?.Longitude,
-                Availabilities = donor.Availabilities.Select(x => new DonorAvailabilityResponse
-                {
-                    Weekday = x.Weekday,
-                    TimeFromMin = x.TimeFromMin,
-                    TimeToMin = x.TimeToMin
-                }).ToList(),
-                HealthConditions = donor.HealthConditions.Select(h => new DonorHealthConditionItemResponse
-                {
-                    ConditionId = h.ConditionId
-                }).ToList()
-            },
-            "Donor registered successfully."
-        );
+                Weekday = x.Weekday,
+                TimeFromMin = x.TimeFromMin,
+                TimeToMin = x.TimeToMin
+            }).ToList(),
+
+            HealthConditions = donor.HealthConditions.Select(h => new DonorHealthConditionItemResponse
+            {
+                ConditionId = h.ConditionId,
+                ConditionName = h.ConditionName
+            }).ToList()
+        };
+
+        return BaseResponse<RegisterDonorResponse>.SuccessResponse(response, "Donor registered successfully.");
     }
 }

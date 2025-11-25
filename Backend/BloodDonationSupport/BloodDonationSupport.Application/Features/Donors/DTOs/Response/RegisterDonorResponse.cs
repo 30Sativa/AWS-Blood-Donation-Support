@@ -16,6 +16,8 @@
 
         public DateTime CreatedAt { get; set; }
 
+        public string? AddressDisplay { get; set; }
+
         public List<DonorAvailabilityResponse>? Availabilities { get; set; }
         public List<DonorHealthConditionItemResponse>? HealthConditions { get; set; }
     }

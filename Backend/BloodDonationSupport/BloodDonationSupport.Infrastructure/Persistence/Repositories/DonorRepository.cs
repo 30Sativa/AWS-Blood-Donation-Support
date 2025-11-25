@@ -365,9 +365,16 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             if (entity.Address != null)
             {
                 donor.SetAddressDisplay(
-                    entity.Address.NormalizedAddress
-                    ?? $"{entity.Address.Line1}, {entity.Address.District}, {entity.Address.City}"
-                );
+    entity.Address.NormalizedAddress
+    ?? string.Join(", ", new[]
+    {
+        entity.Address.Line1,
+        entity.Address.District,
+        entity.Address.City,
+        entity.Address.Province
+    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+);
+
             }
 
             return donor;
@@ -443,9 +450,16 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             if (entity.Address != null)
             {
                 donor.SetAddressDisplay(
-                    entity.Address.NormalizedAddress
-                    ?? $"{entity.Address.Line1}, {entity.Address.District}, {entity.Address.City}"
-                );
+    entity.Address.NormalizedAddress
+    ?? string.Join(", ", new[]
+    {
+        entity.Address.Line1,
+        entity.Address.District,
+        entity.Address.City,
+        entity.Address.Province
+    }.Where(x => !string.IsNullOrWhiteSpace(x)))
+);
+
             }
 
             return donor;
