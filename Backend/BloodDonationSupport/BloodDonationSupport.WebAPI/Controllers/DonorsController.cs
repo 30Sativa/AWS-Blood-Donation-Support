@@ -20,9 +20,9 @@ namespace BloodDonationSupport.WebAPI.Controllers
             _logger = logger;
         }
 
-       
 
-        
+
+
 
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
@@ -109,7 +109,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [HttpPut("{id}/ready-status")]
         public async Task<IActionResult> UpdateReadyStatus(long id, UpdateReadyStatusRequest request)
         {
-            var result = await _mediator.Send(new UpdateReadyStatusCommand(id,request));
+            var result = await _mediator.Send(new UpdateReadyStatusCommand(id, request));
             return Ok(result);
         }
 
@@ -120,6 +120,13 @@ namespace BloodDonationSupport.WebAPI.Controllers
             request.DonorId = id;
             var result = await _mediator.Send(new UpdateHealthConditionsCommand(request));
             return Ok(result);
+        }
+
+        [HttpPut("me/address")]
+        public async Task<IActionResult> UpdateMyAddress([FromBody] UpdateMyAddressRequest request)
+        {
+            var result = await _mediator.Send(new UpdateMyDonorAddressCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
         }
     }
 }
