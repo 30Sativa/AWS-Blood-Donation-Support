@@ -221,6 +221,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var entity = await _context.Donors
                 .Include(d => d.User)
                     .ThenInclude(u => u.UserProfile)
+                .Include(d => d.Address)
                 .Include(d => d.BloodType)
                 .Include(d => d.DonorAvailabilities)
                 .Include(d => d.DonorHealthConditions)
@@ -255,6 +256,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             var entity = await _context.Donors
                 .Include(d => d.User)
                     .ThenInclude(u => u.UserProfile)
+                .Include(d => d.Address)
                 .Include(d => d.BloodType)
                 .Include(d => d.DonorAvailabilities)
                 .Include(d => d.DonorHealthConditions)
@@ -344,7 +346,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         private static DonorDomain MapToDomain(Donor entity)
         {
-            return DonorDomain.Rehydrate(
+            var donor = DonorDomain.Rehydrate(
                 id: entity.DonorId,
                 userId: entity.UserId,
                 bloodTypeId: entity.BloodTypeId,
@@ -352,7 +354,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 travelRadiusKm: entity.TravelRadiusKm,
                 nextEligibleDate: entity.NextEligibleDate,
                 isReady: entity.IsReady,
-                // ✅ Map GeoLocation từ DB
                 lastKnownLocation: entity.Latitude.HasValue && entity.Longitude.HasValue
                     ? GeoLocation.Create(entity.Latitude.Value, entity.Longitude.Value)
                     : null,
@@ -360,20 +361,31 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 createdAt: entity.CreatedAt,
                 updatedAt: entity.UpdatedAt
             );
+
+            if (entity.Address != null)
+            {
+                donor.SetAddressDisplay(
+                    entity.Address.NormalizedAddress
+                    ?? $"{entity.Address.Line1}, {entity.Address.District}, {entity.Address.City}"
+                );
+            }
+
+            return donor;
         }
+
 
         private static DonorDomain MapToDomainWithRelations(Donor entity)
         {
             // Map Availabilities
-            var availabilities = entity.DonorAvailabilities.Select(a => 
+            var availabilities = entity.DonorAvailabilities.Select(a =>
                 Domain.Donors.Entities.DonorAvailability.Create(a.Weekday, a.TimeFromMin, a.TimeToMin)
             );
-            
+
             // Map Health Conditions
-            var healthConditions = entity.DonorHealthConditions.Select(hc => 
+            var healthConditions = entity.DonorHealthConditions.Select(hc =>
                 Domain.Donors.Entities.DonorHealthConditionDomain.Create(entity.DonorId, hc.ConditionId)
             );
-            
+
             var donor = DonorDomain.RehydrateWithRelations(
                 id: entity.DonorId,
                 userId: entity.UserId,
@@ -392,6 +404,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 healthConditions: healthConditions
             );
 
+            // Map User
             if (entity.User != null)
             {
                 var email = new Domain.Users.ValueObjects.Email(entity.User.Email);
@@ -403,7 +416,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                     entity.User.IsActive,
                     entity.User.CreatedAt
                 );
-                
+
                 // Set Profile if exists
                 if (entity.User.UserProfile != null)
                 {
@@ -416,16 +429,27 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                     );
                     userDomain.GetType().GetProperty("Profile")?.SetValue(userDomain, profile);
                 }
-                
+
                 donor.SetUser(userDomain);
             }
 
+            // Map BloodType
             if (entity.BloodType != null)
             {
                 donor.SetBloodType(entity.BloodType.BloodTypeId, entity.BloodType.Abo, entity.BloodType.Rh);
             }
 
+            //  MAP ADDRESS DISPLAY
+            if (entity.Address != null)
+            {
+                donor.SetAddressDisplay(
+                    entity.Address.NormalizedAddress
+                    ?? $"{entity.Address.Line1}, {entity.Address.District}, {entity.Address.City}"
+                );
+            }
+
             return donor;
         }
+
     }
 }
