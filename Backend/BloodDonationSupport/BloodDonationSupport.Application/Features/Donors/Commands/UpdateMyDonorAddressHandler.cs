@@ -18,7 +18,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
         private readonly IDonorRepository _donorRepo;
         private readonly IAddressRepository _addressRepo;
         private readonly ILocationService _locationService;
-        private readonly IUnitOfWork _uow;
+        private readonly IUnitOfWork _unitOfWork;
 
         public UpdateMyDonorAddressHandler(
             ICurrentUserService currentUser,
@@ -26,18 +26,19 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             IDonorRepository donorRepo,
             IAddressRepository addressRepo,
             ILocationService locationService,
-            IUnitOfWork uow)
+            IUnitOfWork unitOfWork)
         {
             _currentUser = currentUser;
             _userRepo = userRepo;
             _donorRepo = donorRepo;
             _addressRepo = addressRepo;
             _locationService = locationService;
-            _uow = uow;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<BaseResponse<string>> Handle(
-            UpdateMyDonorAddressCommand cmd, CancellationToken cancellationToken)
+            UpdateMyDonorAddressCommand request,
+            CancellationToken cancellationToken)
         {
             if (!_currentUser.IsAuthenticated || string.IsNullOrEmpty(_currentUser.CognitoUserId))
                 return BaseResponse<string>.FailureResponse("User is not authenticated.");
@@ -46,15 +47,17 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             if (user == null)
                 return BaseResponse<string>.FailureResponse("User not found.");
 
-            var donor = await _donorRepo.GetByUserIdAsync(user.Id);
+            var donor = await _donorRepo.GetByUserIdWithRelationsAsync(user.Id);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor profile not found.");
 
-            var parsed = await _locationService.ParseAddressAsync(cmd.Request.FullAddress);
+            // 1) Parse new address
+            var parsed = await _locationService.ParseAddressAsync(request.Request.FullAddress);
             if (parsed == null)
-                return BaseResponse<string>.FailureResponse("Unable to parse address.");
+                return BaseResponse<string>.FailureResponse("Invalid address.");
 
-            var newAddress = AddressDomain.Create(
+            // 2) Create NEW Address record
+            var addressDomain = AddressDomain.Create(
                 parsed.Line1,
                 parsed.District,
                 parsed.City,
@@ -63,20 +66,22 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
                 parsed.PostalCode,
                 parsed.NormalizedAddress,
                 parsed.PlaceId,
-                parsed.ConfidenceScore.HasValue ? (decimal?)parsed.ConfidenceScore.Value : null,
+                (decimal?)parsed.ConfidenceScore,
                 parsed.Latitude,
                 parsed.Longitude
             );
 
-            await _addressRepo.AddAsync(newAddress);
+            long newAddressId = await _addressRepo.AddAndReturnIdAsync(addressDomain);
 
-            donor.SetAddress(newAddress.Id);
-            donor.UpdateLocation(
-                GeoLocation.Create(parsed.Latitude, parsed.Longitude)
-            );
+            // 3) Update donor
+            donor.SetAddress(newAddressId);
+            donor.SetAddressDisplay(parsed.NormalizedAddress);
+            donor.UpdateLocation(GeoLocation.Create(parsed.Latitude, parsed.Longitude));
+            donor.MarkReady(true); // optional
 
             _donorRepo.Update(donor);
-            await _uow.SaveChangesAsync(cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return BaseResponse<string>.SuccessResponse("Address updated successfully.");
         }
