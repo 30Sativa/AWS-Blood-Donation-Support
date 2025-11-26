@@ -331,6 +331,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             donor.UpdatedAt = DateTime.UtcNow;
             donor.LocationUpdatedAt = domainEntity.LocationUpdatedAt;
 
+            donor.AddressId = domainEntity.AddressId;
+
+            donor.BloodTypeId = domainEntity.BloodTypeId;
+
             // ✅ Cập nhật vị trí (GeoLocation)
             if (domainEntity.LastKnownLocation != null)
             {
