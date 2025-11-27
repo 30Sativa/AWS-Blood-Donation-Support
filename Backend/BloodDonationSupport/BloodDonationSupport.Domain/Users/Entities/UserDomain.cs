@@ -2,7 +2,6 @@
 using BloodDonationSupport.Domain.Users.Events;
 using BloodDonationSupport.Domain.Users.Rules;
 using BloodDonationSupport.Domain.Users.ValueObjects;
-using System;
 
 namespace BloodDonationSupport.Domain.Users.Entities
 {

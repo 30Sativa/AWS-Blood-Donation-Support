@@ -1,5 +1,4 @@
-﻿using BloodDonationSupport.Application.Features.Donors.Commands;
-using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
+﻿using BloodDonationSupport.Application.Features.Donors.DTOs.Request;
 using FluentValidation;
 
 namespace BloodDonationSupport.Application.Features.Donors.Validators

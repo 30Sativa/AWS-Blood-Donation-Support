@@ -25,12 +25,14 @@ namespace BloodDonationSupport.Domain.Donors.Entities
 
         // Navigation
         public UserDomain? User { get; private set; }
+
         public BloodType? BloodType { get; private set; }
 
         public IReadOnlyCollection<DonorAvailability> Availabilities => _availabilities.AsReadOnly();
         public IReadOnlyCollection<DonorHealthConditionDomain> HealthConditions => _healthConditions.AsReadOnly();
 
-        private DonorDomain() { }   // EF Core bắt buộc
+        private DonorDomain()
+        { }   // EF Core bắt buộc
 
         // Constructor dùng khi tạo mới Donor
         private DonorDomain(long userId, decimal travelRadiusKm)

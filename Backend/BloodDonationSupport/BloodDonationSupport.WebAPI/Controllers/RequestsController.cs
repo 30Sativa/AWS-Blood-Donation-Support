@@ -4,7 +4,6 @@ using BloodDonationSupport.Application.Features.Requests.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace BloodDonationSupport.WebAPI.Controllers
 {
@@ -29,7 +28,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         public async Task<IActionResult> GetAllRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetAllRequestsQuery(pageNumber, pageSize));
-            return result == null ? NotFound() : Ok(result);    
+            return result == null ? NotFound() : Ok(result);
         }
 
         // =====================================================
@@ -74,7 +73,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
             if (request == null)
                 return BadRequest("Request body cannot be null.");
 
-            var result = await _mediator.Send(new UpdateRequestStatusCommand(id,request));
+            var result = await _mediator.Send(new UpdateRequestStatusCommand(id, request));
 
             if (!result.Success)
             {
@@ -90,12 +89,11 @@ namespace BloodDonationSupport.WebAPI.Controllers
         // [GET] api/requests/nearby (find nearby blood requests)
         // =====================================================
         [HttpGet("nearby")]
-        public async Task<IActionResult> GetNearbyRequests([FromQuery]GetNearbyRequestsRequest request)
+        public async Task<IActionResult> GetNearbyRequests([FromQuery] GetNearbyRequestsRequest request)
         {
             var result = await _mediator.Send(new GetNearbyRequestsQuery(request));
             return result == null ? NotFound() : Ok(result);
         }
-
 
         // =====================================================
         // [GET] api/requests/{id}/compatible-donors (get compatible donors for a request)

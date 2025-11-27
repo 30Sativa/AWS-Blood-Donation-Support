@@ -61,4 +61,3 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         }
     }
 }
-

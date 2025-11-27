@@ -3,11 +3,6 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Domain.Addresses.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Commands
 {

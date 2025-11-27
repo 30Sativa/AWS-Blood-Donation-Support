@@ -19,8 +19,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
 
         public async Task<BaseResponse<string>> Handle(UpdateRequestStatusCommand request, CancellationToken cancellationToken)
         {
-
-
             //  Lấy request theo ID
             var requestDomain = await _requestRepository.GetByIdAsync(request.requestid);
             if (requestDomain == null)

@@ -2,11 +2,6 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Donors.Queries
 {
@@ -91,6 +86,5 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
 
             return BaseResponse<DonorProfileResponse>.SuccessResponse(response);
         }
-
     }
 }

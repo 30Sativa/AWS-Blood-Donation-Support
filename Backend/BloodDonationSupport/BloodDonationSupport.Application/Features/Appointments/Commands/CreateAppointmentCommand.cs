@@ -81,7 +81,7 @@ namespace BloodDonationSupport.Application.Features.Appointments.Commands
             try
             {
                 var appointmentId = await _appointmentRepository.AddAsync(appointmentData);
-                _logger.LogInformation("Appointment created with ID: {AppointmentId} for RequestId: {RequestId}, DonorId: {DonorId}", 
+                _logger.LogInformation("Appointment created with ID: {AppointmentId} for RequestId: {RequestId}, DonorId: {DonorId}",
                     appointmentId, command.Request.RequestId, command.Request.DonorId);
 
                 var createdAppointment = await _appointmentRepository.GetByIdAsync(appointmentId);
@@ -112,4 +112,3 @@ namespace BloodDonationSupport.Application.Features.Appointments.Commands
         }
     }
 }
-

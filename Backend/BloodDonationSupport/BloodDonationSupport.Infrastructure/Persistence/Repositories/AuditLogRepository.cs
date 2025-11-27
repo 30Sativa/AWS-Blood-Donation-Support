@@ -3,7 +3,6 @@ using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using AuditLogDomain = BloodDonationSupport.Domain.Common.Entites.AuditLog;
 using AuditLogEntity = BloodDonationSupport.Infrastructure.Persistence.Models.AuditLog;
-using System.Linq;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -52,4 +51,3 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
     }
 }
-

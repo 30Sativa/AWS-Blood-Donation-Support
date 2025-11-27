@@ -15,4 +15,3 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
         }
     }
 }
-

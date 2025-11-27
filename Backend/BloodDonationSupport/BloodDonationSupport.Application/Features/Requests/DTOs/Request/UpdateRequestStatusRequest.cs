@@ -1,6 +1,4 @@
-﻿using BloodDonationSupport.Domain.Requests.Enums;
-
-namespace BloodDonationSupport.Application.Features.Requests.DTOs.Request
+﻿namespace BloodDonationSupport.Application.Features.Requests.DTOs.Request
 {
     public class UpdateRequestStatusRequest
     {

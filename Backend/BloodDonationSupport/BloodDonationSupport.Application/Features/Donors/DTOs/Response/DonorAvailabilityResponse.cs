@@ -7,4 +7,3 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Response
         public short TimeToMin { get; set; }
     }
 }
-

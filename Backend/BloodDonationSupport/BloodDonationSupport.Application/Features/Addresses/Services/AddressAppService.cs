@@ -1,10 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Domain.Addresses.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Addresses.Services
 {
@@ -17,7 +12,6 @@ namespace BloodDonationSupport.Application.Features.Addresses.Services
             _addressRepository = addressRepository;
         }
 
-   
         /// Lưu địa chỉ trước và trả về AddressId thật
         public async Task<long> CreateAndGetIdAsync(AddressDomain domain)
         {

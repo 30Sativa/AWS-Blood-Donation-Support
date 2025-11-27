@@ -1,5 +1,3 @@
-using System;
-
 namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
 {
     public class AuditLogResponse
@@ -16,4 +14,3 @@ namespace BloodDonationSupport.Application.Features.Users.DTOs.Responses
         public DateTime CreatedAt { get; set; }
     }
 }
-

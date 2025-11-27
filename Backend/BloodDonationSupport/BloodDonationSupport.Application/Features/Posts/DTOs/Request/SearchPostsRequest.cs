@@ -9,4 +9,3 @@ namespace BloodDonationSupport.Application.Features.Posts.DTOs.Request
         public int PageSize { get; set; } = 10;
     }
 }
-

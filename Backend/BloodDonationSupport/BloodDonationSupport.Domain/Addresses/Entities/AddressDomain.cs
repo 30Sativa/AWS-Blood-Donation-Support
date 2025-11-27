@@ -1,9 +1,4 @@
 ﻿using BloodDonationSupport.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Addresses.Entities
 {
@@ -11,6 +6,7 @@ namespace BloodDonationSupport.Domain.Addresses.Entities
     {
         // ─────────────── BASIC FIELDS ───────────────
         public string Line1 { get; private set; } = null!;
+
         public string District { get; private set; } = null!;
         public string City { get; private set; } = null!;
         public string Province { get; private set; } = null!;
@@ -19,14 +15,17 @@ namespace BloodDonationSupport.Domain.Addresses.Entities
 
         // ─────────────── NORMALIZED FIELDS (from AWS Location) ───────────────
         public string? NormalizedAddress { get; private set; }
+
         public string? PlaceId { get; private set; }
         public decimal? ConfidenceScore { get; private set; }
 
         // ─────────────── GEOPOSITION ───────────────
         public double Latitude { get; private set; }
+
         public double Longitude { get; private set; }
 
-        private AddressDomain() { }  // Required for EF Core
+        private AddressDomain()
+        { }  // Required for EF Core
 
         private AddressDomain(
             string line1,

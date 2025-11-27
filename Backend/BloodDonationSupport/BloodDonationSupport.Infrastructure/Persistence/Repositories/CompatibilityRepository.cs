@@ -2,11 +2,6 @@
 using BloodDonationSupport.Domain.Requests.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -18,6 +13,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         {
             _context = context;
         }
+
         public async Task<List<CompatibilityRuleDomain>> GetRulesAsync(int recipientBloodTypeId, int componentId)
         {
             var rules = await _context.CompatibilityMatrix
@@ -36,6 +32,5 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return rules;
         }
-
     }
 }

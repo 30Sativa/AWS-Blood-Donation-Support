@@ -6,4 +6,3 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
         public string FullAddress { get; set; } = string.Empty;
     }
 }
-

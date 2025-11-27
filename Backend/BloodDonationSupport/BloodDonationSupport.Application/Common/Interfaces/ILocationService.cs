@@ -8,9 +8,9 @@ namespace BloodDonationSupport.Application.Common.Interfaces
     {
         Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
             double latitude, double longitude, double radiusKm);
+
         Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm);
 
         Task<ParsedAddressResult?> ParseAddressAsync(string fullAddress);
-
     }
 }

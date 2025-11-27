@@ -7,4 +7,3 @@ namespace BloodDonationSupport.Application.Features.Posts.DTOs.Response
         public string TagSlug { get; set; } = string.Empty;
     }
 }
-

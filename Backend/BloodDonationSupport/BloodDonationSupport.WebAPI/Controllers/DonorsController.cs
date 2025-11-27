@@ -20,10 +20,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             _logger = logger;
         }
 
-
-
-
-
         // [POST] api/donors/register (Register a new donor)
         [HttpPost("register")]
         public async Task<IActionResult> RegisterDonor([FromBody] RegisterDonorRequest request)
@@ -31,8 +27,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new RegisterDonorCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
-
-
 
         [HttpPut("{id}/availability")]
         public async Task<IActionResult> UpdateAvailability(long id, UpdateAvailabilityRequest request)
@@ -59,8 +53,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
 
-
-
         // [PUT] api/donors/{id} (Update donor profile)
         [HttpPut("{id:long}")]
         public async Task<IActionResult> UpdateDonor(long id, [FromBody] UpdateDonorRequest request)
@@ -68,7 +60,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new UpdateDonorCommand(id, request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
-
 
         // [DELETE] api/donors/{id} (Delete donor)
         [HttpDelete("{id}")]
@@ -86,7 +77,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
 
-
         // [GET] api/donors/{id}/profile (Get donor profile by Id)
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDonorProfile(long id)
@@ -94,7 +84,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new GetDonorProfileQuery(id));
             return Ok(result);
         }
-
 
         // [PUT] api/donors/{id}/location (Update donor location)
         [HttpPut("{id}/location")]

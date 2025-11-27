@@ -2,11 +2,6 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
@@ -20,7 +15,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
         public async Task<BaseResponse<RequestResponse>> Handle(GetRequestByIdQuery request, CancellationToken cancellationToken)
         {
             var reg = await _requestRepository.GetByIdAsync(request.RequestId);
-            if(reg == null)
+            if (reg == null)
             {
                 return BaseResponse<RequestResponse>.FailureResponse("Request not found.");
             }

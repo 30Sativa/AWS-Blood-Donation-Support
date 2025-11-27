@@ -2,7 +2,6 @@ using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Models;
 using BloodDonationSupport.Application.Features.Users.DTOs.Responses;
 using MediatR;
-using System.Linq;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
@@ -52,4 +51,3 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
         }
     }
 }
-

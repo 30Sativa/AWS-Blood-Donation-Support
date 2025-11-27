@@ -6,4 +6,3 @@ namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
         public string CurrentPassword { get; set; } = string.Empty;
     }
 }
-

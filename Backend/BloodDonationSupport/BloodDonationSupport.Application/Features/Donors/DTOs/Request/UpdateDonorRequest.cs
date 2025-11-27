@@ -10,4 +10,3 @@ namespace BloodDonationSupport.Application.Features.Donors.DTOs.Request
         public List<int> HealthConditionIds { get; set; } = new();
     }
 }
-

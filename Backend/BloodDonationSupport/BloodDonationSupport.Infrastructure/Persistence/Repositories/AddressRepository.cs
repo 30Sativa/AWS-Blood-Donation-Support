@@ -1,5 +1,4 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
-using BloodDonationSupport.Application.Features.Addresses.DTOs.Response;
 using BloodDonationSupport.Domain.Addresses.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
@@ -38,7 +37,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
 
             await _context.Addresses.AddAsync(entity);
-
         }
 
         // =========================================================
@@ -208,7 +206,5 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return (domains, total);
         }
-
-        
     }
 }

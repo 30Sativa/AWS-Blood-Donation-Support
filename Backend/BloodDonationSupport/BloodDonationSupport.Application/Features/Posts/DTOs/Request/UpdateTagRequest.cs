@@ -5,4 +5,3 @@ namespace BloodDonationSupport.Application.Features.Posts.DTOs.Request
         public string TagName { get; set; } = string.Empty;
     }
 }
-

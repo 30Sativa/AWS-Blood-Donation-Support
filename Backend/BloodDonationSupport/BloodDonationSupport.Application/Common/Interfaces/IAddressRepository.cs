@@ -24,4 +24,3 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<bool> ExistsAsync(Expression<Func<AddressDomain, bool>> predicate);
     }
 }
-

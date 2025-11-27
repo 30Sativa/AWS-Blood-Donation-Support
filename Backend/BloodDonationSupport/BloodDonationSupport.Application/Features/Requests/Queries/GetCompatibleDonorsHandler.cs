@@ -3,12 +3,6 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Domain.Requests.Services;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
@@ -20,11 +14,10 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
         private readonly BloodMatchingService _matchingService;
         private readonly IAwsRouteCalculator _awsLocation;
 
-
         public GetCompatibleDonorsHandler(
             IRequestRepository requestRepo,
             ICompatibilityRepository compatRepo,
-            IDonorRepository donorRepo, 
+            IDonorRepository donorRepo,
             IAwsRouteCalculator awsLocation)
         {
             _requestRepo = requestRepo;

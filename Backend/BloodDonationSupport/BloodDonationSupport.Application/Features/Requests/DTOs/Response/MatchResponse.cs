@@ -13,4 +13,3 @@ namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
         public DateTime CreatedAt { get; set; }
     }
 }
-

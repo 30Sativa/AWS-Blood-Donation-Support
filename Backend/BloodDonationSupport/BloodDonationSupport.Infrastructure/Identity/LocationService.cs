@@ -175,7 +175,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
 
-
         // ============================================================
         //  GET NEARBY REQUESTS — TO BE IMPLEMENTED LATER
         // ============================================================

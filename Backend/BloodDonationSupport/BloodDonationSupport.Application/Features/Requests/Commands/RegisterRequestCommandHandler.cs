@@ -77,7 +77,6 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             // ====== 6️⃣ Nếu cần, log ID sinh ra ======
             var requestId = newRequest.Id;
 
-
             // ====== 7️⃣ Chuẩn bị response ======
             var response = new RegisterRequestResponse
             {

@@ -3,7 +3,6 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Users.DTOs.Requests;
 using BloodDonationSupport.Domain.Users.ValueObjects;
 using MediatR;
-using System;
 
 namespace BloodDonationSupport.Application.Features.Users.Commands
 {
@@ -92,4 +91,3 @@ namespace BloodDonationSupport.Application.Features.Users.Commands
         }
     }
 }
-

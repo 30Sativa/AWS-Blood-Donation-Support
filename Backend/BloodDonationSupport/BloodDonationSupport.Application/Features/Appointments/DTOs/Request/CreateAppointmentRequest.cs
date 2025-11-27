@@ -9,4 +9,3 @@ namespace BloodDonationSupport.Application.Features.Appointments.DTOs.Request
         public string Status { get; set; } = "SCHEDULED"; // SCHEDULED, COMPLETED, CANCELLED, NO_SHOW
     }
 }
-

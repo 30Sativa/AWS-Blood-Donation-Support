@@ -322,28 +322,64 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
         // =========================
         public void Update(DonorDomain domainEntity)
         {
-            var donor = _context.Donors.FirstOrDefault(d => d.DonorId == domainEntity.Id);
+            var donor = _context.Donors
+                .Include(d => d.DonorAvailabilities)
+                .Include(d => d.DonorHealthConditions)
+                .FirstOrDefault(d => d.DonorId == domainEntity.Id);
+
             if (donor == null) return;
 
+            // ======================
+            // Update donor info
+            // ======================
             donor.IsReady = domainEntity.IsReady;
             donor.NextEligibleDate = domainEntity.NextEligibleDate;
             donor.TravelRadiusKm = domainEntity.TravelRadiusKm;
+            donor.AddressId = domainEntity.AddressId;
+            donor.BloodTypeId = domainEntity.BloodTypeId;
+
             donor.UpdatedAt = DateTime.UtcNow;
             donor.LocationUpdatedAt = domainEntity.LocationUpdatedAt;
 
-            donor.AddressId = domainEntity.AddressId;
-
-            donor.BloodTypeId = domainEntity.BloodTypeId;
-
-            // ✅ Cập nhật vị trí (GeoLocation)
             if (domainEntity.LastKnownLocation != null)
             {
                 donor.Latitude = domainEntity.LastKnownLocation.Latitude;
                 donor.Longitude = domainEntity.LastKnownLocation.Longitude;
             }
 
+            // ======================
+            // Update AVAILABILITIES
+            // ======================
+            donor.DonorAvailabilities.Clear();
+
+            foreach (var a in domainEntity.Availabilities)
+            {
+                donor.DonorAvailabilities.Add(new DonorAvailabilityModel
+                {
+                    DonorId = donor.DonorId,
+                    Weekday = a.Weekday,
+                    TimeFromMin = a.TimeFromMin,
+                    TimeToMin = a.TimeToMin
+                });
+            }
+
+            // ======================
+            // Update HEALTH CONDITIONS
+            // ======================
+            donor.DonorHealthConditions.Clear();
+
+            foreach (var h in domainEntity.HealthConditions)
+            {
+                donor.DonorHealthConditions.Add(new DonorHealthConditionModel
+                {
+                    DonorId = donor.DonorId,
+                    ConditionId = h.ConditionId
+                });
+            }
+
             _context.Donors.Update(donor);
         }
+
 
         // =========================
         // MAPPING FUNCTIONS

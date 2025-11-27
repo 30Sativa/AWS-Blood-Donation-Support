@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Addresses.DTOs
+﻿namespace BloodDonationSupport.Application.Features.Addresses.DTOs
 {
     public class ParsedAddressResult
     {

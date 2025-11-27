@@ -33,7 +33,7 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             CancellationToken cancellationToken)
         {
             _logger.LogInformation("GetCurrentUserProfile - IsAuthenticated: {IsAuth}, CognitoUserId: {CognitoId}, Email: {Email}",
-                _currentUserService.IsAuthenticated, 
+                _currentUserService.IsAuthenticated,
                 _currentUserService.CognitoUserId ?? "null",
                 _currentUserService.Email ?? "null");
 
@@ -51,7 +51,7 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
             }
 
             var profile = await _userProfileRepository.GetByUserIdAsync(user.Id);
-            
+
             // Get roles from database
             var roles = await _userRepository.GetRolesByUserIdAsync(user.Id);
 
@@ -74,4 +74,3 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
         }
     }
 }
-

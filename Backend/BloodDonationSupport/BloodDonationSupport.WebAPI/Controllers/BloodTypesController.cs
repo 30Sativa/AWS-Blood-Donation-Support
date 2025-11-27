@@ -1,6 +1,5 @@
 using BloodDonationSupport.Application.Features.References.Queries;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -24,4 +23,3 @@ namespace BloodDonationSupport.WebAPI.Controllers
         }
     }
 }
-

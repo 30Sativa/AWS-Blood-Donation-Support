@@ -1,6 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
-using BloodDonationSupport.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork

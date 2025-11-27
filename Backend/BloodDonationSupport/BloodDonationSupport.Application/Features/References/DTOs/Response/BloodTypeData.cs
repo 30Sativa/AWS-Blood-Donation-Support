@@ -7,5 +7,3 @@ namespace BloodDonationSupport.Application.Features.References.DTOs.Response
         public string Rh { get; set; } = string.Empty;
     }
 }
-
-

@@ -7,4 +7,3 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<IEnumerable<HealthConditionData>> GetAllAsync();
     }
 }
-

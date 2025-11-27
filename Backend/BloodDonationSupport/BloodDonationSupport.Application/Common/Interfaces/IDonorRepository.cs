@@ -22,17 +22,24 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<bool> ExistsAsync(Expression<Func<DonorDomain, bool>> predicate);
 
         Task<(IEnumerable<DonorDomain> Items, int TotalCount)> GetPagedWithRelationsAsync(int pageNumber, int pageSize);
+
         Task<(IEnumerable<DonorDomain> Items, int TotalCount)> SearchAsync(
             string? keyword,
             int? bloodTypeId,
             bool? isReady,
             int pageNumber,
             int pageSize);
+
         Task<DonorDomain?> GetByIdWithRelationsAsync(long donorId);
+
         Task<DonorDomain?> GetByIdWithAvailabilitiesAsync(long donorId);
+
         Task<DonorDomain?> GetByUserIdAsync(long userId);
+
         Task<DonorDomain?> GetByUserIdWithRelationsAsync(long userId);
+
         Task<long> GetDonorIdByUserIdAsync(long userId);
+
         Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds);
     }
 }

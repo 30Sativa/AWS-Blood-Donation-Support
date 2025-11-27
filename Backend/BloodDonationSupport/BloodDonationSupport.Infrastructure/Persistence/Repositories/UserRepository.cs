@@ -319,7 +319,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 );
             }
 
-
             if (!string.IsNullOrWhiteSpace(roleCode))
             {
                 var normalizedRole = roleCode.Trim().ToUpperInvariant();

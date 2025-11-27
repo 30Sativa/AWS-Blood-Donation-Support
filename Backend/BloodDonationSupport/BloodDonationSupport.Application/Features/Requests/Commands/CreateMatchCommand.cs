@@ -68,7 +68,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             try
             {
                 var matchId = await _matchRepository.AddAsync(matchData);
-                _logger.LogInformation("Match created with ID: {MatchId} for RequestId: {RequestId}, DonorId: {DonorId}", 
+                _logger.LogInformation("Match created with ID: {MatchId} for RequestId: {RequestId}, DonorId: {DonorId}",
                     matchId, command.RequestId, command.Request.DonorId);
 
                 var createdMatch = await _matchRepository.GetByIdAsync(matchId);
@@ -100,4 +100,3 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
         }
     }
 }
-

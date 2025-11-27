@@ -5,4 +5,3 @@ namespace BloodDonationSupport.Application.Features.Users.DTOs.Requests
         public bool IsActive { get; set; }
     }
 }
-

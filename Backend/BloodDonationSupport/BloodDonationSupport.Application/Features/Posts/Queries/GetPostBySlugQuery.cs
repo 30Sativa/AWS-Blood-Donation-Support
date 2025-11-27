@@ -47,4 +47,3 @@ namespace BloodDonationSupport.Application.Features.Posts.Queries
         }
     }
 }
-

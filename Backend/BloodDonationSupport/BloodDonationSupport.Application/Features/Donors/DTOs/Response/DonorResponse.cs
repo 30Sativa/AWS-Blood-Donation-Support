@@ -12,5 +12,4 @@
         public string? AddressDisplay { get; set; }
         public DateTime CreatedAt { get; set; }
     }
-  
 }

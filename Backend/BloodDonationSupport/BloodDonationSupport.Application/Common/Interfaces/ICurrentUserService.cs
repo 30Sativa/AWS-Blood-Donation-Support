@@ -9,4 +9,3 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         bool IsAuthenticated { get; }
     }
 }
-

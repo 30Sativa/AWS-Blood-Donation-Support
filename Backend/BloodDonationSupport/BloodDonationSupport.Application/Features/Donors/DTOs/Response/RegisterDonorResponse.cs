@@ -21,6 +21,4 @@
         public List<DonorAvailabilityResponse>? Availabilities { get; set; }
         public List<DonorHealthConditionItemResponse>? HealthConditions { get; set; }
     }
-
-
 }

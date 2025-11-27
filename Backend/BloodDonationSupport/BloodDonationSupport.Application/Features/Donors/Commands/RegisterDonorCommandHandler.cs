@@ -6,7 +6,6 @@ using BloodDonationSupport.Domain.Addresses.Entities;
 using BloodDonationSupport.Domain.Donors.Entities;
 using BloodDonationSupport.Domain.Shared.ValueObjects;
 using MediatR;
-using System.Linq;
 
 public class RegisterDonorCommandHandler
     : IRequestHandler<RegisterDonorCommand, BaseResponse<RegisterDonorResponse>>

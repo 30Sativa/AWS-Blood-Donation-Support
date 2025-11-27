@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
+﻿namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
 {
     public class NearbyRequestResponse
     {
@@ -22,6 +16,7 @@ namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
 
         // 🔹 Nếu bạn đang gán trong LINQ: QuantityUnits, NeedBeforeUtc, CreatedAt
         public int QuantityUnits { get; set; }
+
         public DateTime? NeedBeforeUtc { get; set; }
         public DateTime CreatedAt { get; set; }
 

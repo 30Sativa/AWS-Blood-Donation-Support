@@ -15,4 +15,3 @@ namespace BloodDonationSupport.Application.Features.Addresses.DTOs.Request
         public double? Longitude { get; set; }
     }
 }
-

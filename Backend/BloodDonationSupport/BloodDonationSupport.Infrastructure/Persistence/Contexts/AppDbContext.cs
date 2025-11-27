@@ -37,7 +37,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
         public virtual DbSet<Reminder> Reminders { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
         public virtual DbSet<CompatibilityMatrix> CompatibilityMatrix { get; set; }
-        
+
         // Blogging
         public virtual DbSet<Post> Posts { get; set; }
 

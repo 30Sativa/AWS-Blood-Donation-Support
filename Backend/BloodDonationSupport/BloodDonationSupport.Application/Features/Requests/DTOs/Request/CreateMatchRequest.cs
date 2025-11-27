@@ -9,4 +9,3 @@ namespace BloodDonationSupport.Application.Features.Requests.DTOs.Request
         public string? Response { get; set; }
     }
 }
-

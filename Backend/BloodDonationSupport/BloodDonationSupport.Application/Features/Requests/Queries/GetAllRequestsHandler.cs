@@ -1,12 +1,7 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Models;
-using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using MediatR;
-using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
@@ -14,12 +9,10 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
     {
         private readonly IRequestRepository _requestRepository;
 
-
         public GetAllRequestsHandler(IRequestRepository requestRepository)
         {
             _requestRepository = requestRepository;
         }
-
 
         public async Task<PaginatedResponse<RequestResponse>> Handle(GetAllRequestsQuery request, CancellationToken cancellationToken)
         {
@@ -47,11 +40,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
                 TotalCount = data.Count
-
             };
-
-
-
         }
     }
 }

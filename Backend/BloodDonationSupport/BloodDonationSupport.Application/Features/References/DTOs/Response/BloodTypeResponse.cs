@@ -8,4 +8,3 @@ namespace BloodDonationSupport.Application.Features.References.DTOs.Response
         public string Description { get; set; } = string.Empty;
     }
 }
-

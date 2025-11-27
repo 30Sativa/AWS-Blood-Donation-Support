@@ -4,8 +4,6 @@ using BloodDonationSupport.WebAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Microsoft.Extensions.DependencyInjection;
-using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,11 +118,11 @@ builder.Services
             OnTokenValidated = context =>
             {
                 var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                
+
                 // Log all claims to debug
                 var allClaims = context.Principal?.Claims?.Select(c => $"{c.Type}={c.Value}").ToList() ?? new List<string>();
                 logger.LogInformation("✅ JWT Token validated - All Claims: {Claims}", string.Join(", ", allClaims));
-                
+
                 var sub = context.Principal?.FindFirst("sub")?.Value;
                 var email = context.Principal?.FindFirst("email")?.Value;
                 logger.LogInformation("✅ JWT Token validated - Sub: {Sub}, Email: {Email}", sub ?? "null", email ?? "null");
@@ -133,15 +131,12 @@ builder.Services
             OnChallenge = context =>
             {
                 var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogWarning("⚠️ JWT Challenge - Error: {Error}, ErrorDescription: {ErrorDescription}", 
+                logger.LogWarning("⚠️ JWT Challenge - Error: {Error}, ErrorDescription: {ErrorDescription}",
                     context.Error, context.ErrorDescription);
                 return Task.CompletedTask;
             }
         };
     });
-
-
-
 
 // =========================================================
 // 🛡️ AUTHORIZATION POLICIES
@@ -151,8 +146,8 @@ builder.Services.AddAuthorization(options =>
     // Admin có quyền làm mọi thứ user làm được
     options.AddPolicy("AdminOrUser", policy =>
         policy.RequireAssertion(context =>
-            context.User.IsInRole("ADMIN") || 
-            context.User.IsInRole("MEMBER") || 
+            context.User.IsInRole("ADMIN") ||
+            context.User.IsInRole("MEMBER") ||
             context.User.IsInRole("STAFF")));
 
     // Chỉ Admin
@@ -162,13 +157,13 @@ builder.Services.AddAuthorization(options =>
     // Admin hoặc Staff
     options.AddPolicy("AdminOrStaff", policy =>
         policy.RequireAssertion(context =>
-            context.User.IsInRole("ADMIN") || 
+            context.User.IsInRole("ADMIN") ||
             context.User.IsInRole("STAFF")));
 
     // User (Member) hoặc Admin
     options.AddPolicy("UserOrAdmin", policy =>
         policy.RequireAssertion(context =>
-            context.User.IsInRole("MEMBER") || 
+            context.User.IsInRole("MEMBER") ||
             context.User.IsInRole("ADMIN")));
 });
 

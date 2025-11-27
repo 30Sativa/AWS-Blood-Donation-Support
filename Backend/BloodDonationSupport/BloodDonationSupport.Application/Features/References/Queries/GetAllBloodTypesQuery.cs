@@ -43,4 +43,3 @@ namespace BloodDonationSupport.Application.Features.References.Queries
         }
     }
 }
-

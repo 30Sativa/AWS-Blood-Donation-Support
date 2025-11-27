@@ -10,4 +10,3 @@ namespace BloodDonationSupport.Application.Common.Interfaces
             int pageSize);
     }
 }
-

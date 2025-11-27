@@ -1,14 +1,7 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Common.Models;
-using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace BloodDonationSupport.Application.Features.Donors.Queries
 {
@@ -20,7 +13,6 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
         {
             _donorRepo = donorRepo;
         }
-
 
         public async Task<PaginatedResponse<DonorResponse>> Handle(SearchDonorsQuery request, CancellationToken cancellationToken)
         {

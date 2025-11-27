@@ -1,7 +1,6 @@
 using BloodDonationSupport.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 using System.Security.Claims;
 
 namespace BloodDonationSupport.Infrastructure.Identity
@@ -77,12 +76,11 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (httpContext?.User?.Claims == null)
                 return null;
 
-            var claim = httpContext.User.Claims.FirstOrDefault(c => 
-                c.Type == claimType || 
+            var claim = httpContext.User.Claims.FirstOrDefault(c =>
+                c.Type == claimType ||
                 c.Type == ClaimTypes.NameIdentifier && claimType == "sub");
-            
+
             return claim?.Value;
         }
     }
 }
-

@@ -43,4 +43,3 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
         }
     }
 }
-
