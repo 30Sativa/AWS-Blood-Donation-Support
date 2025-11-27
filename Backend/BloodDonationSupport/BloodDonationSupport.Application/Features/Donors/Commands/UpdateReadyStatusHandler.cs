@@ -25,12 +25,13 @@ namespace BloodDonationSupport.Application.Features.Donors.Commands
             UpdateReadyStatusCommand command,
             CancellationToken cancellationToken)
         {
-            var donor = await _donorRepo.GetByIdAsync(command.DonorId);
+            // 🔥 FIX: Load đầy đủ relations, tránh mất Availabilities + Conditions
+            var donor = await _donorRepo.GetByIdWithRelationsAsync(command.DonorId);
             if (donor == null)
                 return BaseResponse<string>.FailureResponse("Donor not found.");
 
             // ======================================================
-            // 1) CHECK ELIGIBILITY (DOMAIN RULE)
+            // 1) CHECK ELIGIBILITY
             // ======================================================
             var today = _dateTimeProvider.Today();
 
