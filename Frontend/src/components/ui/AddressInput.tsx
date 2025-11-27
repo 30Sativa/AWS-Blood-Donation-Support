@@ -15,6 +15,8 @@ interface AddressInputProps {
   // New props for simple text input mode
   simpleMode?: boolean;
   onAddressChange?: (address: string) => void; // Callback when address text changes
+  initialFullAddress?: string; // Initial full address string to display
+  disabled?: boolean; // Disable all inputs
 }
 
 // Simple Address Input Component with Province and District selects
@@ -24,12 +26,14 @@ function SimpleAddressInput({
   className,
   onAddressChange,
   onChange,
+  disabled,
 }: {
   label?: string;
   required?: boolean;
   className?: string;
   onAddressChange?: (address: string) => void;
   onChange?: (addressId: number | null, address: Address | null) => void;
+  disabled?: boolean;
 }) {
   const [streetAddress, setStreetAddress] = useState("");
   const [selectedProvince, setSelectedProvince] = useState<string>("");
@@ -130,8 +134,9 @@ function SimpleAddressInput({
           value={streetAddress}
           onChange={(e) => setStreetAddress(e.target.value)}
           placeholder="Số nhà, tên đường"
-          className="w-full border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200"
+          className="w-full border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           required={required}
+          disabled={disabled}
         />
       </div>
 
@@ -146,7 +151,7 @@ function SimpleAddressInput({
           onChange={(e) => setSelectedProvince(e.target.value)}
           className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           required={required}
-          disabled={loadingProvinces}
+          disabled={disabled || loadingProvinces}
         >
           <option value="">-- Chọn Tỉnh/Thành phố --</option>
           {provinces.map((province) => (
@@ -167,7 +172,7 @@ function SimpleAddressInput({
           value={selectedDistrict}
           onChange={(e) => setSelectedDistrict(e.target.value)}
           className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!selectedProvince || loadingDistricts}
+          disabled={disabled || !selectedProvince || loadingDistricts}
         >
           <option value="">-- Chọn Quận/Huyện --</option>
           {districts.map((district) => (
@@ -189,6 +194,8 @@ export function AddressInput({
   className = "",
   simpleMode = false,
   onAddressChange,
+  initialFullAddress,
+  disabled,
 }: AddressInputProps) {
   // Nếu là simple mode, render component đơn giản - return ngay lập tức TRƯỚC KHI gọi bất kỳ hook nào
   if (simpleMode === true) {
@@ -199,6 +206,7 @@ export function AddressInput({
         className={className}
         onAddressChange={onAddressChange}
         onChange={onChange}
+        disabled={disabled}
       />
     );
   }
@@ -230,6 +238,7 @@ export function AddressInput({
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const onAddressChangeRef = useRef(onAddressChange);
+  const lastFullAddressRef = useRef<string>("");
 
   useEffect(() => {
     onAddressChangeRef.current = onAddressChange;
@@ -248,7 +257,13 @@ export function AddressInput({
       manualAddress.country?.trim(),
     ].filter((part) => part && part.length > 0) as string[];
 
-    onAddressChangeRef.current(parts.join(", "));
+    const fullAddress = parts.join(", ");
+    
+    // Chỉ gọi onAddressChange nếu giá trị thực sự thay đổi
+    if (fullAddress !== lastFullAddressRef.current) {
+      lastFullAddressRef.current = fullAddress;
+      onAddressChangeRef.current(fullAddress);
+    }
   }, [manualAddress]);
 
   // Load provinces on mount
@@ -301,9 +316,191 @@ export function AddressInput({
     loadDistricts();
   }, [selectedProvinceCode, provinces]);
 
-  // Load existing address from API using /api/Addresses/me
+  // Parse initialFullAddress and set to manualAddress when available
+  // Chỉ parse một lần khi có initialFullAddress và provinces đã load
+  const [hasParsedInitialAddress, setHasParsedInitialAddress] = useState(false);
+  
   useEffect(() => {
-    const loadAddress = async () => {
+    if (initialFullAddress && initialFullAddress.trim() && provinces.length > 0 && !hasParsedInitialAddress) {
+      const parseAddress = async () => {
+        // Parse fullAddress string (format: "line1, district, city, province, city2, postalCode, country")
+        // Example: "235 Đường Đồng Khởi, Bến Nghé, Quận 1, Thành Phố Hồ Chí Minh, Hồ Chí Minh, 71006, VNM"
+        const parts = initialFullAddress.split(",").map(p => p.trim()).filter(p => p);
+        
+        if (parts.length > 0) {
+          let line1 = parts[0] || "";
+          let district = "";
+          let city = "";
+          let province = "";
+          let country = "Vietnam";
+          let postalCode = "";
+          
+          // Tìm province (thường có "Thành phố" hoặc "Tỉnh" ở đầu)
+          const provinceIndex = parts.findIndex(p => 
+            p.includes("Thành phố") || p.includes("Tỉnh") || 
+            p.includes("Thành Phố") || p.includes("TP")
+          );
+          
+          if (provinceIndex >= 0) {
+            province = parts[provinceIndex];
+            // District thường là phần trước province
+            if (provinceIndex > 1) {
+              district = parts[provinceIndex - 1];
+            } else if (provinceIndex === 1) {
+              district = parts[0];
+            }
+            // City có thể là phần sau province hoặc giống province
+            if (provinceIndex + 1 < parts.length) {
+              const nextPart = parts[provinceIndex + 1];
+              // Nếu không phải số (postal code) và không phải country code
+              if (!/^\d+$/.test(nextPart) && nextPart.length > 2) {
+                city = nextPart;
+              }
+            }
+            if (!city) city = province;
+          } else {
+            // Fallback: giả định format đơn giản hơn
+            line1 = parts[0] || "";
+            district = parts[1] || "";
+            city = parts[2] || parts[1] || "";
+            province = parts[3] || parts[2] || "";
+            country = parts[parts.length - 1] || "Vietnam";
+          }
+          
+          // Tìm postal code (số có 5-6 chữ số)
+          const postalCodeIndex = parts.findIndex(p => /^\d{5,6}$/.test(p));
+          if (postalCodeIndex >= 0) {
+            postalCode = parts[postalCodeIndex];
+          }
+          
+          // Tìm country (thường là phần cuối, 2-3 chữ cái hoặc "Vietnam")
+          const countryIndex = parts.findIndex(p => 
+            p === "Vietnam" || p === "VNM" || p.length === 2 || p.length === 3
+          );
+          if (countryIndex >= 0 && countryIndex === parts.length - 1) {
+            country = parts[countryIndex] === "VNM" ? "Vietnam" : parts[countryIndex];
+          }
+          
+          const newManualAddress = {
+            line1,
+            district,
+            city,
+            province,
+            country,
+            postalCode,
+          };
+          
+          setManualAddress(newManualAddress);
+          setHasParsedInitialAddress(true);
+          
+          // Try to match province
+          if (newManualAddress.province) {
+            const province = provinces.find(
+              p => p.name === newManualAddress.province || 
+                   newManualAddress.province?.includes(p.name) ||
+                   p.name.includes(newManualAddress.province) ||
+                   newManualAddress.province.replace("Thành phố", "").trim() === p.name ||
+                   newManualAddress.province.replace("Thành Phố", "").trim() === p.name ||
+                   newManualAddress.province.replace("TP", "").trim() === p.name
+            );
+            if (province) {
+              setSelectedProvinceCode(province.code);
+              // Load districts for this province
+              try {
+                const districtsData = await locationDataService.getDistrictsByProvince(province.code);
+                setDistricts(districtsData);
+                
+                // Try to find and select district by name
+                if (newManualAddress.district && districtsData.length > 0) {
+                  const district = districtsData.find(
+                    d => d.name === newManualAddress.district ||
+                         (newManualAddress.district && newManualAddress.district.includes(d.name)) ||
+                         (newManualAddress.district && d.name.includes(newManualAddress.district)) ||
+                         newManualAddress.district.replace("Quận", "").trim() === d.name ||
+                         newManualAddress.district.replace("Huyện", "").trim() === d.name
+                  );
+                  if (district) {
+                    setSelectedDistrictCode(district.code);
+                  }
+                }
+              } catch (err) {
+                console.error("Error loading districts:", err);
+              }
+            }
+          }
+        }
+      };
+      
+      parseAddress();
+    }
+  }, [initialFullAddress, provinces, hasParsedInitialAddress]);
+  
+  // Reset hasParsedInitialAddress khi initialFullAddress thay đổi từ bên ngoài
+  // Chỉ reset nếu giá trị thực sự khác với giá trị hiện tại (từ parent, không phải từ user input)
+  const lastInitialFullAddressRef = useRef<string>("");
+  const [userHasEdited, setUserHasEdited] = useState(false);
+  
+  useEffect(() => {
+    const currentInitial = initialFullAddress || "";
+    const lastInitial = lastInitialFullAddressRef.current;
+    
+    // Nếu initialFullAddress thay đổi đáng kể (khác hoàn toàn, không phải chỉ thêm/bớt một vài ký tự)
+    // thì reset userHasEdited vì đây là dữ liệu mới từ parent
+    if (currentInitial !== lastInitial) {
+      // Nếu thay đổi đáng kể (ví dụ: khác hơn 50% độ dài), reset userHasEdited
+      const significantChange = 
+        Math.abs(currentInitial.length - lastInitial.length) > Math.max(currentInitial.length, lastInitial.length) * 0.3 ||
+        (currentInitial && lastInitial && !currentInitial.includes(lastInitial) && !lastInitial.includes(currentInitial));
+      
+      if (significantChange) {
+        setUserHasEdited(false);
+      }
+      
+      // Chỉ reset hasParsedInitialAddress nếu user chưa chỉnh sửa hoặc có thay đổi đáng kể
+      if (!userHasEdited || significantChange) {
+        lastInitialFullAddressRef.current = currentInitial;
+        setHasParsedInitialAddress(false);
+      }
+    }
+  }, [initialFullAddress, userHasEdited]);
+
+  // Load existing address from API using /api/Addresses/me
+  // Chỉ load từ API nếu không có initialFullAddress hoặc initialFullAddress rỗng
+  const hasLoadedFromApiRef = useRef(false);
+  const lastInitialFullAddressForApiRef = useRef<string>("");
+  
+  useEffect(() => {
+    const currentInitial = initialFullAddress || "";
+    const lastInitial = lastInitialFullAddressForApiRef.current;
+    
+    // Nếu initialFullAddress thay đổi từ có sang không (hoặc ngược lại), reset ref để có thể load lại
+    const hasInitialChanged = (currentInitial.trim() && !lastInitial.trim()) || 
+                              (!currentInitial.trim() && lastInitial.trim());
+    
+    if (hasInitialChanged) {
+      hasLoadedFromApiRef.current = false;
+      lastInitialFullAddressForApiRef.current = currentInitial;
+    }
+    
+    // Nếu đã load từ API rồi và initialFullAddress không thay đổi đáng kể, không load lại
+    if (hasLoadedFromApiRef.current && !hasInitialChanged) {
+      return;
+    }
+    
+    // Nếu có initialFullAddress và đã parse xong, skip load từ API
+    if (initialFullAddress && initialFullAddress.trim()) {
+      setHasLoaded(true);
+      hasLoadedFromApiRef.current = true;
+      lastInitialFullAddressForApiRef.current = currentInitial;
+      return;
+    }
+    
+    // Nếu chưa có initialFullAddress, load từ API (chỉ một lần)
+    if (!initialFullAddress || !initialFullAddress.trim()) {
+      hasLoadedFromApiRef.current = true; // Đánh dấu đang load để tránh load lại
+      lastInitialFullAddressForApiRef.current = currentInitial;
+      
+      const loadAddress = async () => {
       try {
         setIsLoading(true);
         setError("");
@@ -417,8 +614,9 @@ export function AddressInput({
       }
     };
 
-    loadAddress();
-  }, []); // Chỉ chạy một lần khi component mount, không phụ thuộc vào value
+      loadAddress();
+    }
+  }, [initialFullAddress, provinces]); // Chỉ load khi initialFullAddress hoặc provinces thay đổi, không phụ thuộc vào manualAddress
 
   // Match province và district sau khi provinces đã load
   useEffect(() => {
@@ -508,11 +706,13 @@ export function AddressInput({
                 <Input
                   id="line1"
                   value={manualAddress.line1}
-                  onChange={(e) =>
-                    setManualAddress({ ...manualAddress, line1: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setUserHasEdited(true);
+                    setManualAddress({ ...manualAddress, line1: e.target.value });
+                  }}
                   placeholder="Số nhà, tên đường"
-                  className={`border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200 ${validationErrors.line1 ? "border-red-500" : ""}`}
+                  className={`border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${validationErrors.line1 ? "border-red-500" : ""}`}
+                  disabled={disabled}
                 />
                 {validationErrors.line1 && (
                   <p className="text-xs text-red-600">{validationErrors.line1}</p>
@@ -527,8 +727,8 @@ export function AddressInput({
                   <div
                     className={`flex items-center border rounded-md cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/20 transition-all duration-200 ${
                       validationErrors.province ? "border-red-500" : "border-gray-300"
-                    } ${loadingProvinces ? "opacity-50" : ""}`}
-                    onClick={() => !loadingProvinces && setShowProvinceDropdown(!showProvinceDropdown)}
+                    } ${loadingProvinces || disabled ? "opacity-50" : ""}`}
+                    onClick={() => !loadingProvinces && !disabled && setShowProvinceDropdown(!showProvinceDropdown)}
                   >
                     <Input
                       type="text"
@@ -548,8 +748,8 @@ export function AddressInput({
                         setShowProvinceDropdown(true);
                         setProvinceSearch("");
                       }}
-                      className="border-0 focus:ring-0 cursor-pointer"
-                      disabled={loadingProvinces}
+                      className="border-0 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={disabled || loadingProvinces}
                     />
                     <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
                   </div>
@@ -584,6 +784,7 @@ export function AddressInput({
                               key={province.code}
                               type="button"
                               onClick={() => {
+                                setUserHasEdited(true);
                                 setSelectedProvinceCode(province.code);
                                 setProvinceSearch("");
                                 setShowProvinceDropdown(false);
@@ -612,11 +813,12 @@ export function AddressInput({
                 <div className="relative" ref={districtDropdownRef}>
                   <div
                     className={`flex items-center border rounded-md cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/20 transition-all duration-200 ${
-                      !selectedProvinceCode || loadingDistricts ? "opacity-50" : ""
+                      !selectedProvinceCode || loadingDistricts || disabled ? "opacity-50" : ""
                     } border-gray-300`}
                     onClick={() =>
                       selectedProvinceCode &&
                       !loadingDistricts &&
+                      !disabled &&
                       setShowDistrictDropdown(!showDistrictDropdown)
                     }
                   >
@@ -644,8 +846,8 @@ export function AddressInput({
                           setDistrictSearch("");
                         }
                       }}
-                      className="border-0 focus:ring-0 cursor-pointer"
-                      disabled={!selectedProvinceCode || loadingDistricts}
+                      className="border-0 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={disabled || !selectedProvinceCode || loadingDistricts}
                     />
                     <ChevronDown className="w-5 h-5 text-gray-400 mr-2 pointer-events-none" />
                   </div>
@@ -680,6 +882,7 @@ export function AddressInput({
                               key={district.code}
                               type="button"
                               onClick={() => {
+                                setUserHasEdited(true);
                                 setSelectedDistrictCode(district.code);
                                 setDistrictSearch("");
                                 setShowDistrictDropdown(false);

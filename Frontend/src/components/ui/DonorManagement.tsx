@@ -1,13 +1,20 @@
 // src/components/ui/DonorManagement.tsx
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "./button";
 import { Label } from "./label";
 import { Input } from "./input";
 import { Select } from "./select";
 import { Checkbox } from "./checkbox";
-import { Heart, Loader2, AlertCircle } from "lucide-react";
+import { Heart, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { donorService } from "@/services/donorService";
 import { AddressInput } from "./AddressInput";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./dialog";
 import type {
   Donor,
   RegisterDonorRequest,
@@ -77,14 +84,36 @@ export function DonorManagement({
   const [loading, setLoading] = useState(false);
   const [loadingDonor, setLoadingDonor] = useState(true);
   const [loadingReference, setLoadingReference] = useState(true);
-  const [error, setError] = useState("");
+  const [_error, setError] = useState("");
   const [referenceError, setReferenceError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [_success, setSuccess] = useState("");
   const [readyStatusLoading, setReadyStatusLoading] = useState(false);
   const [bloodTypes, setBloodTypes] = useState<BloodType[]>([]);
   const [healthConditions, setHealthConditions] = useState<HealthCondition[]>(
     []
   );
+  
+  // Notification dialog state
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationType, setNotificationType] = useState<"success" | "error" | "warning">("success");
+
+  // Helper function to show notification
+  const showNotification = useCallback((message: string, type: "success" | "error" | "warning" = "success") => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setNotificationOpen(true);
+  }, []);
+
+  // Auto close notification after 3 seconds
+  useEffect(() => {
+    if (notificationOpen) {
+      const timer = setTimeout(() => {
+        setNotificationOpen(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notificationOpen]);
 
   // Form state
   const [formData, setFormData] = useState<DonorFormState>({
@@ -158,9 +187,35 @@ export function DonorManagement({
           response = await donorService.getDonorByUserId(userId);
         }
         if (response && response.success && response.data) {
-          const donorData = response.data;
+          let donorData = response.data;
+          
+          // Nếu healthConditions hoặc availabilities rỗng, thử load lại bằng getDonorById
+          if ((!donorData.healthConditions || donorData.healthConditions.length === 0) &&
+              (!donorData.availabilities || donorData.availabilities.length === 0)) {
+            const donorId = donorData.donorId || donorData.id;
+            if (donorId) {
+              try {
+                const fullResponse = await donorService.getDonorById(donorId);
+                if (fullResponse && fullResponse.success && fullResponse.data) {
+                  console.log("[DEBUG] Loaded full donor data by ID:", fullResponse.data);
+                  donorData = fullResponse.data;
+                }
+              } catch (err) {
+                console.log("[DEBUG] Failed to load full donor data by ID:", err);
+              }
+            }
+          }
+          
           setDonor(donorData);
 
+          console.log("[DEBUG] Donor data from API:", {
+            healthConditions: donorData.healthConditions,
+            healthConditionIds: donorData.healthConditionIds,
+            availabilities: donorData.availabilities,
+            fullData: donorData
+          });
+
+          // Tạm thời dùng conditionId trực tiếp, sẽ map lại sau khi healthConditions list được load
           const healthConditionIds = donorData.healthConditions
             ? donorData.healthConditions.map((hc) => hc.conditionId)
             : donorData.healthConditionIds || [];
@@ -169,6 +224,11 @@ export function DonorManagement({
             ? Array.from(new Set(donorData.availabilities.map((slot) => slot.weekday)))
             : [];
           const firstSlot = donorData.availabilities?.[0];
+
+          console.log("[DEBUG] Setting formData with:", {
+            healthConditionIds,
+            availabilities: donorData.availabilities || [],
+          });
 
           setFormData({
             bloodTypeId: donorData.bloodTypeId || 0,
@@ -202,13 +262,79 @@ export function DonorManagement({
     loadDonor();
   }, [loadDonor]);
 
+  // Sync healthConditionIds and availabilities when donor and reference data are loaded
+  // Chỉ sync một lần khi cả donor và healthConditions đều có
+  const hasSyncedRef = useRef(false);
+  const lastDonorIdRef = useRef<number | null>(null);
+  
+  useEffect(() => {
+    const donorId = donor?.donorId || donor?.id || null;
+    
+    // Reset sync flag nếu donor thay đổi
+    if (donorId !== lastDonorIdRef.current) {
+      hasSyncedRef.current = false;
+      lastDonorIdRef.current = donorId;
+    }
+    
+    console.log("[DEBUG] Sync check:", {
+      hasDonor: !!donor,
+      healthConditionsLength: healthConditions.length,
+      hasSynced: hasSyncedRef.current,
+      donorHealthConditions: donor?.healthConditions,
+      donorAvailabilities: donor?.availabilities,
+      currentFormHealthIds: formData.healthConditionIds,
+      currentFormAvailabilities: formData.availabilities,
+    });
+    
+    if (donor && healthConditions.length > 0 && !hasSyncedRef.current) {
+      // Re-map healthConditionIds from donor data
+      // API trả về conditionId, nhưng healthConditions list có id
+      // Cần map conditionId từ API sang id trong healthConditions list
+      let healthConditionIds: number[] = [];
+      
+      if (donor.healthConditions && donor.healthConditions.length > 0) {
+        console.log("[DEBUG] Mapping healthConditions:", {
+          donorHealthConditions: donor.healthConditions,
+          healthConditionsList: healthConditions.map(hc => ({ id: hc.id, name: hc.name }))
+        });
+        // Map conditionId từ API sang id trong healthConditions list
+        healthConditionIds = donor.healthConditions
+          .map((apiHc) => {
+            // Tìm healthCondition trong list có conditionId trùng với apiHc.conditionId
+            const matched = healthConditions.find(hc => hc.id === apiHc.conditionId);
+            return matched ? matched.id : apiHc.conditionId;
+          })
+          .filter(id => id > 0);
+      } else if (donor.healthConditionIds && donor.healthConditionIds.length > 0) {
+        healthConditionIds = donor.healthConditionIds;
+      }
+      
+      const availabilities = donor.availabilities || [];
+      
+      console.log("[DEBUG] Syncing formData:", {
+        healthConditionIds,
+        availabilities,
+        previousHealthIds: formData.healthConditionIds,
+        previousAvailabilities: formData.availabilities,
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        healthConditionIds,
+        availabilities,
+      }));
+      
+      hasSyncedRef.current = true;
+    }
+  }, [donor, healthConditions]);
+
   const handleRegister = async () => {
     if (!formData.fullAddress || !formData.fullAddress.trim()) {
-      setError("Vui lòng nhập địa chỉ đầy đủ trước khi đăng ký làm donor.");
+      showNotification("Vui lòng nhập địa chỉ đầy đủ trước khi đăng ký làm donor.", "error");
       return;
     }
     if (!formData.bloodTypeId) {
-      setError("Vui lòng chọn nhóm máu.");
+      showNotification("Vui lòng chọn nhóm máu.", "error");
       return;
     }
 
@@ -234,13 +360,13 @@ export function DonorManagement({
       const response = await donorService.registerDonor(registerData);
       if (response.success && response.data) {
         await loadDonor({ showSpinner: false });
-        setSuccess("Đăng ký làm donor thành công!");
+        showNotification("Đăng ký làm donor thành công!", "success");
       } else {
-        setError(response.message || "Đăng ký thất bại");
+        showNotification(response.message || "Đăng ký thất bại", "error");
       }
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi đăng ký donor";
-      setError(errorMessage);
+      showNotification(errorMessage, "error");
       console.error("Error registering donor:", err);
     } finally {
       setLoading(false);
@@ -287,18 +413,18 @@ export function DonorManagement({
   const handleUpdate = async () => {
     const donorId = donor?.donorId || donor?.id;
     if (!donorId) {
-      setError("Không tìm thấy thông tin donor");
+      showNotification("Không tìm thấy thông tin donor", "error");
       return;
     }
     if (donor?.isReady) {
-      setError("Vui lòng tạm tắt trạng thái sẵn sàng trước khi cập nhật thông tin.");
+      showNotification("Vui lòng tạm tắt trạng thái sẵn sàng trước khi cập nhật thông tin.", "warning");
       return;
     }
 
     // Validate availability slots if present
     for (const slot of formData.availabilities) {
       if (slot.timeFromMin >= slot.timeToMin) {
-        setError("Giờ bắt đầu phải nhỏ hơn giờ kết thúc trong lịch sẵn sàng.");
+        showNotification("Giờ bắt đầu phải nhỏ hơn giờ kết thúc trong lịch sẵn sàng.", "error");
         return;
       }
     }
@@ -326,16 +452,16 @@ export function DonorManagement({
       const response = await donorService.updateMyDonor(donorId, updateData);
       if (response.success && response.data) {
         await loadDonor({ showSpinner: false });
-        setSuccess("Cập nhật thông tin donor thành công!");
+        showNotification("Cập nhật thông tin donor thành công!", "success");
       } else {
-        setError(response.message || "Cập nhật thất bại");
+        showNotification(response.message || "Cập nhật thất bại", "error");
       }
     } catch (err: any) {
       const serverMessage =
         err?.response?.data?.message ||
         (err instanceof Error ? err.message : "") ||
         "Đã xảy ra lỗi khi cập nhật donor";
-      setError(serverMessage);
+      showNotification(serverMessage, "error");
       console.error("Error updating donor:", err);
     } finally {
       setLoading(false);
@@ -355,16 +481,17 @@ export function DonorManagement({
         isReady: newReadyStatus,
       });
       if (response.success && response.data) {
+        // Chỉ update isReady, không reload toàn bộ để tránh mất dữ liệu availabilities và healthConditions
+        setDonor((prev) => prev ? { ...prev, isReady: newReadyStatus } : null);
         setFormData((prev) => ({ ...prev, isReady: newReadyStatus }));
-        await loadDonor({ showSpinner: false });
-        setSuccess(`Đã ${newReadyStatus ? "bật" : "tắt"} trạng thái sẵn sàng hiến máu`);
+        showNotification(`Đã ${newReadyStatus ? "bật" : "tắt"} trạng thái sẵn sàng hiến máu`, "success");
       } else {
-        setError(response.message || "Không thể cập nhật trạng thái");
+        showNotification(response.message || "Không thể cập nhật trạng thái", "error");
       }
     } catch (err: any) {
       const errorMessage =
         err?.response?.data?.message || err?.message || "Không thể cập nhật trạng thái";
-      setError(errorMessage);
+      showNotification(errorMessage, "error");
     } finally {
       setReadyStatusLoading(false);
     }
@@ -414,17 +541,42 @@ export function DonorManagement({
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
-          {success}
-        </div>
-      )}
+      {/* Notification Dialog */}
+      <Dialog open={notificationOpen} onOpenChange={setNotificationOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {notificationType === "success" && (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              )}
+              {notificationType === "error" && (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              )}
+              {notificationType === "warning" && (
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+              )}
+              <span
+                className={
+                  notificationType === "success"
+                    ? "text-green-600"
+                    : notificationType === "error"
+                    ? "text-red-600"
+                    : "text-orange-600"
+                }
+              >
+                {notificationType === "success"
+                  ? "Thành công"
+                  : notificationType === "error"
+                  ? "Lỗi"
+                  : "Cảnh báo"}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-base">
+              {notificationMessage}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
       {donor ? (
         // Đã đăng ký làm donor - hiển thị thông tin và form update
@@ -621,7 +773,8 @@ export function DonorManagement({
                   onChange={(e) =>
                     setFormData({ ...formData, travelRadiusKm: Number(e.target.value) })
                   }
-                  className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500/20"
+                  disabled={donor?.isReady}
+                  className="w-full border-gray-300 focus:border-red-500 focus:ring-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-xs text-gray-500">
                   Hệ thống ưu tiên mời bạn trong phạm vi bán kính này.
@@ -637,6 +790,7 @@ export function DonorManagement({
                 </div>
                 <AddressInput
                   value={formData.addressId || null}
+                  initialFullAddress={formData.fullAddress}
                   onChange={(newAddressId) => {
                     setFormData((prev) => ({ ...prev, addressId: newAddressId || 0 }));
                     if (onAddressChange) {
@@ -647,6 +801,7 @@ export function DonorManagement({
                     setFormData((prev) => ({ ...prev, fullAddress: fullAddressText }));
                   }}
                   className="w-full"
+                  disabled={donor?.isReady}
                 />
               </div>
             </div>
@@ -687,6 +842,7 @@ export function DonorManagement({
                           });
                         }
                       }}
+                      disabled={donor?.isReady}
                     />
                     <Label
                       htmlFor={`health-${hc.id}`}
@@ -712,6 +868,7 @@ export function DonorManagement({
                   variant="outline"
                   className="text-sm"
                   onClick={handleAddAvailability}
+                  disabled={donor?.isReady}
                 >
                   Thêm khung giờ
                 </Button>
@@ -734,7 +891,8 @@ export function DonorManagement({
                           onChange={(e) =>
                             handleAvailabilityUpdate(index, "weekday", Number(e.target.value))
                           }
-                          className="w-full"
+                          className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={donor?.isReady}
                         >
                           {WEEKDAYS.map((day) => (
                             <option key={day.value} value={day.value}>
@@ -753,6 +911,8 @@ export function DonorManagement({
                           onChange={(e) =>
                             handleAvailabilityUpdate(index, "timeFromMin", e.target.value)
                           }
+                          disabled={donor?.isReady}
+                          className="disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
                       <div className="space-y-1">
@@ -765,6 +925,8 @@ export function DonorManagement({
                           onChange={(e) =>
                             handleAvailabilityUpdate(index, "timeToMin", e.target.value)
                           }
+                          disabled={donor?.isReady}
+                          className="disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
                       <Button
@@ -772,6 +934,7 @@ export function DonorManagement({
                         variant="ghost"
                         className="text-red-600"
                         onClick={() => handleRemoveAvailability(index)}
+                        disabled={donor?.isReady}
                       >
                         Xóa
                       </Button>
