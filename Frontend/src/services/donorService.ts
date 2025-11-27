@@ -68,13 +68,19 @@ export const donorService = {
   },
 
   /**
-   * Cập nhật thông tin donor của user hiện tại
-   * PUT /api/Donors/me
+   * Cập nhật thông tin donor (yêu cầu donorId)
+   * PUT /api/Donors/{id}
    */
-  async updateMyDonor(data: UpdateDonorRequest): Promise<DonorResponse> {
+  async updateMyDonor(
+    donorId: number,
+    data: UpdateDonorRequest
+  ): Promise<DonorResponse> {
     try {
+      if (!donorId) {
+        throw new Error("donorId is required to update donor information");
+      }
       const response = await apiClient.put<DonorResponse>(
-        "/api/Donors/me",
+        `/api/Donors/${donorId}`,
         data
       );
 

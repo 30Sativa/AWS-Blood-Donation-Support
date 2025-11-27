@@ -57,6 +57,7 @@ function timeToMinutes(value: string) {
 interface DonorFormState {
   bloodTypeId: number;
   addressId: number;
+  fullAddress: string;
   travelRadiusKm: number;
   isReady: boolean;
   nextEligibleDate: string;
@@ -89,6 +90,7 @@ export function DonorManagement({
   const [formData, setFormData] = useState<DonorFormState>({
     bloodTypeId: 0,
     addressId: addressId || 0,
+    fullAddress: "",
     travelRadiusKm: 10,
     isReady: false,
     nextEligibleDate: "",
@@ -171,6 +173,7 @@ export function DonorManagement({
           setFormData({
             bloodTypeId: donorData.bloodTypeId || 0,
             addressId: donorData.addressId || addressId || 0,
+            fullAddress: donorData.addressDisplay || "",
             travelRadiusKm: donorData.travelRadiusKm || donorData.travelRadiuskm || 10,
             isReady: donorData.isReady || false,
             nextEligibleDate: donorData.nextEligibleDate || "",
@@ -200,8 +203,8 @@ export function DonorManagement({
   }, [loadDonor]);
 
   const handleRegister = async () => {
-    if (!formData.addressId) {
-      setError("Vui lòng thêm địa chỉ trước khi đăng ký làm donor.");
+    if (!formData.fullAddress || !formData.fullAddress.trim()) {
+      setError("Vui lòng nhập địa chỉ đầy đủ trước khi đăng ký làm donor.");
       return;
     }
     if (!formData.bloodTypeId) {
@@ -217,14 +220,10 @@ export function DonorManagement({
       const registerData: RegisterDonorRequest = {
         userId,
         bloodTypeId: formData.bloodTypeId,
-        addressId: formData.addressId,
         travelRadiusKm: formData.travelRadiusKm,
-        isReady: formData.isReady,
+        fullAddress: formData.fullAddress.trim(),
       };
 
-      if (formData.nextEligibleDate) {
-        registerData.nextEligibleDate = formData.nextEligibleDate;
-      }
       if (formData.availabilities.length > 0) {
         registerData.availabilities = formData.availabilities;
       }
@@ -286,8 +285,13 @@ export function DonorManagement({
   };
 
   const handleUpdate = async () => {
-    if (!donor?.donorId && !donor?.id) {
+    const donorId = donor?.donorId || donor?.id;
+    if (!donorId) {
       setError("Không tìm thấy thông tin donor");
+      return;
+    }
+    if (donor?.isReady) {
+      setError("Vui lòng tạm tắt trạng thái sẵn sàng trước khi cập nhật thông tin.");
       return;
     }
 
@@ -305,22 +309,21 @@ export function DonorManagement({
       setSuccess("");
 
       const updateData: UpdateDonorRequest = {
-        addressId: formData.addressId || undefined,
-        travelRadiusKm: formData.travelRadiusKm,
-        isReady: formData.isReady,
+        travelRadiusKm: Number.isFinite(formData.travelRadiusKm)
+          ? formData.travelRadiusKm
+          : undefined,
+        availabilities: formData.availabilities,
+        healthConditionIds: formData.healthConditionIds,
       };
 
-      if (formData.nextEligibleDate) {
-        updateData.nextEligibleDate = formData.nextEligibleDate;
+      if (formData.bloodTypeId) {
+        updateData.bloodTypeId = formData.bloodTypeId;
       }
-      if (formData.availabilities.length > 0) {
-        updateData.availabilities = formData.availabilities;
-      }
-      if (formData.healthConditionIds.length > 0) {
-        updateData.healthConditionIds = formData.healthConditionIds;
+      if (formData.fullAddress?.trim()) {
+        updateData.fullAddress = formData.fullAddress.trim();
       }
 
-      const response = await donorService.updateMyDonor(updateData);
+      const response = await donorService.updateMyDonor(donorId, updateData);
       if (response.success && response.data) {
         await loadDonor({ showSpinner: false });
         setSuccess("Cập nhật thông tin donor thành công!");
@@ -328,8 +331,11 @@ export function DonorManagement({
         setError(response.message || "Cập nhật thất bại");
       }
     } catch (err: any) {
-      const errorMessage = err instanceof Error ? err.message : "Đã xảy ra lỗi khi cập nhật donor";
-      setError(errorMessage);
+      const serverMessage =
+        err?.response?.data?.message ||
+        (err instanceof Error ? err.message : "") ||
+        "Đã xảy ra lỗi khi cập nhật donor";
+      setError(serverMessage);
       console.error("Error updating donor:", err);
     } finally {
       setLoading(false);
@@ -632,10 +638,13 @@ export function DonorManagement({
                 <AddressInput
                   value={formData.addressId || null}
                   onChange={(newAddressId) => {
-                    setFormData({ ...formData, addressId: newAddressId || 0 });
+                    setFormData((prev) => ({ ...prev, addressId: newAddressId || 0 }));
                     if (onAddressChange) {
                       onAddressChange(newAddressId);
                     }
+                  }}
+                  onAddressChange={(fullAddressText) => {
+                    setFormData((prev) => ({ ...prev, fullAddress: fullAddressText }));
                   }}
                   className="w-full"
                 />
@@ -776,7 +785,7 @@ export function DonorManagement({
               <Button
                 type="button"
                 onClick={handleUpdate}
-                disabled={loading}
+                disabled={loading || donor?.isReady}
                 className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 {loading ? (
@@ -788,6 +797,11 @@ export function DonorManagement({
                   "Cập nhật thông tin"
                 )}
               </Button>
+              {donor?.isReady && (
+                <p className="text-xs text-gray-500 self-center">
+                  Tạm tắt trạng thái sẵn sàng để chỉnh sửa thông tin.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -885,14 +899,17 @@ export function DonorManagement({
               <AddressInput
                 value={formData.addressId || null}
                 onChange={(newAddressId) => {
-                  setFormData({ ...formData, addressId: newAddressId || 0 });
+                  setFormData((prev) => ({ ...prev, addressId: newAddressId || 0 }));
                   if (onAddressChange) {
                     onAddressChange(newAddressId);
                   }
                 }}
+                onAddressChange={(fullAddressText) => {
+                  setFormData((prev) => ({ ...prev, fullAddress: fullAddressText }));
+                }}
                 className="w-full"
               />
-              {!formData.addressId && (
+              {!formData.fullAddress.trim() && (
                 <p className="text-xs text-red-600">
                   Vui lòng thêm địa chỉ trước khi đăng ký làm donor
                 </p>
@@ -935,7 +952,9 @@ export function DonorManagement({
               <Button
                 type="button"
                 onClick={handleRegister}
-                disabled={loading || !formData.addressId || !formData.bloodTypeId}
+                disabled={
+                  loading || !formData.bloodTypeId || !formData.fullAddress.trim()
+                }
                 className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 {loading ? (

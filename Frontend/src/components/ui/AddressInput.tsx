@@ -229,6 +229,27 @@ export function AddressInput({
     postalCode: "",
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const onAddressChangeRef = useRef(onAddressChange);
+
+  useEffect(() => {
+    onAddressChangeRef.current = onAddressChange;
+  }, [onAddressChange]);
+
+  useEffect(() => {
+    if (!onAddressChangeRef.current) {
+      return;
+    }
+
+    const parts = [
+      manualAddress.line1?.trim(),
+      manualAddress.district?.trim(),
+      manualAddress.city?.trim(),
+      manualAddress.province?.trim(),
+      manualAddress.country?.trim(),
+    ].filter((part) => part && part.length > 0) as string[];
+
+    onAddressChangeRef.current(parts.join(", "));
+  }, [manualAddress]);
 
   // Load provinces on mount
   useEffect(() => {

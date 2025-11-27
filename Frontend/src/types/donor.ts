@@ -41,21 +41,14 @@ export interface RegisterDonorRequest {
   bloodTypeId: number;
   travelRadiusKm: number;
   fullAddress?: string;
-  addressId?: number;
-  isReady?: boolean;
-  nextEligibleDate?: string;
   availabilities?: Availability[];
   healthConditionIds?: number[];
 }
 
 export interface UpdateDonorRequest {
   bloodTypeId?: number;
-  addressId?: number;
+  fullAddress?: string;
   travelRadiusKm?: number;
-  latitude?: number;
-  longitude?: number;
-  isReady?: boolean;
-  nextEligibleDate?: string;
   availabilities?: Availability[];
   healthConditionIds?: number[];
 }
