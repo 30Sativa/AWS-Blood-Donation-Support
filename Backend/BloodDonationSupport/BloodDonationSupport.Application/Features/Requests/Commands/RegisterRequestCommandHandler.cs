@@ -70,7 +70,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             if (address.Latitude == 0 || address.Longitude == 0)
                 return BaseResponse<RegisterRequestResponse>.FailureResponse("Address does not contain coordinates.");
 
-            newRequest.SetLocation(address.Latitude.Value, address.Longitude.Value);
+            newRequest.SetLocation(address.Latitude, address.Longitude);
 
             // 6) Start matching pipeline
             newRequest.StartMatching();

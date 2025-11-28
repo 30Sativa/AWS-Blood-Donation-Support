@@ -13,8 +13,6 @@ namespace BloodDonationSupport.Domain.Requests.Events
 
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
 
-
-
         public RequestMatchingStartedEvent(long requestId)
         {
             RequestId = requestId;

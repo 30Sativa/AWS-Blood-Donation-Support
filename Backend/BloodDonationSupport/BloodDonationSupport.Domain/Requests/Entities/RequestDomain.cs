@@ -101,7 +101,7 @@ namespace BloodDonationSupport.Domain.Requests.Entities
         public void StartMatching()
         {
             if (Status != RequestStatus.REQUESTED)
-                throw new BusinessException("Request must be in REQUESTED state to start matching.");
+                throw new DomainException("Request must be in REQUESTED state to start matching.");
 
             Status = RequestStatus.MATCHING;
             UpdatedAt = DateTime.UtcNow;
@@ -112,7 +112,7 @@ namespace BloodDonationSupport.Domain.Requests.Entities
         public void Fulfill()
         {
             if (Status != RequestStatus.MATCHING)
-                throw new BusinessException("Request must be in MATCHING state to fulfill.");
+                throw new DomainException("Request must be in MATCHING state to fulfill.");
 
             Status = RequestStatus.FULFILLED;
             UpdatedAt = DateTime.UtcNow;
@@ -123,7 +123,7 @@ namespace BloodDonationSupport.Domain.Requests.Entities
         public void Cancel(string reason)
         {
             if (Status == RequestStatus.FULFILLED)
-                throw new BusinessException("Cannot cancel a fulfilled request.");
+                throw new DomainException("Cannot cancel a fulfilled request.");
 
             Status = RequestStatus.CANCELLED;
             UpdatedAt = DateTime.UtcNow;
