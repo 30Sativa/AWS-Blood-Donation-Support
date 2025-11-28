@@ -37,78 +37,90 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             CreateMatchCommand command,
             CancellationToken cancellationToken)
         {
-            // Validate request
+            // 1) Validate request exists
             var request = await _requestRepository.GetByIdAsync(command.RequestId);
             if (request == null)
             {
                 return BaseResponse<MatchResponse>.FailureResponse("Request not found.");
             }
 
-            // Validate donor
+            // 2) Validate donor exists
             var donor = await _donorRepository.GetByIdAsync(command.Request.DonorId);
             if (donor == null)
             {
                 return BaseResponse<MatchResponse>.FailureResponse("Donor not found.");
             }
 
-            // Check duplicate match
+            // 3) Check duplicate match
             var existingMatches = await _matchRepository.GetByRequestIdAsync(command.RequestId);
             if (existingMatches.Any(m => m.DonorId == command.Request.DonorId))
             {
-                return BaseResponse<MatchResponse>.FailureResponse("Match already exists for this request and donor.");
+                return BaseResponse<MatchResponse>
+                    .FailureResponse("Match already exists for this request and donor.");
             }
 
-            // Create MatchData
+            // 4) Build match data for insertion
             var matchData = new MatchData
             {
                 RequestId = command.RequestId,
                 DonorId = command.Request.DonorId,
                 CompatibilityScore = command.Request.CompatibilityScore,
                 DistanceKm = command.Request.DistanceKm,
-                Status = command.Request.Status ?? "PENDING",
+                Status = command.Request.Status,
                 Response = command.Request.Response,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                
             };
 
             try
             {
-                // ADD: repository returns Match entity
+                // ⭐ INSERT MATCH INTO DATABASE
                 var matchId = await _matchRepository.AddAsync(matchData);
 
-
-                // COMMIT via UnitOfWork
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                // AFTER save → EF gives ID
-                var createdMatch = await _matchRepository.GetByIdAsync(matchId);
-
-
-                if (createdMatch == null)
+                // ⭐ Commit ONLY if UnitOfWork is responsible for saving
+                // If SaveChanges is already inside repository → remove this.
+                try
                 {
-                    return BaseResponse<MatchResponse>.FailureResponse("Failed to retrieve created match.");
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+                catch { /* ignore if repo already saved */ }
+
+                _logger.LogInformation(
+                    "Match created (ID={MatchId}) for RequestId={RequestId}, DonorId={DonorId}",
+                    matchId, command.RequestId, command.Request.DonorId);
+
+                // ⭐ LOAD BACK inserted match
+                var created = await _matchRepository.GetByIdAsync(matchId);
+
+                if (created == null)
+                {
+                    return BaseResponse<MatchResponse>
+                        .FailureResponse("Failed to retrieve created match.");
                 }
 
-                // Build response DTO
+                // ⭐ Build response DTO
                 var response = new MatchResponse
                 {
-                    MatchId = createdMatch.MatchId!.Value,
-                    RequestId = createdMatch.RequestId,
-                    DonorId = createdMatch.DonorId,
-                    CompatibilityScore = createdMatch.CompatibilityScore,
-                    DistanceKm = createdMatch.DistanceKm,
-                    Status = createdMatch.Status,
-                    ContactedAt = createdMatch.ContactedAt,
-                    Response = createdMatch.Response,
-                    CreatedAt = createdMatch.CreatedAt
+                    MatchId = created.MatchId.Value,
+                    RequestId = created.RequestId,
+                    DonorId = created.DonorId,
+                    CompatibilityScore = created.CompatibilityScore,
+                    DistanceKm = created.DistanceKm,
+                    Status = created.Status,
+                    ContactedAt = created.ContactedAt,
+                    Response = created.Response,
+                    CreatedAt = created.CreatedAt
                 };
 
-                return BaseResponse<MatchResponse>.SuccessResponse(response, "Match created successfully.");
+                return BaseResponse<MatchResponse>
+                    .SuccessResponse(response, "Match created successfully.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating match");
                 return BaseResponse<MatchResponse>.FailureResponse(
-                    $"Error creating match: {ex.InnerException?.Message ?? ex.Message}");
+                    $"Error creating match: {ex.Message}"
+                );
             }
         }
     }
