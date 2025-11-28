@@ -1,4 +1,4 @@
-using BloodDonationSupport.Application.Common.Interfaces;
+﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
@@ -15,6 +15,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
+        // ============================================================
+        // ADD (NO SaveChanges HERE!!!)
+        // ============================================================
         public async Task<long> AddAsync(MatchData match)
         {
             var entity = new Match
@@ -30,11 +33,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
 
             await _context.Matches.AddAsync(entity);
-            await _context.SaveChangesAsync();
 
+            // ❗ Không SaveChanges ở đây — UnitOfWork sẽ làm điều đó
             return entity.MatchId;
         }
 
+        // ============================================================
+        // GET BY ID
+        // ============================================================
         public async Task<MatchData?> GetByIdAsync(long matchId)
         {
             var entity = await _context.Matches
@@ -58,6 +64,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
         }
 
+        // ============================================================
+        // GET BY REQUEST ID
+        // ============================================================
         public async Task<IEnumerable<MatchData>> GetByRequestIdAsync(long requestId)
         {
             var entities = await _context.Matches
@@ -79,6 +88,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             });
         }
 
+        // ============================================================
+        // GET BY DONOR ID
+        // ============================================================
         public async Task<IEnumerable<MatchData>> GetByDonorIdAsync(long donorId)
         {
             var entities = await _context.Matches
