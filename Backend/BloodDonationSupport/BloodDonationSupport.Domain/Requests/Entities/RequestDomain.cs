@@ -131,6 +131,11 @@ namespace BloodDonationSupport.Domain.Requests.Entities
             AddDomainEvent(new RequestCancelledEvent(Id, reason));
         }
 
+        public void SetId(long id)
+        {
+            Id = id;
+        }
+
 
         public static RequestDomain Rehydrate(
     long id,

@@ -43,6 +43,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             };
 
             await _context.Requests.AddAsync(entity);
+            domain.SetId(entity.RequestId);
         }
 
         // ============================================================
