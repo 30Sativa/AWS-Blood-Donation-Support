@@ -55,6 +55,28 @@ public class MatchRepository : IMatchRepository
         };
     }
 
+    public async Task<MatchData?> GetByRequestIdAndDonorIdAsync(long requestId, long donorId)
+    {
+        var entity = await _context.Matches.AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.RequestId == requestId && m.DonorId == donorId);
+
+        if (entity == null)
+            return null;
+
+        return new MatchData
+        {
+            MatchId = entity.MatchId,
+            RequestId = entity.RequestId,
+            DonorId = entity.DonorId,
+            CompatibilityScore = entity.CompatibilityScore,
+            DistanceKm = entity.DistanceKm,
+            Status = entity.Status,
+            ContactedAt = entity.ContactedAt,
+            Response = entity.Response,
+            CreatedAt = entity.CreatedAt
+        };
+    }
+
     public async Task<IEnumerable<MatchData>> GetByRequestIdAsync(long requestId)
     {
         var list = await _context.Matches.AsNoTracking()

@@ -75,13 +75,13 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             try
             {
                 // INSERT - repository chỉ Add, chưa SaveChanges
-                var matchId = await _matchRepository.AddAsync(matchData);
+                await _matchRepository.AddAsync(matchData);
 
                 // SaveChanges do UnitOfWork xử lý
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Load lại từ DB
-                var created = await _matchRepository.GetByIdAsync(matchId);
+                // Load lại từ DB bằng request_id và donor_id (vì MatchId chỉ được populate sau SaveChanges)
+                var created = await _matchRepository.GetByRequestIdAndDonorIdAsync(command.RequestId, command.Request.DonorId);
 
                 if (created == null)
                     return BaseResponse<MatchResponse>.FailureResponse("Failed to retrieve created match.");

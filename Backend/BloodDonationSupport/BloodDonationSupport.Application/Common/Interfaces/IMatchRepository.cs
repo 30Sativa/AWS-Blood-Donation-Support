@@ -1,5 +1,4 @@
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
-using System.Text.RegularExpressions;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
@@ -8,6 +7,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<long> AddAsync(MatchData match);
 
         Task<MatchData?> GetByIdAsync(long matchId);
+
+        Task<MatchData?> GetByRequestIdAndDonorIdAsync(long requestId, long donorId);
 
         Task<IEnumerable<MatchData>> GetByRequestIdAsync(long requestId);
 
