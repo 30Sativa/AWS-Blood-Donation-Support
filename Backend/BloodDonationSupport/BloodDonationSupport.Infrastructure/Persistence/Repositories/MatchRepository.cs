@@ -34,9 +34,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             await _context.Matches.AddAsync(entity);
 
-            // ❗ Không SaveChanges ở đây — UnitOfWork sẽ làm điều đó
-            return entity.MatchId;
+            return entity.MatchId; // EF set sau SaveChangesAsync
         }
+
+
 
         // ============================================================
         // GET BY ID
