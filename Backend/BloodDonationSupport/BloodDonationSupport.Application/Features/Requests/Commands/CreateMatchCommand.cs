@@ -74,34 +74,21 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
 
             try
             {
-                // ⭐ INSERT MATCH INTO DATABASE
+                // INSERT - repository chỉ Add, chưa SaveChanges
                 var matchId = await _matchRepository.AddAsync(matchData);
 
-                // ⭐ Commit ONLY if UnitOfWork is responsible for saving
-                // If SaveChanges is already inside repository → remove this.
-                try
-                {
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                }
-                catch { /* ignore if repo already saved */ }
+                // SaveChanges do UnitOfWork xử lý
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                _logger.LogInformation(
-                    "Match created (ID={MatchId}) for RequestId={RequestId}, DonorId={DonorId}",
-                    matchId, command.RequestId, command.Request.DonorId);
-
-                // ⭐ LOAD BACK inserted match
+                // Load lại từ DB
                 var created = await _matchRepository.GetByIdAsync(matchId);
 
                 if (created == null)
-                {
-                    return BaseResponse<MatchResponse>
-                        .FailureResponse("Failed to retrieve created match.");
-                }
+                    return BaseResponse<MatchResponse>.FailureResponse("Failed to retrieve created match.");
 
-                // ⭐ Build response DTO
                 var response = new MatchResponse
                 {
-                    MatchId = created.MatchId.Value,
+                    MatchId = created.MatchId!.Value,
                     RequestId = created.RequestId,
                     DonorId = created.DonorId,
                     CompatibilityScore = created.CompatibilityScore,
@@ -112,8 +99,8 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                     CreatedAt = created.CreatedAt
                 };
 
-                return BaseResponse<MatchResponse>
-                    .SuccessResponse(response, "Match created successfully.");
+                return BaseResponse<MatchResponse>.SuccessResponse(response, "Match created successfully.");
+
             }
             catch (Exception ex)
             {

@@ -5,7 +5,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
 {
     public interface IMatchRepository
     {
-        Task<long> AddAsync(MatchData match);
+        Task<Match> AddAsync(MatchData match);
 
         Task<MatchData?> GetByIdAsync(long matchId);
 
