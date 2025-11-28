@@ -2,7 +2,7 @@ import Sidebar from "./Sidebar";
 import type { SidebarItem } from "./Sidebar";
 import {
   UserPlus,
-  UserCheck,
+  Radar,
   History,
   Bell,
   AlertCircle,
@@ -15,7 +15,7 @@ import {
 const memberItems: SidebarItem[] = [
   { path: "/member/register-donor", icon: UserPlus, label: "Register Donor" },
   { path: "/member/donor-profile", icon: HeartHandshake, label: "Donor Profile" },
-  { path: "/member/health-check", icon: UserCheck, label: "Health Check" },
+  { path: "/member/nearby-donors", icon: Radar, label: "Nearby Donors" },
   { path: "/member/history", icon: History, label: "History" },
   { path: "/member/notifications", icon: Bell, label: "Notifications" },
   { path: "/member/sos", icon: AlertCircle, label: "Emergency Requests" },

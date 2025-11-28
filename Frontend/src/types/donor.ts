@@ -68,6 +68,12 @@ export interface DonorResponse {
   data: Donor;
 }
 
+export interface DonorListResponse {
+  success: boolean;
+  message: string | null;
+  data: Donor[] | null;
+}
+
 export interface BloodType {
   id: number;
   name: string;
@@ -91,5 +97,23 @@ export interface HealthConditionsResponse {
   success: boolean;
   message: string | null;
   data: HealthCondition[];
+}
+
+export interface NearbyDonor {
+  donorId: number;
+  fullName: string;
+  bloodGroup?: string;
+  distanceKm: number;
+  addressDisplay?: string;
+  isReady: boolean;
+  travelRadiusKm?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface NearbyDonorsResponse {
+  success: boolean;
+  message: string | null;
+  data: NearbyDonor[];
 }
 

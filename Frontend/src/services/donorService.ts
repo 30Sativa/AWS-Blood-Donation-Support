@@ -11,6 +11,7 @@ import type {
   HealthCondition,
   BloodTypesResponse,
   HealthConditionsResponse,
+  DonorListResponse,
 } from "@/types/donor";
 
 export const donorService = {
@@ -64,6 +65,39 @@ export const donorService = {
       }
       console.error("Get my donor error:", error);
       return null;
+    }
+  },
+
+  /**
+   * Lấy danh sách donor gần vị trí hiện tại
+   * GET /api/Donors/nearby
+   */
+  async getNearbyDonors(params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+  }): Promise<Donor[]> {
+    try {
+      const response = await apiClient.get<DonorListResponse>("/api/Donors/nearby", {
+        params: {
+          Latitude: params.latitude,
+          Longitude: params.longitude,
+          RadiusKm: params.radiusKm,
+        },
+      });
+
+      if (!response.data) {
+        throw new Error("Response data is empty");
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to get nearby donors");
+      }
+
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error("Get nearby donors error:", error);
+      throw error;
     }
   },
 

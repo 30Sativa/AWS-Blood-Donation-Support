@@ -18,7 +18,7 @@ import { Layout } from "@/components/layout/Layout"; // Layout chung cho cả Me
 // Member Pages
 import { BloodDonationHistory } from "@/pages/member/BloodDonationHistory";
 import { RegisterDonor } from "@/pages/member/RegisterDonor";
-import { HealthCheck } from "@/pages/member/HealthCheck";
+import { NearbyDonorsPage } from "@/pages/member/HealthCheck";
 import { Dashboard } from "@/pages/member/Dashboard";
 import { SOS } from "@/pages/member/SOS";
 import { AccountSettings } from "@/pages/member/AccountSettings";
@@ -85,7 +85,7 @@ const routes = createBrowserRouter([
       { path: "history", element: <BloodDonationHistory /> },
       { path: "register-donor", element: <RegisterDonor /> },
       { path: "donor-profile", element: <DonorProfile /> },
-      { path: "health-check", element: <HealthCheck /> },
+      { path: "nearby-donors", element: <NearbyDonorsPage /> },
       { path: "notifications", element: <Notifications /> },
       { path: "sos", element: <SOS /> },
       { path: "dashboard", element: <Dashboard /> },
