@@ -11,40 +11,57 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
         private readonly IRequestRepository _requestRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public UpdateRequestStatusHandler(IRequestRepository requestRepository, IUnitOfWork unitOfWork)
+        public UpdateRequestStatusHandler(
+            IRequestRepository requestRepository,
+            IUnitOfWork unitOfWork)
         {
             _requestRepository = requestRepository;
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<BaseResponse<string>> Handle(UpdateRequestStatusCommand request, CancellationToken cancellationToken)
+        public async Task<BaseResponse<string>> Handle(
+            UpdateRequestStatusCommand command,
+            CancellationToken cancellationToken)
         {
-            //  Lấy request theo ID
-            var requestDomain = await _requestRepository.GetByIdAsync(request.requestid);
-            if (requestDomain == null)
+            var req = await _requestRepository.GetByIdAsync(command.requestid);
+            if (req == null)
+                return BaseResponse<string>.FailureResponse("Request not found.");
+
+            if (!Enum.TryParse(command.request.NewStatus, true, out RequestStatus newStatus))
+                return BaseResponse<string>.FailureResponse("Invalid status.");
+
+            try
             {
-                return BaseResponse<string>.FailureResponse(
-                    $"Request with ID {request.requestid} not found.");
-            }
+                switch (newStatus)
+                {
+                    case RequestStatus.MATCHING:
+                        req.StartMatching();
+                        break;
 
-            //  Parse enum từ string (case-insensitive)
-            if (!Enum.TryParse<RequestStatus>(request.request.NewStatus, true, out var status))
+                    case RequestStatus.FULFILLED:
+                        req.Fulfill();
+                        break;
+
+                    case RequestStatus.CANCELLED:
+                        req.Cancel("Cancelled manually");
+                        break;
+
+                    case RequestStatus.REQUESTED:
+                        return BaseResponse<string>.FailureResponse("Cannot set status to REQUESTED.");
+                }
+
+                _requestRepository.Update(req);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                return BaseResponse<string>.SuccessResponse(
+                    "Status updated successfully.",
+                    $"New status: {req.Status}"
+                );
+            }
+            catch (Exception ex)
             {
-                return BaseResponse<string>.FailureResponse(
-                    $"Invalid status value '{request.request.NewStatus}'. Valid values: REQUESTED, MATCHING, FULFILLED, CANCELLED, EXPIRED.");
+                return BaseResponse<string>.FailureResponse(ex.Message);
             }
-
-            //  Gọi domain behavior (phát event RequestStatusChangedEvent nếu có)
-            requestDomain.UpdateStatus(status);
-
-            //  Cập nhật repository + commit
-            _requestRepository.Update(requestDomain);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            //  Trả response thành công
-            return BaseResponse<string>.SuccessResponse(
-                $"Request status updated successfully.",
-                $"Status changed to {status}");
         }
     }
 }

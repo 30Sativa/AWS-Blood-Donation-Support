@@ -6,7 +6,8 @@ using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
-    public class GetCompatibleDonorsHandler : IRequestHandler<GetCompatibleDonorsQuery, BaseResponse<CompatibleDonorsResponse>>
+    public class GetCompatibleDonorsHandler
+        : IRequestHandler<GetCompatibleDonorsQuery, BaseResponse<CompatibleDonorsResponse>>
     {
         private readonly IRequestRepository _requestRepo;
         private readonly ICompatibilityRepository _compatRepo;
@@ -26,85 +27,74 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
             _matchingService = new BloodMatchingService();
             _awsLocation = awsLocation;
         }
-        public async Task<BaseResponse<CompatibleDonorsResponse>> Handle(GetCompatibleDonorsQuery Request, CancellationToken cancellationToken)
+
+        public async Task<BaseResponse<CompatibleDonorsResponse>> Handle(
+            GetCompatibleDonorsQuery query,
+            CancellationToken cancellationToken)
         {
-            // 1) Get request info
-            var request = await _requestRepo.GetByIdAsync(Request.RequestId);
+            // 1) LOAD REQUEST
+            var request = await _requestRepo.GetByIdAsync(query.RequestId);
             if (request == null)
-                throw new Exception("Request not found");
+                return BaseResponse<CompatibleDonorsResponse>.FailureResponse("Request not found.");
 
             if (request.Location == null)
-                throw new Exception("Request does not have a valid location.");
+                return BaseResponse<CompatibleDonorsResponse>.FailureResponse("Request does not have a valid geolocation.");
 
-            // 2) Load blood compatibility rules
-            var rules = await _compatRepo.GetRulesAsync(
-                request.BloodTypeId,
-                request.ComponentId
-            );
 
-            // Debug: Log rules found
-            if (!rules.Any())
-            {
-                // No compatibility rules found for this blood type and component
-                return new BaseResponse<CompatibleDonorsResponse>
-                {
-                    Success = true,
-                    Message = $"No compatibility rules found for blood type ID {request.BloodTypeId} and component ID {request.ComponentId}.",
-                    Data = new CompatibleDonorsResponse
-                    {
-                        RequestId = Request.RequestId,
-                        Donors = new List<CompatibleDonorDto>()
-                    }
-                };
-            }
+            // 2) COMPATIBILITY RULES
+            var rules = await _compatRepo.GetRulesAsync(request.BloodTypeId, request.ComponentId);
 
             var compatibleTypes = rules
-                .Where(r => _matchingService.IsCompatible(r))
+                .Where(r => r.IsCompatible)
                 .Select(r => r.DonorBloodTypeId)
                 .Distinct()
                 .ToList();
 
             if (!compatibleTypes.Any())
             {
-                // No compatible blood types found
-                return new BaseResponse<CompatibleDonorsResponse>
-                {
-                    Success = true,
-                    Message = $"No compatible blood types found for blood type ID {request.BloodTypeId} and component ID {request.ComponentId}.",
-                    Data = new CompatibleDonorsResponse
+                return BaseResponse<CompatibleDonorsResponse>.SuccessResponse(
+                    new CompatibleDonorsResponse
                     {
-                        RequestId = Request.RequestId,
+                        RequestId = query.RequestId,
                         Donors = new List<CompatibleDonorDto>()
-                    }
-                };
+                    },
+                    "No compatible blood types found."
+                );
             }
 
-            // 3) Load donors with these blood types
+
+            // 3) LOAD DONORS (all donors with compatible blood types)
             var donors = await _donorRepo.GetDonorsByBloodTypesAsync(compatibleTypes);
+
+            // ========== IMPORTANT DOMAIN FILTERS (YOU MISSED THESE) ==========
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            donors = donors
+                .Where(d => d.IsReady)
+                .Where(d => d.LastKnownLocation != null)
+                .Where(d => d.NextEligibleDate == null || d.NextEligibleDate <= today)
+                .ToList();
+
 
             if (!donors.Any())
             {
-                // No donors found with compatible blood types
-                return new BaseResponse<CompatibleDonorsResponse>
-                {
-                    Success = true,
-                    Message = $"No ready donors found with compatible blood types: {string.Join(", ", compatibleTypes)}.",
-                    Data = new CompatibleDonorsResponse
+                return BaseResponse<CompatibleDonorsResponse>.SuccessResponse(
+                    new CompatibleDonorsResponse
                     {
-                        RequestId = Request.RequestId,
+                        RequestId = query.RequestId,
                         Donors = new List<CompatibleDonorDto>()
-                    }
-                };
+                    },
+                    "No eligible donors found."
+                );
             }
 
-            // 4) Calculate AWS distance + map DTO
-            var dtoList = new List<CompatibleDonorDto>();
+
+            // 4) AWS ROUTE DISTANCE — MAP DTOs
+            var resultList = new List<CompatibleDonorDto>();
 
             foreach (var donor in donors)
             {
-                if (donor.LastKnownLocation == null)
-                    continue;
-
                 var distance = await _awsLocation.CalculateDistanceKmAsync(
                     request.Location.Latitude,
                     request.Location.Longitude,
@@ -112,28 +102,35 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
                     donor.LastKnownLocation.Longitude
                 );
 
-                dtoList.Add(new CompatibleDonorDto
+                // Skip donors AWS cannot calculate distance
+                if (distance == null)
+                    continue;
+
+                resultList.Add(new CompatibleDonorDto
                 {
                     DonorId = donor.Id,
-                    FullName = donor.User?.Profile?.FullName ?? "Unknow",
+                    FullName = donor.User?.Profile?.FullName ?? "Unknown",
                     BloodGroup = donor.BloodType?.ToString() ?? "?",
-                    DistanceKm = distance ?? 99999,
+                    DistanceKm = distance.Value,
                     LastKnownLocation = donor.LastKnownLocation.ToString(),
                     IsReady = donor.IsReady
                 });
             }
 
-            var sorted = dtoList.OrderBy(x => x.DistanceKm).ToList();
+            // 5) ORDER BEST DONORS FIRST
+            resultList = resultList
+                .OrderBy(x => x.DistanceKm)
+                .ToList();
 
-            return new BaseResponse<CompatibleDonorsResponse>
-            {
-                Success = true,
-                Data = new CompatibleDonorsResponse
+
+            // 6) RETURN
+            return BaseResponse<CompatibleDonorsResponse>.SuccessResponse(
+                new CompatibleDonorsResponse
                 {
-                    RequestId = Request.RequestId,
-                    Donors = sorted
+                    RequestId = query.RequestId,
+                    Donors = resultList
                 }
-            };
+            );
         }
     }
 }

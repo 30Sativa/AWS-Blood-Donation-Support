@@ -91,14 +91,14 @@ namespace BloodDonationSupport.Infrastructure.Identity
         //  GET NEARBY DONORS — FIXED WITH 400KM PREFILTER
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
-            double latitude,
-            double longitude,
-            double radiusKm)
+    double latitude,
+    double longitude,
+    double radiusKm)
         {
-            // Validate input
             if (!IsValidLatLon(latitude, longitude))
                 return new List<NearbyDonorResponse>();
 
+            // 1) LOAD DONORS FROM DATABASE (EF MODEL)
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
                 .Include(d => d.BloodType)
@@ -109,14 +109,18 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // PREFILTER (avoid AWS >400km error)
+
+            // 2) PREFILTER USING HAVERSINE (avoid AWS > 400km error)
             var prefiltered = donors
-                .Where(d => d.Latitude != null && d.Longitude != null)
                 .Where(d => IsValidLatLon(d.Latitude!.Value, d.Longitude!.Value))
                 .Select(d => new
                 {
                     Donor = d,
-                    ApproxKm = HaversineKm(latitude, longitude, d.Latitude!.Value, d.Longitude!.Value)
+                    ApproxKm = HaversineKm(
+                        latitude,
+                        longitude,
+                        d.Latitude!.Value,
+                        d.Longitude!.Value)
                 })
                 .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
                 .Select(x => x.Donor)
@@ -125,23 +129,31 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!prefiltered.Any())
                 return new List<NearbyDonorResponse>();
 
-            // Build AWS matrix request
+
+            // 3) AWS ROUTE MATRIX REQUEST
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
                 DeparturePositions = new List<List<double>>
-                {
-                    new List<double> { longitude, latitude }
-                },
+        {
+            new() { longitude, latitude }
+        },
                 DestinationPositions = prefiltered
-                    .Select(d => new List<double> { d.Longitude!.Value, d.Latitude!.Value })
+                    .Select(d => new List<double>
+                    {
+                d.Longitude!.Value,
+                d.Latitude!.Value
+                    })
                     .ToList()
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
+
             var results = new List<NearbyDonorResponse>();
 
+
+            // 4) MAP RESULTS
             for (int i = 0; i < resp.RouteMatrix.Count; i++)
             {
                 var cell = resp.RouteMatrix[i][0];
@@ -149,6 +161,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     continue;
 
                 double distanceKm = cell.Distance.Value / 1000.0;
+
                 if (distanceKm <= radiusKm)
                 {
                     var d = prefiltered[i];
@@ -163,9 +176,13 @@ namespace BloodDonationSupport.Infrastructure.Identity
                         AddressDisplay = d.Address != null
                             ? $"{d.Address.Line1}, {d.Address.District}, {d.Address.City}"
                             : "Chưa có địa chỉ",
+
                         NextEligibleDate = d.NextEligibleDate,
+
+                        // 🔥 FIX: dùng EF fields latitude/longitude
                         Latitude = d.Latitude,
                         Longitude = d.Longitude,
+
                         DistanceKm = distanceKm,
                         IsReady = true
                     });
@@ -174,6 +191,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
+
+
 
         // ============================================================
         //  GET NEARBY REQUESTS — TO BE IMPLEMENTED LATER

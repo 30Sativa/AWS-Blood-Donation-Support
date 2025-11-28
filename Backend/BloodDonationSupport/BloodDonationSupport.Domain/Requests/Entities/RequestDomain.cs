@@ -91,6 +91,46 @@ namespace BloodDonationSupport.Domain.Requests.Entities
             ClinicalNotes = notes;
             UpdatedAt = DateTime.UtcNow;
         }
+        public void SetLocation(double latitude, double longitude)
+        {
+            CheckRule(new RequestMustHaveLocationRule(latitude, longitude));
+            Location = GeoLocation.Create(latitude, longitude);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void StartMatching()
+        {
+            if (Status != RequestStatus.REQUESTED)
+                throw new BusinessException("Request must be in REQUESTED state to start matching.");
+
+            Status = RequestStatus.MATCHING;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new RequestMatchingStartedEvent(Id));
+        }
+
+        public void Fulfill()
+        {
+            if (Status != RequestStatus.MATCHING)
+                throw new BusinessException("Request must be in MATCHING state to fulfill.");
+
+            Status = RequestStatus.FULFILLED;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new RequestFulfilledEvent(Id));
+        }
+
+        public void Cancel(string reason)
+        {
+            if (Status == RequestStatus.FULFILLED)
+                throw new BusinessException("Cannot cancel a fulfilled request.");
+
+            Status = RequestStatus.CANCELLED;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new RequestCancelledEvent(Id, reason));
+        }
+
 
         public static RequestDomain Rehydrate(
     long id,

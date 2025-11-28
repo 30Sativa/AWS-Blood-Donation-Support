@@ -18,180 +18,187 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
-        // =========================
+        // ============================================================
         // ADD
-        // =========================
-        public async Task AddAsync(RequestDomain domainEntity)
+        // ============================================================
+        public async Task AddAsync(RequestDomain domain)
         {
             var entity = new Request
             {
-                RequesterUserId = domainEntity.RequesterUserId,
-                Urgency = domainEntity.Urgency.ToString(),
-                BloodTypeId = domainEntity.BloodTypeId,
-                ComponentId = domainEntity.ComponentId,
-                QuantityUnits = domainEntity.QuantityUnits,
-                NeedBeforeUtc = domainEntity.NeedBeforeUtc,
-                DeliveryAddressId = domainEntity.DeliveryAddressId,
-                Status = domainEntity.Status.ToString(),
-                ClinicalNotes = domainEntity.ClinicalNotes,
-                CreatedAt = domainEntity.CreatedAt,
-                UpdatedAt = domainEntity.UpdatedAt
+                RequesterUserId = domain.RequesterUserId,
+                Urgency = domain.Urgency.ToString(),
+                BloodTypeId = domain.BloodTypeId,
+                ComponentId = domain.ComponentId,
+                QuantityUnits = domain.QuantityUnits,
+                NeedBeforeUtc = domain.NeedBeforeUtc,
+                DeliveryAddressId = domain.DeliveryAddressId,
+                Status = domain.Status.ToString(),
+                ClinicalNotes = domain.ClinicalNotes,
+                CreatedAt = domain.CreatedAt,
+                UpdatedAt = domain.UpdatedAt,
+
+                // 🔥 MUST MAP LOCATION (FIXED)
+                Latitude = domain.Location?.Latitude,
+                Longitude = domain.Location?.Longitude
             };
 
             await _context.Requests.AddAsync(entity);
-            // Note: Don't SaveChanges here - let UnitOfWork manage it
-            // The RequestId will be set after SaveChangesAsync is called in the handler
         }
 
-        // =========================
+        // ============================================================
         // DELETE
-        // =========================
-        public void Delete(RequestDomain domainEntity)
+        // ============================================================
+        public void Delete(RequestDomain domain)
         {
-            var req = _context.Requests.FirstOrDefault(r => r.RequestId == domainEntity.Id);
-            if (req != null)
-                _context.Requests.Remove(req);
+            var entity = _context.Requests.FirstOrDefault(r => r.RequestId == domain.Id);
+            if (entity != null)
+                _context.Requests.Remove(entity);
         }
 
-        // =========================
+        // ============================================================
         // EXISTS
-        // =========================
+        // ============================================================
         public async Task<bool> ExistsAsync(Expression<Func<RequestDomain, bool>> predicate)
         {
-            // Hỗ trợ kiểm tra đơn giản: r => r.Id == x
-            if (predicate.Body is BinaryExpression binaryExpr && binaryExpr.Left is MemberExpression left)
+            // Support simple predicate: r => r.Id == x
+            if (predicate.Body is BinaryExpression binaryExpr &&
+                binaryExpr.Left is MemberExpression left &&
+                left.Member.Name == nameof(RequestDomain.Id))
             {
-                if (left.Member.Name == nameof(RequestDomain.Id))
+                object? val = null;
+
+                if (binaryExpr.Right is ConstantExpression c)
+                    val = c.Value;
+                else if (binaryExpr.Right is MemberExpression m)
                 {
-                    object? value = null;
-
-                    // d => d.Id == 5
-                    if (binaryExpr.Right is ConstantExpression constExpr)
-                        value = constExpr.Value;
-
-                    // d => d.Id == id
-                    else if (binaryExpr.Right is MemberExpression memberExpr)
-                    {
-                        var objectMember = Expression.Convert(memberExpr, typeof(object));
-                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
-                        var getter = getterLambda.Compile();
-                        value = getter();
-                    }
-
-                    if (value is long id)
-                        return await _context.Requests.AnyAsync(r => r.RequestId == id);
+                    var lambda = Expression.Lambda<Func<object>>(Expression.Convert(m, typeof(object)));
+                    val = lambda.Compile()();
                 }
+
+                if (val is long id)
+                    return await _context.Requests.AnyAsync(r => r.RequestId == id);
             }
 
-            // fallback
             return false;
         }
 
-        // =========================
-        // FIND (basic)
-        // =========================
+        // ============================================================
+        // FIND (Not used -> return all. Optional)
+        // ============================================================
         public async Task<IEnumerable<RequestDomain>> FindAsync(Expression<Func<RequestDomain, bool>> predicate)
         {
-            var list = await _context.Requests.AsNoTracking().ToListAsync();
-            return list.Select(MapToDomain);
+            // Load all -> Map -> Apply predicate in-memory
+            var entities = await _context.Requests.AsNoTracking().ToListAsync();
+            var domains = entities.Select(MapToDomain);
+            return domains.Where(predicate.Compile());
         }
 
-        // =========================
-        // GET ALL
-        // =========================
+        // ============================================================
+        // GET ALL (dangerous for large DB -> optional)
+        // ============================================================
         public async Task<IEnumerable<RequestDomain>> GetAllAsync()
         {
-            var list = await _context.Requests.AsNoTracking().ToListAsync();
-            return list.Select(MapToDomain);
+            var entities = await _context.Requests
+                .AsNoTracking()
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return entities.Select(MapToDomain);
         }
 
-        // =========================
+        // ============================================================
         // GET BY ID
-        // =========================
+        // ============================================================
         public async Task<RequestDomain?> GetByIdAsync(object id)
         {
-            if (id is long requestId)
-            {
-                var entity = await _context.Requests.AsNoTracking()
-                    .Include(r => r.BloodType)
-                    .Include(r => r.Component)
-                    .FirstOrDefaultAsync(r => r.RequestId == requestId);
+            if (id is not long requestId)
+                return null;
 
-                return entity == null ? null : MapToDomain(entity);
-            }
-            return null;
+            var entity = await _context.Requests
+                .AsNoTracking()
+                .Include(r => r.BloodType)
+                .Include(r => r.Component)
+                // Optional: Include delivery address if needed
+                .FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+            return entity == null ? null : MapToDomain(entity);
         }
 
-        // =========================
+        // ============================================================
         // PAGINATION
-        // =========================
-        public async Task<(IEnumerable<RequestDomain> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)
+        // ============================================================
+        public async Task<(IEnumerable<RequestDomain> Items, int TotalCount)>
+            GetPagedAsync(int pageNumber, int pageSize)
         {
             var query = _context.Requests.AsNoTracking();
             var totalCount = await query.CountAsync();
 
-            var list = await query
+            var entities = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            return (list.Select(MapToDomain), totalCount);
+            return (entities.Select(MapToDomain), totalCount);
         }
 
-        // =========================
+        // ============================================================
         // UPDATE
-        // =========================
-        public void Update(RequestDomain domainEntity)
+        // ============================================================
+        public void Update(RequestDomain domain)
         {
-            var entity = _context.Requests.FirstOrDefault(r => r.RequestId == domainEntity.Id);
-            if (entity == null) return;
+            var entity = _context.Requests.FirstOrDefault(r => r.RequestId == domain.Id);
+            if (entity == null)
+                return;
 
-            entity.Status = domainEntity.Status.ToString();
-            entity.ClinicalNotes = domainEntity.ClinicalNotes;
+            entity.Status = domain.Status.ToString();
+            entity.ClinicalNotes = domain.ClinicalNotes;
             entity.UpdatedAt = DateTime.UtcNow;
+
+            // 🔥 Important: sync location if changed
+            if (domain.Location != null)
+            {
+                entity.Latitude = domain.Location.Latitude;
+                entity.Longitude = domain.Location.Longitude;
+            }
 
             _context.Requests.Update(entity);
         }
 
-        // =========================
+        // ============================================================
         // GET LATEST REQUEST ID
-        // =========================
+        // ============================================================
         public async Task<long?> GetLatestRequestIdByRequesterIdAsync(long requesterUserId)
         {
-            // First try to get from ChangeTracker (for recently added entities)
-            var trackedEntity = _context.ChangeTracker
+            // First check tracked entities
+            var tracked = _context.ChangeTracker
                 .Entries<Request>()
                 .Where(e => (e.State == EntityState.Added || e.State == EntityState.Unchanged)
-                    && e.Entity.RequesterUserId == requesterUserId)
+                            && e.Entity.RequesterUserId == requesterUserId)
                 .OrderByDescending(e => e.Entity.CreatedAt)
                 .Select(e => e.Entity)
                 .FirstOrDefault();
 
-            if (trackedEntity != null && trackedEntity.RequestId > 0)
-            {
-                return trackedEntity.RequestId;
-            }
+            if (tracked?.RequestId > 0)
+                return tracked.RequestId;
 
-            // Fallback: Query from database
-            var latestRequest = await _context.Requests
+            // DB fallback
+            var latest = await _context.Requests
                 .Where(r => r.RequesterUserId == requesterUserId)
                 .OrderByDescending(r => r.CreatedAt)
                 .FirstOrDefaultAsync();
 
-            return latestRequest?.RequestId;
+            return latest?.RequestId;
         }
 
-        // =========================
-        // MAPPING
-        // =========================
+        // ============================================================
+        // MAPPING (DB TO DOMAIN)
+        // ============================================================
         private static RequestDomain MapToDomain(Request entity)
         {
-            // Parse Enum safely
             Enum.TryParse(entity.Urgency, out UrgencyLevel urgency);
             Enum.TryParse(entity.Status, out RequestStatus status);
 
-            // Map GeoLocation if coordinates are present
             GeoLocation? location = null;
             if (entity.Latitude.HasValue && entity.Longitude.HasValue)
             {
