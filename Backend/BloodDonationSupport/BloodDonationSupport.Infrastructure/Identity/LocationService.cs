@@ -21,25 +21,20 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
         private const double AWS_LIMIT_KM = 400.0;
 
-        public LocationService(
-            AppDbContext context,
-            IConfiguration configuration,
-            IAmazonLocationService locationClient)
+        public LocationService(AppDbContext context, IConfiguration configuration, IAmazonLocationService locationClient)
         {
             _context = context;
             _locationClient = locationClient;
 
             _region = configuration["AWS:Region"] ?? "ap-southeast-2";
-
             _routeCalculatorName = configuration["AWS:LocationRouteCalculatorName"]
                 ?? throw new Exception("Missing AWS Location Route Calculator name");
-
             _placeIndexName = configuration["AWS:LocationPlaceIndexName"]
                 ?? throw new Exception("Missing AWS Location Place Index name");
         }
 
         // ============================================================
-        //  PARSE ADDRESS (AWS GEOCODING)
+        // PARSE ADDRESS (AWS GEOCODING)
         // ============================================================
         public async Task<ParsedAddressResult?> ParseAddressAsync(string fullAddress)
         {
@@ -68,7 +63,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             double longitude = place.Geometry.Point[0];
 
             string label = place.Label ?? fullAddress;
-
             var parts = label.Split(',', StringSplitOptions.TrimEntries);
 
             return new ParsedAddressResult
@@ -88,17 +82,13 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        //  GET NEARBY DONORS — FIXED WITH 400KM PREFILTER
+        // GET NEARBY DONORS
         // ============================================================
-        public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(
-    double latitude,
-    double longitude,
-    double radiusKm)
+        public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
         {
             if (!IsValidLatLon(latitude, longitude))
                 return new List<NearbyDonorResponse>();
 
-            // 1) LOAD DONORS FROM DATABASE (EF MODEL)
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
                 .Include(d => d.BloodType)
@@ -109,8 +99,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-
-            // 2) PREFILTER USING HAVERSINE (avoid AWS > 400km error)
             var prefiltered = donors
                 .Where(d => IsValidLatLon(d.Latitude!.Value, d.Longitude!.Value))
                 .Select(d => new
@@ -129,38 +117,28 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!prefiltered.Any())
                 return new List<NearbyDonorResponse>();
 
-
-            // 3) AWS ROUTE MATRIX REQUEST
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
-                DeparturePositions = new List<List<double>>
-        {
-            new() { longitude, latitude }
-        },
+                DeparturePositions = new List<List<double>> { new() { longitude, latitude } },
                 DestinationPositions = prefiltered
-                    .Select(d => new List<double>
-                    {
-                d.Longitude!.Value,
-                d.Latitude!.Value
-                    })
+                    .Select(d => new List<double> { d.Longitude!.Value, d.Latitude!.Value })
                     .ToList()
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
-
             var results = new List<NearbyDonorResponse>();
 
+            int count = Math.Min(prefiltered.Count, resp.RouteMatrix.Count);
 
-            // 4) MAP RESULTS
-            for (int i = 0; i < resp.RouteMatrix.Count; i++)
+            for (int i = 0; i < count; i++)
             {
-                var cell = resp.RouteMatrix[i][0];
-                if (cell?.Distance == null)
+                var row = resp.RouteMatrix[i];
+                if (row == null || row.Count == 0 || row[0]?.Distance == null)
                     continue;
 
-                double distanceKm = cell.Distance.Value / 1000.0;
+                double distanceKm = row[0].Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
                 {
@@ -170,19 +148,13 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     {
                         DonorId = d.DonorId,
                         FullName = d.User.UserProfile.FullName,
-                        BloodGroup = d.BloodType != null
-                            ? $"{d.BloodType.Abo} {d.BloodType.Rh}"
-                            : "Unknown",
+                        BloodGroup = d.BloodType != null ? $"{d.BloodType.Abo} {d.BloodType.Rh}" : "Unknown",
                         AddressDisplay = d.Address != null
                             ? $"{d.Address.Line1}, {d.Address.District}, {d.Address.City}"
                             : "Chưa có địa chỉ",
-
                         NextEligibleDate = d.NextEligibleDate,
-
-                        // 🔥 FIX: dùng EF fields latitude/longitude
                         Latitude = d.Latitude,
                         Longitude = d.Longitude,
-
                         DistanceKm = distanceKm,
                         IsReady = true
                     });
@@ -192,121 +164,97 @@ namespace BloodDonationSupport.Infrastructure.Identity
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
 
-
-
         // ============================================================
-        //  GET NEARBY REQUESTS — TO BE IMPLEMENTED LATER
+        // GET NEARBY REQUESTS (FIXED VERSION)
         // ============================================================
-        public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(
-    double latitude,
-    double longitude,
-    double radiusKm)
-{
-    if (!IsValidLatLon(latitude, longitude))
-        return new List<NearbyRequestResponse>();
-
-    // 1) LOAD REQUESTS (EF MODEL, NOT DOMAIN)
-    var requests = await _context.Requests
-        .Include(r => r.BloodType)
-        .Include(r => r.Component)
-        .Include(r => r.DeliveryAddress)
-        .Include(r => r.RequesterUser)
-            .ThenInclude(u => u.UserProfile)
-        .Where(r => r.Latitude != null && r.Longitude != null)
-        .ToListAsync();
-
-    if (!requests.Any())
-        return new List<NearbyRequestResponse>();
-
-
-    // 2) PREFILTER (avoid AWS > 400km error)
-    var prefiltered = requests
-        .Where(r => IsValidLatLon(r.Latitude!.Value, r.Longitude!.Value))
-        .Select(r => new
+        public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm)
         {
-            Request = r,
-            ApproxKm = HaversineKm(
-                latitude,
-                longitude,
-                r.Latitude.Value,
-                r.Longitude.Value)
-        })
-        .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
-        .Select(x => x.Request)
-        .ToList();
+            if (!IsValidLatLon(latitude, longitude))
+                return new List<NearbyRequestResponse>();
 
-    if (!prefiltered.Any())
-        return new List<NearbyRequestResponse>();
+            var requests = await _context.Requests
+                .Include(r => r.BloodType)
+                .Include(r => r.Component)
+                .Include(r => r.DeliveryAddress)
+                .Include(r => r.RequesterUser).ThenInclude(u => u.UserProfile)
+                .Where(r => r.Latitude != null && r.Longitude != null)
+                .ToListAsync();
 
+            if (!requests.Any())
+                return new List<NearbyRequestResponse>();
 
-    // 3) Build AWS RouteMatrix input
-    var req = new CalculateRouteMatrixRequest
-    {
-        CalculatorName = _routeCalculatorName,
-        TravelMode = TravelMode.Car,
-        DeparturePositions = new List<List<double>>
-        {
-            new() { longitude, latitude }
-        },
-        DestinationPositions = prefiltered
-            .Select(r => new List<double>
+            var prefiltered = requests
+                .Where(r => IsValidLatLon(r.Latitude!.Value, r.Longitude!.Value))
+                .Select(r => new
+                {
+                    Request = r,
+                    ApproxKm = HaversineKm(
+                        latitude,
+                        longitude,
+                        r.Latitude.Value,
+                        r.Longitude.Value)
+                })
+                .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
+                .Select(x => x.Request)
+                .ToList();
+
+            if (!prefiltered.Any())
+                return new List<NearbyRequestResponse>();
+
+            var req = new CalculateRouteMatrixRequest
             {
-                r.Longitude!.Value,
-                r.Latitude!.Value
-            })
-            .ToList()
-    };
+                CalculatorName = _routeCalculatorName,
+                TravelMode = TravelMode.Car,
+                DeparturePositions = new List<List<double>> { new() { longitude, latitude } },
+                DestinationPositions = prefiltered
+                    .Select(r => new List<double> { r.Longitude!.Value, r.Latitude!.Value })
+                    .ToList()
+            };
 
-    var resp = await _locationClient.CalculateRouteMatrixAsync(req);
+            var resp = await _locationClient.CalculateRouteMatrixAsync(req);
+            var results = new List<NearbyRequestResponse>();
 
-    var results = new List<NearbyRequestResponse>();
+            int count = Math.Min(prefiltered.Count, resp.RouteMatrix.Count);
 
-
-    // 4) MAP RESULTS
-    for (int i = 0; i < prefiltered.Count; i++)
-    {
-        var cell = resp.RouteMatrix[i][0];
-        if (cell?.Distance == null)
-            continue;
-
-        double distanceKm = cell.Distance.Value / 1000.0;
-
-        if (distanceKm <= radiusKm)
-        {
-            var r = prefiltered[i];
-
-            results.Add(new NearbyRequestResponse
+            for (int i = 0; i < count; i++)
             {
-                RequestId = r.RequestId,
-                RequesterUserId = r.RequesterUserId,
-                FullName = r.RequesterUser?.UserProfile?.FullName,
-                BloodGroup = r.BloodType != null
-                    ? $"{r.BloodType.Abo} {r.BloodType.Rh}"
-                    : "Unknown",
-                ComponentName = r.Component?.ComponentName,
-                AddressDisplay = r.DeliveryAddress != null
-                    ? $"{r.DeliveryAddress.Line1}, {r.DeliveryAddress.District}, {r.DeliveryAddress.City}"
-                    : "Chưa có địa chỉ",
+                var row = resp.RouteMatrix[i];
+                if (row == null || row.Count == 0 || row[0]?.Distance == null)
+                    continue;
 
-                Urgency = r.Urgency,
-                Status = r.Status,
-                QuantityUnits = r.QuantityUnits,
-                NeedBeforeUtc = r.NeedBeforeUtc,
-                CreatedAt = r.CreatedAt,
+                double distanceKm = row[0].Distance.Value / 1000.0;
 
-                Latitude = r.Latitude,
-                Longitude = r.Longitude,
-                DistanceKm = distanceKm
-            });
+                if (distanceKm <= radiusKm)
+                {
+                    var r = prefiltered[i];
+
+                    results.Add(new NearbyRequestResponse
+                    {
+                        RequestId = r.RequestId,
+                        RequesterUserId = r.RequesterUserId,
+                        FullName = r.RequesterUser?.UserProfile?.FullName,
+                        BloodGroup = r.BloodType != null ? $"{r.BloodType.Abo} {r.BloodType.Rh}" : "Unknown",
+                        ComponentName = r.Component?.ComponentName,
+                        AddressDisplay = r.DeliveryAddress != null
+                            ? $"{r.DeliveryAddress.Line1}, {r.DeliveryAddress.District}, {r.DeliveryAddress.City}"
+                            : "Chưa có địa chỉ",
+                        Urgency = r.Urgency,
+                        Status = r.Status,
+                        QuantityUnits = r.QuantityUnits,
+                        NeedBeforeUtc = r.NeedBeforeUtc,
+                        CreatedAt = r.CreatedAt,
+                        Latitude = r.Latitude,
+                        Longitude = r.Longitude,
+                        DistanceKm = distanceKm
+                    });
+                }
+            }
+
+            return results.OrderBy(x => x.DistanceKm).ToList();
         }
-    }
-
-    return results.OrderBy(x => x.DistanceKm).ToList();
-}
-
 
         // ============================================================
-        //  UTILITIES
+        // UTILITIES
         // ============================================================
         private static bool IsValidLatLon(double lat, double lon)
             => lat is >= -90 and <= 90 && lon is >= -180 and <= 180;
