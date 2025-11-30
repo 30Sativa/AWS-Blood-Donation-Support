@@ -71,7 +71,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 CreatedAt = DateTime.UtcNow,
                 
             };
-
+                
             try
             {
                 // INSERT - repository chỉ Add, chưa SaveChanges
