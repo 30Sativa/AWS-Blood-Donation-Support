@@ -3,8 +3,11 @@ using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Domain.Requests.Entities;
 using BloodDonationSupport.Domain.Requests.Enums;
+using BloodDonationSupport.Domain.Addresses.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Commands
 {
@@ -15,6 +18,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
         private readonly IRequestRepository _requestRepository;
         private readonly IUserRepository _userRepository;
         private readonly IAddressRepository _addressRepository;
+        private readonly ILocationService _locationService;
         private readonly ILogger<RegisterRequestCommandHandler> _logger;
 
         public RegisterRequestCommandHandler(
@@ -22,12 +26,14 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             IRequestRepository requestRepository,
             IUserRepository userRepository,
             IAddressRepository addressRepository,
+            ILocationService locationService,
             ILogger<RegisterRequestCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _requestRepository = requestRepository;
             _userRepository = userRepository;
             _addressRepository = addressRepository;
+            _locationService = locationService;
             _logger = logger;
         }
 
@@ -42,19 +48,52 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             if (user == null)
                 return BaseResponse<RegisterRequestResponse>.FailureResponse("Requester not found.");
 
-            // 2) Validate urgency
+            // 2) Parse urgency
             if (!Enum.TryParse(dto.Urgency, true, out UrgencyLevel urgency))
                 urgency = UrgencyLevel.NORMAL;
 
-            // 3) Validate address
-            if (dto.DeliveryAddressId == null)
-                return BaseResponse<RegisterRequestResponse>.FailureResponse("DeliveryAddressId is required.");
+            // ⭐ 3) Resolve Address
+            long finalAddressId;
 
-            var address = await _addressRepository.GetByIdAsync(dto.DeliveryAddressId.Value);
-            if (address == null)
-                return BaseResponse<RegisterRequestResponse>.FailureResponse("Delivery address not found.");
+            if (dto.DeliveryAddressId.HasValue && dto.DeliveryAddressId.Value > 0)
+            {
+                // CASE A: FE gửi AddressId → dùng luôn
+                var existing = await _addressRepository.GetByIdAsync(dto.DeliveryAddressId.Value);
+                if (existing == null)
+                    return BaseResponse<RegisterRequestResponse>.FailureResponse("Delivery address not found.");
 
-            // 4) Create domain entity
+                finalAddressId = existing.Id;
+            }
+            else
+            {
+                // CASE B: FE gửi text → backend tự tạo Address
+                if (string.IsNullOrWhiteSpace(dto.DeliveryAddress))
+                    return BaseResponse<RegisterRequestResponse>.FailureResponse(
+                        "Either DeliveryAddressId or DeliveryAddress is required."
+                    );
+
+                var parsed = await _locationService.ParseAddressAsync(dto.DeliveryAddress);
+                if (parsed == null)
+                    return BaseResponse<RegisterRequestResponse>.FailureResponse("Invalid delivery address.");
+
+                var newAddress = AddressDomain.Create(
+                    parsed.Line1,
+                    parsed.District,
+                    parsed.City,
+                    parsed.Province,
+                    parsed.Country,
+                    parsed.PostalCode,
+                    parsed.NormalizedAddress,
+                    parsed.PlaceId,
+                    (decimal?)parsed.ConfidenceScore,
+                    parsed.Latitude,
+                    parsed.Longitude
+                );
+
+                finalAddressId = await _addressRepository.AddAndReturnIdAsync(newAddress);
+            }
+
+            // ⭐ 4) Create request domain
             var newRequest = RequestDomain.Create(
                 dto.RequesterUserId,
                 urgency,
@@ -62,19 +101,21 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 dto.ComponentId,
                 dto.QuantityUnits,
                 dto.NeedBeforeUtc,
-                dto.DeliveryAddressId,
+                finalAddressId,
                 dto.ClinicalNotes
             );
 
-            // 5) Set location from Address
-            if (address.Latitude == 0 || address.Longitude == 0)
+            // Kiểm tra toạ độ address
+            var addr = await _addressRepository.GetByIdAsync(finalAddressId);
+            if (addr == null || addr.Latitude == 0 || addr.Longitude == 0)
                 return BaseResponse<RegisterRequestResponse>.FailureResponse("Address does not contain coordinates.");
 
-            newRequest.SetLocation(address.Latitude, address.Longitude);
+            newRequest.SetLocation(addr.Latitude, addr.Longitude);
 
-            // 6) Start matching pipeline
+            // ⭐ 5) Start matching pipeline
             newRequest.StartMatching();
 
+            // ⭐ 6) Save
             try
             {
                 await _requestRepository.AddAsync(newRequest);
@@ -87,7 +128,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 return BaseResponse<RegisterRequestResponse>.FailureResponse(err);
             }
 
-            // 7) Response
+            // ⭐ 7) Build response
             var response = new RegisterRequestResponse
             {
                 RequestId = newRequest.Id,
@@ -97,7 +138,8 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 ComponentId = newRequest.ComponentId,
                 QuantityUnits = newRequest.QuantityUnits,
                 Status = newRequest.Status.ToString(),
-                CreatedAt = newRequest.CreatedAt
+                CreatedAt = newRequest.CreatedAt,
+                UpdatedAt = newRequest.UpdatedAt
             };
 
             return BaseResponse<RegisterRequestResponse>.SuccessResponse(

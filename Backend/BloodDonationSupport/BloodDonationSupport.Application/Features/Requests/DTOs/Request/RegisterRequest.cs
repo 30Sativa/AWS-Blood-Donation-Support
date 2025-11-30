@@ -9,6 +9,8 @@
         public int QuantityUnits { get; set; }
         public DateTime? NeedBeforeUtc { get; set; }
         public long? DeliveryAddressId { get; set; }
+        public string? DeliveryAddress { get; set; }
+
         public string? ClinicalNotes { get; set; }
     }
 }
