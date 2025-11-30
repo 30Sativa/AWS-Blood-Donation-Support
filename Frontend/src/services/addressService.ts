@@ -8,6 +8,7 @@ export const addressService = {
    */
   async createAddress(data: CreateAddressRequest): Promise<AddressResponse> {
     try {
+      console.log("[DEBUG] addressService.createAddress - URL: /api/Addresses", "Payload:", data);
       const response = await apiClient.post<AddressResponse>(
         "/api/Addresses",
         data
@@ -24,6 +25,12 @@ export const addressService = {
       return response.data;
     } catch (error: any) {
       console.error("Create address error:", error);
+      console.error("Error details:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
       throw error;
     }
   },
@@ -50,8 +57,8 @@ export const addressService = {
       return response.data;
     } catch (error: any) {
       // Xử lý trường hợp 404 - user chưa có address (không phải lỗi)
+      // 404 là trường hợp bình thường, không cần log
       if (error.response?.status === 404) {
-        console.log("User does not have an address yet");
         return null;
       }
       console.error("Get my address error:", error);

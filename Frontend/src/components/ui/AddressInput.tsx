@@ -17,6 +17,7 @@ interface AddressInputProps {
   onAddressChange?: (address: string) => void; // Callback when address text changes
   initialFullAddress?: string; // Initial full address string to display
   disabled?: boolean; // Disable all inputs
+  disableAutoLoad?: boolean; // Disable auto-loading address from API
 }
 
 // Simple Address Input Component with Province and District selects
@@ -196,6 +197,7 @@ export function AddressInput({
   onAddressChange,
   initialFullAddress,
   disabled,
+  disableAutoLoad = false,
 }: AddressInputProps) {
   // Nếu là simple mode, render component đơn giản - return ngay lập tức TRƯỚC KHI gọi bất kỳ hook nào
   if (simpleMode === true) {
@@ -244,26 +246,65 @@ export function AddressInput({
     onAddressChangeRef.current = onAddressChange;
   }, [onAddressChange]);
 
+  // Store onChange callback in ref to avoid infinite loops
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    if (!onAddressChangeRef.current) {
-      return;
-    }
+    onChangeRef.current = onChange;
+    console.log("[DEBUG] AddressInput onChangeRef updated:", !!onChange);
+  }, [onChange]);
 
-    const parts = [
-      manualAddress.line1?.trim(),
-      manualAddress.district?.trim(),
-      manualAddress.city?.trim(),
-      manualAddress.province?.trim(),
-      manualAddress.country?.trim(),
-    ].filter((part) => part && part.length > 0) as string[];
-
-    const fullAddress = parts.join(", ");
+  // Helper function to call onChange when address is complete
+  const callOnChangeIfComplete = (address: typeof manualAddress) => {
+    console.log("[DEBUG] AddressInput callOnChangeIfComplete called with:", address);
     
-    // Chỉ gọi onAddressChange nếu giá trị thực sự thay đổi
-    if (fullAddress !== lastFullAddressRef.current) {
-      lastFullAddressRef.current = fullAddress;
-      onAddressChangeRef.current(fullAddress);
+    // Update fullAddress for onAddressChange callback
+    if (onAddressChangeRef.current) {
+      const parts = [
+        address.line1?.trim(),
+        address.district?.trim(),
+        address.city?.trim(),
+        address.province?.trim(),
+        address.country?.trim(),
+      ].filter((part) => part && part.length > 0) as string[];
+
+      const fullAddress = parts.join(", ");
+      
+      // Chỉ gọi onAddressChange nếu giá trị thực sự thay đổi
+      if (fullAddress !== lastFullAddressRef.current) {
+        lastFullAddressRef.current = fullAddress;
+        onAddressChangeRef.current(fullAddress);
+      }
     }
+
+    // Gọi onChange với address object khi có đủ thông tin
+    if (onChangeRef.current && address.line1?.trim() && address.city?.trim() && address.province?.trim() && address.country?.trim()) {
+      const addressObject: Address = {
+        line1: address.line1.trim(),
+        district: address.district?.trim() || undefined,
+        city: address.city.trim(),
+        province: address.province.trim(),
+        country: address.country.trim(),
+        postalCode: address.postalCode?.trim() || undefined,
+      };
+      console.log("[DEBUG] AddressInput calling onChange with address:", addressObject);
+      onChangeRef.current(null, addressObject);
+    } else {
+      console.log("[DEBUG] AddressInput - address incomplete:", {
+        hasOnChange: !!onChangeRef.current,
+        hasLine1: !!address.line1?.trim(),
+        hasCity: !!address.city?.trim(),
+        hasProvince: !!address.province?.trim(),
+        hasCountry: !!address.country?.trim(),
+      });
+      if (onChangeRef.current) {
+        onChangeRef.current(null, null);
+      }
+    }
+  };
+
+  useEffect(() => {
+    console.log("[DEBUG] AddressInput useEffect triggered, manualAddress:", manualAddress);
+    callOnChangeIfComplete(manualAddress);
   }, [manualAddress]);
 
   // Load provinces on mount
@@ -495,7 +536,14 @@ export function AddressInput({
       return;
     }
     
-    // Nếu chưa có initialFullAddress, load từ API (chỉ một lần)
+    // Nếu disable auto-load, set hasLoaded ngay để hiển thị input
+    if (disableAutoLoad) {
+      setHasLoaded(true);
+      hasLoadedFromApiRef.current = true;
+      return;
+    }
+    
+    // Nếu chưa có initialFullAddress và không disable auto-load, load từ API (chỉ một lần)
     if (!initialFullAddress || !initialFullAddress.trim()) {
       hasLoadedFromApiRef.current = true; // Đánh dấu đang load để tránh load lại
       lastInitialFullAddressForApiRef.current = currentInitial;
@@ -507,6 +555,12 @@ export function AddressInput({
         
         // Ưu tiên sử dụng endpoint /api/Addresses/me để lấy address của user hiện tại
         const response = await addressService.getMyAddress();
+        
+        // Nếu response là null (404 - user chưa có address), không làm gì cả
+        if (!response) {
+          setIsLoading(false);
+          return;
+        }
         
         if (response && response.success && response.data) {
           // User đã có address
@@ -789,7 +843,16 @@ export function AddressInput({
                                 setProvinceSearch("");
                                 setShowProvinceDropdown(false);
                                 setSelectedDistrictCode("");
-                                setManualAddress((prev) => ({ ...prev, district: "" }));
+                                setManualAddress((prev) => {
+                                  const newAddress = {
+                                    ...prev, 
+                                    district: "",
+                                    province: province.name,
+                                    city: province.name, // City thường giống province name
+                                  };
+                                  console.log("[DEBUG] AddressInput - Setting manualAddress on province click:", newAddress);
+                                  return newAddress;
+                                });
                               }}
                               className={`w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
                                 selectedProvinceCode === province.code ? "bg-blue-50" : ""

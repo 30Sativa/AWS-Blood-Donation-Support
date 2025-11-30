@@ -162,7 +162,7 @@ export default function LoginPage() {
               // Update AuthContext
               refreshAuth();
 
-              // Sau khi login, chuyển về trang chủ
+              // Sau khi login, chuyển về trang chủ (HomePage)
               navigate("/", { replace: true });
             } catch (e) {
               console.warn("Unable to save token to storage:", e);

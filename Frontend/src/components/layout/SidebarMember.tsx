@@ -18,7 +18,7 @@ const memberItems: SidebarItem[] = [
   { path: "/member/nearby-donors", icon: Radar, label: "Nearby Donors" },
   { path: "/member/history", icon: History, label: "History" },
   { path: "/member/notifications", icon: Bell, label: "Notifications" },
-  { path: "/member/sos", icon: AlertCircle, label: "Emergency Requests" },
+  { path: "/member/sos", icon: AlertCircle, label: "Requests" },
   { path: "/member/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/member/settings", icon: Settings, label: "Settings" },
 ];
