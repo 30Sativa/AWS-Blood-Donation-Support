@@ -310,6 +310,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             var donors = await _context.Donors
                 .Include(d => d.BloodType)
+                .Include(d => d.User)
+                    .ThenInclude(u => u.UserProfile)
+                .Include(d => d.DonorAvailabilities)
+                .Include(d => d.DonorHealthConditions)
                 .AsNoTracking()
                 .Where(d => d.BloodTypeId.HasValue && ids.Contains(d.BloodTypeId.Value))
                 .ToListAsync();
@@ -471,7 +475,18 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                         entity.User.UserProfile.Gender,
                         entity.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
                     );
-                    userDomain.GetType().GetProperty("Profile")?.SetValue(userDomain, profile);
+                    if (entity.User.UserProfile != null)
+                    {
+                        var profileDomain = UserProfileDomain.Rehydrate(
+                            entity.User.UserProfile.UserId,
+                            entity.User.UserProfile.FullName,
+                            entity.User.UserProfile.BirthYear,
+                            entity.User.UserProfile.Gender,
+                            entity.User.UserProfile.PrivacyPhoneVisibleToStaffOnly
+                        );
+
+                        userDomain.SetProfile(profile);
+                    }
                 }
 
                 donor.SetUser(userDomain);

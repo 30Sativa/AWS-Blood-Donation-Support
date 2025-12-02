@@ -22,7 +22,7 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
         public string? AddressDisplay { get; private set; }
-
+        public UserProfileDomain? Profile { get; private set; }
         // Navigation
         public UserDomain? User { get; private set; }
 
@@ -186,6 +186,11 @@ namespace BloodDonationSupport.Domain.Donors.Entities
         public void SetUser(UserDomain user)
         {
             User = user;
+        }
+
+        public void SetProfile(UserProfileDomain profile)
+        {
+            Profile = profile;
         }
 
         public void SetBloodType(int? bloodTypeId, string? abo, string? rh)
