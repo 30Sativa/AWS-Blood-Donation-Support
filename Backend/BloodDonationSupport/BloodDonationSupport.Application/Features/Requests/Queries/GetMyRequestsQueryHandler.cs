@@ -16,7 +16,7 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
         private readonly IUserRepository _userRepo;
         private readonly IRequestRepository _requestRepo;
 
-        public GetMyRequestsHandler(
+        public GetMyRequestsQueryHandler(
             ICurrentUserService currentUser,
             IUserRepository userRepo,
             IRequestRepository requestRepo)
@@ -62,4 +62,5 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
             return BaseResponse<IEnumerable<RequestResponse>>
                 .SuccessResponse(dtoList);
         }
+    }
 }

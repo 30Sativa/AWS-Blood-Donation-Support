@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
-    public record GetMyRequestsQuery(long userId) : IRequest<BaseResponse<List<RequestResponse>>>
+    public record GetMyRequestsQuery : IRequest<BaseResponse<IEnumerable<RequestResponse>>>
     {
     }
 }
