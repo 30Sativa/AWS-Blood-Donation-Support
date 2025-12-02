@@ -127,19 +127,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
         [Authorize]
         public async Task<IActionResult> GetMyRequests()
         {
-            // 1) Lấy CognitoId từ token
-            var sub = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(sub))
-                return Unauthorized("Missing sub in token.");
-
-            // 2) Lấy user trong DB theo CognitoId
-            var user = await _userRepository.GetByCognitoUserIdAsync(sub);
-            if (user == null)
-                return Unauthorized("User not found.");
-
-            // 3) Gọi query handler
-            var result = await _mediator.Send(new GetRequestsByUserIdQuery(user.Id));
-
+            var result = await _mediator.Send(new GetMyRequestsQuery());
             return Ok(result);
         }
     }

@@ -10,24 +10,40 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
-    public class GetMyRequestsQueryHandler : IRequestHandler<GetMyRequestsQuery, BaseResponse<List<RequestResponse>>>
+    public class GetMyRequestsQueryHandler : IRequestHandler<GetMyRequestsQuery, BaseResponse<IEnumerable<RequestResponse>>>
     {
-        private readonly IRequestRepository _requestRepository;
-        private readonly IUserRepository _userRepository;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IUserRepository _userRepo;
+        private readonly IRequestRepository _requestRepo;
 
-        public GetMyRequestsQueryHandler(IRequestRepository requestRepository, IUserRepository userRepository)
+        public GetMyRequestsHandler(
+            ICurrentUserService currentUser,
+            IUserRepository userRepo,
+            IRequestRepository requestRepo)
         {
-            _requestRepository = requestRepository;
-            _userRepository = userRepository;
+            _currentUser = currentUser;
+            _userRepo = userRepo;
+            _requestRepo = requestRepo;
         }
 
-        public async Task<BaseResponse<List<RequestResponse>>> Handle(
-            GetMyRequestsQuery query,
-            CancellationToken cancellationToken)
+        public async Task<BaseResponse<IEnumerable<RequestResponse>>> Handle(
+            GetMyRequestsQuery request, CancellationToken cancellationToken)
         {
-            var items = await _requestRepository.GetByRequesterIdAsync(query.userId);
+            // 1) User must login
+            if (!_currentUser.IsAuthenticated || string.IsNullOrEmpty(_currentUser.CognitoUserId))
+                return BaseResponse<IEnumerable<RequestResponse>>
+                    .FailureResponse("User not authenticated.");
 
-            var dto = items.Select(r => new RequestResponse
+            // 2) Get user by CognitoId
+            var user = await _userRepo.GetByCognitoUserIdAsync(_currentUser.CognitoUserId);
+            if (user == null)
+                return BaseResponse<IEnumerable<RequestResponse>>
+                    .FailureResponse("User not found in database.");
+
+            // 3) Get all requests by this user
+            var requests = await _requestRepo.GetAllByRequesterUserIdAsync(user.Id);
+
+            var dtoList = requests.Select(r => new RequestResponse
             {
                 RequestId = r.Id,
                 RequesterUserId = r.RequesterUserId,
@@ -41,9 +57,9 @@ namespace BloodDonationSupport.Application.Features.Requests.Queries
                 ClinicalNotes = r.ClinicalNotes,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt
-            }).ToList();
+            });
 
-            return BaseResponse<List<RequestResponse>>.SuccessResponse(dto);
+            return BaseResponse<IEnumerable<RequestResponse>>
+                .SuccessResponse(dtoList);
         }
-    }
 }
