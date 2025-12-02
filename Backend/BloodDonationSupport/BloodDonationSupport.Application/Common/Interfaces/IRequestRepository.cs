@@ -22,5 +22,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<bool> ExistsAsync(Expression<Func<RequestDomain, bool>> predicate);
 
         Task<long?> GetLatestRequestIdByRequesterIdAsync(long requesterUserId);
+
+        Task<List<RequestDomain>> GetByRequesterIdAsync(long requesterUserId);
     }
 }

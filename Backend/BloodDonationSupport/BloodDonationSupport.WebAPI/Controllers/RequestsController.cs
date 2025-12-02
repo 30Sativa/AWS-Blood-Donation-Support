@@ -117,5 +117,25 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new CreateMatchCommand(id, request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        // =====================================================
+        // [GET] api/requests/my (get my requests)
+        // =====================================================
+        [HttpGet("my")]
+        [Authorize]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            // Lấy userId từ token (ví dụ claim "sub" hoặc "userId")
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst("sub");
+
+            if (userIdClaim == null)
+                return Unauthorized("Missing user ID in token.");
+
+            long userId = long.Parse(userIdClaim.Value);
+
+            var result = await _mediator.Send(new GetMyRequestsQuery(userId));
+
+            return Ok(result);
+        }
     }
 }

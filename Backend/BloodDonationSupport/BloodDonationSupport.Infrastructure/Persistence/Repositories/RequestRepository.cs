@@ -222,5 +222,19 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                 location: location
             );
         }
+
+        // ============================================================
+        // GET BY REQUESTER ID (Not implemented)
+        // ============================================================
+        public async Task<List<RequestDomain>> GetByRequesterIdAsync(long requesterUserId)
+        {
+            var entities = await _context.Requests
+        .AsNoTracking()
+        .Where(r => r.RequesterUserId == requesterUserId)
+        .OrderByDescending(r => r.CreatedAt)
+        .ToListAsync();
+
+            return entities.Select(MapToDomain).ToList();
+        }
     }
 }
