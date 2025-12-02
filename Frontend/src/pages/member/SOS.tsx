@@ -7,10 +7,8 @@ import { Radio } from "@/components/ui/radio";
 import { Droplet, Calendar, AlertCircle, Loader2 } from "lucide-react";
 import { AddressInput } from "@/components/ui/AddressInput";
 import { requestService } from "@/services/requestService";
-import { addressService } from "@/services/addressService";
 import { profileService } from "@/services/profileService";
-import type { Address } from "@/types/address";
-import type { RegisterRequestRequest } from "@/types/request";
+import type { RegisterRequestRequest, Request } from "@/types/request";
 
 const BLOOD_TYPES = [
   { value: "1", label: "O-" },
@@ -41,9 +39,10 @@ export function SOS() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
-  const [deliveryAddressId, setDeliveryAddressId] = useState<number | null>(null);
   const [deliveryAddressFull, setDeliveryAddressFull] = useState<string>("");
-  const [deliveryAddressObject, setDeliveryAddressObject] = useState<Address | null>(null);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState("");
 
   const [formData, setFormData] = useState({
     bloodTypeId: "",
@@ -79,17 +78,33 @@ export function SOS() {
   // Không cần load address trước - user sẽ nhập address mới khi tạo request
   // Address sẽ được tạo tự động khi submit nếu chưa có addressId
 
+  // Load request history của user hiện tại
+  useEffect(() => {
+    loadMyRequests();
+  }, []);
+
+  const loadMyRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      setRequestsError("");
+      const data = await requestService.getMyRequests();
+      setRequests(data);
+    } catch (err: any) {
+      console.error("Error loading my requests:", err);
+      setRequestsError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to load your blood requests."
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (error) setError("");
-  };
-
-  const handleAddressIdChange = (addressId: number | null, address: Address | null) => {
-    console.log("[DEBUG] SOS handleAddressIdChange called:", { addressId, address });
-    setDeliveryAddressId(addressId);
-    // Lưu address object để dùng khi submit (nếu chưa có addressId)
-    setDeliveryAddressObject(address);
   };
 
   const handleAddressFullChange = (fullAddress: string) => {
@@ -155,16 +170,12 @@ export function SOS() {
       return;
     }
 
-    // Validate deliveryAddress - cần có fullAddress
+    // Validate deliveryAddress - cần có fullAddress (text)
     if (!deliveryAddressFull || !deliveryAddressFull.trim()) {
       setError("Please fill in the delivery address.");
       setLoading(false);
       return;
     }
-
-    // Nếu có addressId thì dùng, nếu không thì gửi 0 kèm fullAddress để backend tự tạo
-    // Backend có thể hỗ trợ tạo address mới khi deliveryAddressId = 0
-    let finalAddressId = deliveryAddressId || 0;
 
     try {
       setLoading(true);
@@ -185,14 +196,9 @@ export function SOS() {
         componentId: componentId,
         quantityUnits: quantityUnits,
         needBeforeUtc: needBeforeUtcISO,
-        deliveryAddressId: finalAddressId,
+        deliveryAddress: deliveryAddressFull.trim(),
         clinicalNotes: formData.clinicalNotes.trim(),
       };
-
-      // Nếu deliveryAddressId = 0 (address mới), gửi kèm fullAddress để backend tự tạo
-      if (finalAddressId === 0 && deliveryAddressFull) {
-        requestData.deliveryAddress = deliveryAddressFull.trim();
-      }
 
       // Debug: log payload để kiểm tra
       console.log("[DEBUG] Request payload:", JSON.stringify(requestData, null, 2));
@@ -201,6 +207,8 @@ export function SOS() {
 
       if (response.success) {
         setSuccess("Blood request created successfully!");
+        // Refresh request history to include the new one
+        await loadMyRequests();
         // Reset form
         setFormData({
           bloodTypeId: "",
@@ -210,9 +218,7 @@ export function SOS() {
           needBeforeUtc: "",
           clinicalNotes: "",
         });
-        setDeliveryAddressId(null);
         setDeliveryAddressFull("");
-        setDeliveryAddressObject(null);
       } else {
         setError(response.message || "Failed to create request");
       }
@@ -384,20 +390,14 @@ export function SOS() {
             </Label>
             <AddressInput
               label=""
-              value={deliveryAddressId}
-              onChange={handleAddressIdChange}
+              simpleMode={true}
               onAddressChange={handleAddressFullChange}
               required
-              disableAutoLoad={true}
+              disabled={loading}
             />
             {!deliveryAddressFull.trim() && (
               <p className="text-xs text-red-600">
                 Please fill in the delivery address
-              </p>
-            )}
-            {deliveryAddressId && deliveryAddressFull && (
-              <p className="text-xs text-gray-500">
-                Delivery address: {deliveryAddressFull}
               </p>
             )}
           </div>
@@ -420,6 +420,131 @@ export function SOS() {
             </Button>
           </div>
         </form>
+      </div>
+
+      {/* Request History Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-black">Your Blood Requests</h2>
+            <p className="text-gray-600 text-sm mt-1">
+              View the requests you have created. Most recent requests appear first.
+            </p>
+          </div>
+        </div>
+
+        {requestsLoading ? (
+          <div className="flex items-center gap-2 text-gray-600 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading your blood requests...
+          </div>
+        ) : requestsError ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {requestsError}
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-sm text-gray-600">
+            You have not created any blood requests yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Request ID</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Blood Type</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    Component
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    Quantity (Units)
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Urgency</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    Need Before
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    Clinical Notes
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    Created At
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {requests.map((request) => {
+                  const bloodTypeLabel =
+                    BLOOD_TYPES.find(
+                      (type) => parseInt(type.value, 10) === request.bloodTypeId
+                    )?.label || `#${request.bloodTypeId}`;
+
+                  const componentLabel =
+                    BLOOD_COMPONENTS.find(
+                      (c) => parseInt(c.value, 10) === request.componentId
+                    )?.label || `#${request.componentId}`;
+
+                  const formatDateTime = (value?: string) => {
+                    if (!value) return "-";
+                    const date = new Date(value);
+                    if (Number.isNaN(date.getTime())) return value;
+                    return date.toLocaleString();
+                  };
+
+                  const formatUrgency = (u: string) => {
+                    if (!u) return "-";
+                    const normalized = u.toLowerCase();
+                    if (normalized === "low") return "Low";
+                    if (normalized === "normal") return "Normal";
+                    if (normalized === "high") return "High";
+                    return u;
+                  };
+
+                  const statusColor =
+                    request.status === "Pending"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : request.status === "Completed" || request.status === "Approved"
+                      ? "bg-green-100 text-green-800"
+                      : request.status === "Cancelled" || request.status === "Rejected"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800";
+
+                  return (
+                    <tr key={request.requestId} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900 font-medium">
+                        {request.requestId}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">{bloodTypeLabel}</td>
+                      <td className="px-4 py-3 text-gray-900">{componentLabel}</td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {request.quantityUnits}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {formatUrgency(request.urgency)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {formatDateTime(request.needBeforeUtc)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}
+                        >
+                          {request.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-900 max-w-xs truncate">
+                        {request.clinicalNotes}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {formatDateTime(request.createdAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

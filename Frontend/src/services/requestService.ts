@@ -1,6 +1,11 @@
 // src/services/requestService.ts
 import apiClient from "@/services/axios";
-import type { RegisterRequestRequest, RequestResponse } from "@/types/request";
+import type {
+  RegisterRequestRequest,
+  RequestResponse,
+  RequestsResponse,
+  Request,
+} from "@/types/request";
 
 export const requestService = {
   /**
@@ -9,7 +14,10 @@ export const requestService = {
    */
   async registerRequest(data: RegisterRequestRequest): Promise<RequestResponse> {
     try {
-      console.log("[DEBUG] requestService.registerRequest - Payload:", JSON.stringify(data, null, 2));
+      console.log(
+        "[DEBUG] requestService.registerRequest - Payload:",
+        JSON.stringify(data, null, 2)
+      );
       const response = await apiClient.post<RequestResponse>(
         "/api/Requests/register",
         data
@@ -26,6 +34,29 @@ export const requestService = {
       return response.data;
     } catch (error: any) {
       console.error("Register request error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách blood requests của user hiện tại
+   * GET /api/Requests/my
+   */
+  async getMyRequests(): Promise<Request[]> {
+    try {
+      const response = await apiClient.get<RequestsResponse>("/api/Requests/my");
+
+      if (!response.data) {
+        throw new Error("Response data is empty");
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to get my requests");
+      }
+
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error("Get my requests error:", error);
       throw error;
     }
   },

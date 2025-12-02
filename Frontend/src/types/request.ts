@@ -7,10 +7,9 @@ export interface RegisterRequestRequest {
   componentId: number;
   quantityUnits: number;
   needBeforeUtc: string; // ISO 8601 format
-  deliveryAddressId: number;
   clinicalNotes: string;
-  // Optional: có thể nhập address trực tiếp nếu deliveryAddressId = 0
-  deliveryAddress?: string; // fullAddress string
+  // Địa chỉ giao nhận dạng text (backend hiện hỗ trợ Option B - deliveryAddress)
+  deliveryAddress: string; // fullAddress string
 }
 
 export interface Request {
@@ -21,10 +20,10 @@ export interface Request {
   componentId: number;
   quantityUnits: number;
   needBeforeUtc: string;
-  deliveryAddressId: number;
+  deliveryAddress: string;
   clinicalNotes: string;
-  status?: string;
-  createdAt?: string;
+  status: string;
+  createdAt: string;
   updatedAt?: string;
 }
 
@@ -32,5 +31,11 @@ export interface RequestResponse {
   success: boolean;
   message?: string;
   data?: Request;
+}
+
+export interface RequestsResponse {
+  success: boolean;
+  message?: string | null;
+  data?: Request[];
 }
 
