@@ -1,8 +1,12 @@
 // src/types/request.ts
 
+export type RequestStatus = "REQUESTED" | "MATCHING" | "FULFILLED" | "CANCELLED";
+
+export type RequestUrgency = "LOW" | "NORMAL" | "HIGH" | "Low" | "Normal" | "High";
+
 export interface RegisterRequestRequest {
   requesterUserId: number;
-  urgency: string; // "LOW" | "NORMAL" | "HIGH"
+  urgency: RequestUrgency; // "LOW" | "NORMAL" | "HIGH"
   bloodTypeId: number;
   componentId: number;
   quantityUnits: number;
@@ -15,14 +19,16 @@ export interface RegisterRequestRequest {
 export interface Request {
   requestId: number;
   requesterUserId: number;
-  urgency: string;
+  urgency: RequestUrgency;
   bloodTypeId: number;
   componentId: number;
   quantityUnits: number;
   needBeforeUtc: string;
-  deliveryAddress: string;
+  // Backend hiện trả về deliveryAddressId; giữ thêm deliveryAddress để tương thích UI cũ
+  deliveryAddressId?: number;
+  deliveryAddress?: string;
   clinicalNotes: string;
-  status: string;
+  status: RequestStatus;
   createdAt: string;
   updatedAt?: string;
 }
@@ -37,5 +43,38 @@ export interface RequestsResponse {
   success: boolean;
   message?: string | null;
   data?: Request[];
+}
+
+export interface UpdateRequestStatusRequest {
+  status: RequestStatus;
+}
+
+export interface CompatibleDonor {
+  donorId: number;
+  fullName: string;
+  bloodGroup: string;
+  phoneNumber?: string;
+  email?: string;
+  distanceKm?: number;
+  availability?: string;
+}
+
+export interface CompatibleDonorsResponse {
+  success: boolean;
+  message?: string | null;
+  // Backend: data = { requestedId: number, donors: CompatibleDonor[] }
+  data?: {
+    requestedId: number;
+    donors: CompatibleDonor[];
+  };
+}
+
+export interface CreateMatchRequest {
+  donorId: number;
+}
+
+export interface MatchResponse {
+  success: boolean;
+  message?: string | null;
 }
 

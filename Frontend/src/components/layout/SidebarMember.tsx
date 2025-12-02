@@ -13,13 +13,13 @@ import {
 
 // Member-specific items — you can expand this list or move it to a separate config/file.
 const memberItems: SidebarItem[] = [
+  { path: "/member/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/member/register-donor", icon: UserPlus, label: "Register Donor" },
   { path: "/member/donor-profile", icon: HeartHandshake, label: "Donor Profile" },
   { path: "/member/nearby-donors", icon: Radar, label: "Nearby Donors" },
-  { path: "/member/history", icon: History, label: "History" },
+  { path: "/member/history", icon: History, label: "Donation History" },
+  { path: "/member/requests", icon: AlertCircle, label: "My Requests" },
   { path: "/member/notifications", icon: Bell, label: "Notifications" },
-  { path: "/member/sos", icon: AlertCircle, label: "Requests" },
-  { path: "/member/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/member/settings", icon: Settings, label: "Settings" },
 ];
 

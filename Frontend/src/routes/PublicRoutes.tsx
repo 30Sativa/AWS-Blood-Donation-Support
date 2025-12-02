@@ -21,6 +21,9 @@ import { RegisterDonor } from "@/pages/member/RegisterDonor";
 import { NearbyDonorsPage } from "@/pages/member/HealthCheck";
 import { Dashboard } from "@/pages/member/Dashboard";
 import { SOS } from "@/pages/member/SOS";
+import { MyRequests } from "@/pages/member/requests/MyRequests";
+import { RequestDetail } from "@/pages/member/requests/RequestDetail";
+import { CompatibleDonors } from "@/pages/member/requests/CompatibleDonors";
 import { AccountSettings } from "@/pages/member/AccountSettings";
 import { DonorProfile } from "@/pages/member/DonorProfile";
 import { Notifications } from "@/pages/member/Notifications";
@@ -88,6 +91,9 @@ const routes = createBrowserRouter([
       { path: "nearby-donors", element: <NearbyDonorsPage /> },
       { path: "notifications", element: <Notifications /> },
       { path: "sos", element: <SOS /> },
+      { path: "requests", element: <MyRequests /> },
+      { path: "requests/:id", element: <RequestDetail /> },
+      { path: "requests/:id/donors", element: <CompatibleDonors /> },
       { path: "dashboard", element: <Dashboard /> },
       { path: "settings", element: <AccountSettings /> },
       { path: "*", element: <Navigate to="dashboard" replace /> },
