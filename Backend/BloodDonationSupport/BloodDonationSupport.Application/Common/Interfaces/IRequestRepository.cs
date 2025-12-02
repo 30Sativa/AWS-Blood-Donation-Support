@@ -24,5 +24,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<long?> GetLatestRequestIdByRequesterIdAsync(long requesterUserId);
 
         Task<List<RequestDomain>> GetByRequesterIdAsync(long requesterUserId);
+        Task<List<RequestDomain>> FindByUserIdAsync(long userId);
+
     }
 }

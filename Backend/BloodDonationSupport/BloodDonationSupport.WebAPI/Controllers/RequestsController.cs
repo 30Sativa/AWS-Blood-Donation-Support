@@ -1,4 +1,5 @@
-﻿using BloodDonationSupport.Application.Features.Requests.Commands;
+﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Features.Requests.Commands;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Request;
 using BloodDonationSupport.Application.Features.Requests.Queries;
 using MediatR;
@@ -13,11 +14,12 @@ namespace BloodDonationSupport.WebAPI.Controllers
     {
         private readonly IMediator _mediator;
         private readonly ILogger<RequestsController> _logger;
-
-        public RequestsController(IMediator mediator, ILogger<RequestsController> logger)
+        private readonly IUserRepository _userRepository;
+        public RequestsController(IMediator mediator, ILogger<RequestsController> logger, IUserRepository userRepository)
         {
             _mediator = mediator;
             _logger = logger;
+            _userRepository = userRepository;
         }
 
         // =====================================================
@@ -119,21 +121,24 @@ namespace BloodDonationSupport.WebAPI.Controllers
         }
 
         // =====================================================
-        // [GET] api/requests/my (get my requests)
+        // [GET] api/requests/me (get my requests)
         // =====================================================
-        [HttpGet("my")]
+        [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMyRequests()
         {
-            // Lấy userId từ token (ví dụ claim "sub" hoặc "userId")
-            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst("sub");
+            // 1) Lấy CognitoId từ token
+            var sub = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(sub))
+                return Unauthorized("Missing sub in token.");
 
-            if (userIdClaim == null)
-                return Unauthorized("Missing user ID in token.");
+            // 2) Lấy user trong DB theo CognitoId
+            var user = await _userRepository.GetByCognitoUserIdAsync(sub);
+            if (user == null)
+                return Unauthorized("User not found.");
 
-            long userId = long.Parse(userIdClaim.Value);
-
-            var result = await _mediator.Send(new GetMyRequestsQuery(userId));
+            // 3) Gọi query handler
+            var result = await _mediator.Send(new GetRequestsByUserIdQuery(user.Id));
 
             return Ok(result);
         }

@@ -10,22 +10,21 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Requests.Queries
 {
-    public class GetMyRequestsQueryHandler : IRequestHandler<GetMyRequestsQuery, BaseResponse<List<RequestResponse>>>
+    public class GetRequestsByUserIdHandler
+    : IRequestHandler<GetRequestsByUserIdQuery, BaseResponse<List<RequestResponse>>>
     {
-        private readonly IRequestRepository _requestRepository;
-        private readonly IUserRepository _userRepository;
+        private readonly IRequestRepository _requestRepo;
 
-        public GetMyRequestsQueryHandler(IRequestRepository requestRepository, IUserRepository userRepository)
+        public GetRequestsByUserIdHandler(IRequestRepository requestRepo)
         {
-            _requestRepository = requestRepository;
-            _userRepository = userRepository;
+            _requestRepo = requestRepo;
         }
 
         public async Task<BaseResponse<List<RequestResponse>>> Handle(
-            GetMyRequestsQuery query,
+            GetRequestsByUserIdQuery query,
             CancellationToken cancellationToken)
         {
-            var items = await _requestRepository.GetByRequesterIdAsync(query.userId);
+            var items = await _requestRepo.FindByUserIdAsync(query.UserId);
 
             var dto = items.Select(r => new RequestResponse
             {

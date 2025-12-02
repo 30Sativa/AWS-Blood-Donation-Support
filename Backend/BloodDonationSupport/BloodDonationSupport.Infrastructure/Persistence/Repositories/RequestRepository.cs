@@ -236,5 +236,21 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             return entities.Select(MapToDomain).ToList();
         }
+
+
+        // ============================================================
+        // FIND BY USER ID (Not implemented)
+        // ============================================================
+
+        public async Task<List<RequestDomain>> FindByUserIdAsync(long userId)
+        {
+            var entities = await _context.Requests
+        .AsNoTracking()
+        .Where(r => r.RequesterUserId == userId)
+        .OrderByDescending(r => r.CreatedAt)
+        .ToListAsync();
+
+            return entities.Select(MapToDomain).ToList();
+        }
     }
 }
