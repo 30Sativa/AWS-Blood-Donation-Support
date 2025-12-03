@@ -1,15 +1,17 @@
 using BloodDonationSupport.Application.Features.Appointments.DTOs.Response;
+using BloodDonationSupport.Domain.Appointments.Entities;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
     public interface IAppointmentRepository
     {
-        Task<long> AddAsync(AppointmentData appointment);
+        // Domain methods
+        Task AddAsync(AppointmentDomain appointment);
+        Task<AppointmentDomain?> GetByIdAsync(long appointmentId);
+        void Update(AppointmentDomain appointment);
 
-        Task<AppointmentData?> GetByIdAsync(long appointmentId);
-
-        Task<IEnumerable<AppointmentData>> GetByRequestIdAsync(long requestId);
-
-        Task<IEnumerable<AppointmentData>> GetByDonorIdAsync(long donorId);
+        // DTO read models
+        Task<AppointmentResponse?> GetDtoByIdAsync(long appointmentId);
+        Task<IEnumerable<AppointmentResponse>> GetDtosByRequestIdAsync(long requestId);
     }
 }

@@ -18,6 +18,8 @@ public partial class Appointment
 
     public DateTime CreatedAt { get; set; }
 
+    public string? Notes { get; set; }
+
     public virtual User CreatedByNavigation { get; set; } = null!;
 
     public virtual ICollection<DonationAttempt> DonationAttempts { get; set; } = new List<DonationAttempt>();
