@@ -15,7 +15,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
-
+        //test
         public long? UserId
         {
             get
