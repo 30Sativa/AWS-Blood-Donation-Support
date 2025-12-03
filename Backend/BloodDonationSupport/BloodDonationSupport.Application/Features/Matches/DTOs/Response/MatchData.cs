@@ -1,4 +1,4 @@
-namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
+namespace BloodDonationSupport.Application.Features.Matches.DTOs.Response
 {
     public class MatchData
     {
@@ -13,3 +13,4 @@ namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
         public DateTime CreatedAt { get; set; }
     }
 }
+

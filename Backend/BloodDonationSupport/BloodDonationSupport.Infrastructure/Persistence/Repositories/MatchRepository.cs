@@ -1,5 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
-using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
+using BloodDonationSupport.Application.Features.Matches.DTOs.Response;
 using BloodDonationSupport.Domain.Matches.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
@@ -67,33 +67,6 @@ public class MatchRepository : IMatchRepository
     // =============================================================
     // DTO SECTION (CreateMatch & Queries)
     // =============================================================
-    public async Task<long> AddDtoAsync(MatchData match)
-    {
-        var ef = new Match
-        {
-            RequestId = match.RequestId,
-            DonorId = match.DonorId,
-            CompatibilityScore = match.CompatibilityScore,
-            DistanceKm = match.DistanceKm,
-            Status = match.Status,
-            ContactedAt = match.ContactedAt,
-            Response = match.Response,
-            CreatedAt = match.CreatedAt
-        };
-
-        await _context.Matches.AddAsync(ef);
-
-        return ef.MatchId;
-    }
-
-    public async Task<MatchData?> GetDtoByIdAsync(long matchId)
-    {
-        var ef = await _context.Matches.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.MatchId == matchId);
-
-        return ef == null ? null : ToMatchData(ef);
-    }
-
     public async Task<MatchData?> GetDtoByRequestIdAndDonorIdAsync(long requestId, long donorId)
     {
         var ef = await _context.Matches
@@ -119,6 +92,25 @@ public class MatchRepository : IMatchRepository
             .Where(m => m.DonorId == donorId)
             .Select(x => ToMatchData(x))
             .ToListAsync();
+    }
+
+    public async Task<long> AddDtoAsync(MatchData match)
+    {
+        var ef = new Match
+        {
+            RequestId = match.RequestId,
+            DonorId = match.DonorId,
+            CompatibilityScore = match.CompatibilityScore,
+            DistanceKm = match.DistanceKm,
+            Status = match.Status,
+            ContactedAt = match.ContactedAt,
+            Response = match.Response,
+            CreatedAt = match.CreatedAt
+        };
+
+        await _context.Matches.AddAsync(ef);
+
+        return ef.MatchId;
     }
 
     public void UpdateDto(MatchData match)

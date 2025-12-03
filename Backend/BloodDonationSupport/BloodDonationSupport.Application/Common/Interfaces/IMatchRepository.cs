@@ -1,25 +1,21 @@
-using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
+using BloodDonationSupport.Application.Features.Matches.DTOs.Response;
 using BloodDonationSupport.Domain.Matches.Entities;
 
 namespace BloodDonationSupport.Application.Common.Interfaces
 {
     public interface IMatchRepository
     {
-        // ======================
-        // DOMAIN (for update status)
-        // ======================
-        Task<MatchDomain?> GetDomainByIdAsync(long matchId);
+        // Domain
         Task AddDomainAsync(MatchDomain match);
+        Task<MatchDomain?> GetDomainByIdAsync(long matchId);
         void UpdateDomain(MatchDomain match);
 
-        // ======================
-        // DTO (for CreateMatch & Queries)
-        // ======================
-        Task<long> AddDtoAsync(MatchData match);
-        Task<MatchData?> GetDtoByIdAsync(long matchId);
+        // DTO
         Task<MatchData?> GetDtoByRequestIdAndDonorIdAsync(long requestId, long donorId);
         Task<IEnumerable<MatchData>> GetDtosByRequestIdAsync(long requestId);
         Task<IEnumerable<MatchData>> GetDtosByDonorIdAsync(long donorId);
+
+        Task<long> AddDtoAsync(MatchData match);
         void UpdateDto(MatchData match);
     }
 }

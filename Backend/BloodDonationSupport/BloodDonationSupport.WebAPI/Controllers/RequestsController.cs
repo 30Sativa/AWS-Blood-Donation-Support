@@ -108,19 +108,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(response);
         }
 
-        // [POST] api/requests/{id}/match (Create match between request and donor)
-        // =====================================================
-        [HttpPost("{id:long}/match")]
-        public async Task<IActionResult> CreateMatch(long id, [FromBody] CreateMatchRequest request)
-        {
-            if (request == null)
-                return BadRequest("Request body cannot be null.");
-
-            var result = await _mediator.Send(new CreateMatchCommand(id, request));
-            return result.Success ? Ok(result) : BadRequest(result);
-        }
-
-        // =====================================================
         // [GET] api/requests/me (get my requests)
         // =====================================================
         [HttpGet("me")]
