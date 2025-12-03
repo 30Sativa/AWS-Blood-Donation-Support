@@ -32,9 +32,7 @@ namespace BloodDonationSupport.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
-            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IPostRepository, PostRepository>();
             services.AddScoped<IPostTagRepository, PostTagRepository>();
             services.AddScoped<IDonorRepository, DonorRepository>();

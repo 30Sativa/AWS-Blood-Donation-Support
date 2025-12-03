@@ -229,13 +229,6 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
-        // [GET] api/users/{id}/audit-logs
-        [HttpGet("{id:long}/audit-logs")]
-        [Authorize(Policy = "AdminOrStaff")]
-        public async Task<IActionResult> GetUserAuditLogs(long id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
-        {
-            var result = await _mediator.Send(new GetUserAuditLogsQuery(id, pageNumber, pageSize));
-            return Ok(result);
-        }
+       
     }
 }
