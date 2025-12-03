@@ -52,14 +52,14 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
             }
 
             // 3) Check duplicate match
-            var existingMatches = await _matchRepository.GetByRequestIdAsync(command.RequestId);
+            var existingMatches = await _matchRepository.GetDtosByRequestIdAsync(command.RequestId);
             if (existingMatches.Any(m => m.DonorId == command.Request.DonorId))
             {
                 return BaseResponse<MatchResponse>
                     .FailureResponse("Match already exists for this request and donor.");
             }
 
-            // 4) Build match data for insertion
+            // 4) Build match data
             var matchData = new MatchData
             {
                 RequestId = command.RequestId,
@@ -69,19 +69,19 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 Status = command.Request.Status,
                 Response = command.Request.Response,
                 CreatedAt = DateTime.UtcNow,
-                
             };
-                
+
             try
             {
-                // INSERT - repository chỉ Add, chưa SaveChanges
-                await _matchRepository.AddAsync(matchData);
+                // Add → chưa SaveChanges
+                await _matchRepository.AddDtoAsync(matchData);
 
-                // SaveChanges do UnitOfWork xử lý
+                // SaveChanges do UnitOfWork
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Load lại từ DB bằng request_id và donor_id (vì MatchId chỉ được populate sau SaveChanges)
-                var created = await _matchRepository.GetByRequestIdAndDonorIdAsync(command.RequestId, command.Request.DonorId);
+                // Load lại từ DB theo RequestId + DonorId
+                var created = await _matchRepository
+                    .GetDtoByRequestIdAndDonorIdAsync(command.RequestId, command.Request.DonorId);
 
                 if (created == null)
                     return BaseResponse<MatchResponse>.FailureResponse("Failed to retrieve created match.");
@@ -100,11 +100,11 @@ namespace BloodDonationSupport.Application.Features.Requests.Commands
                 };
 
                 return BaseResponse<MatchResponse>.SuccessResponse(response, "Match created successfully.");
-
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating match");
+
                 return BaseResponse<MatchResponse>.FailureResponse(
                     $"Error creating match: {ex.Message}"
                 );

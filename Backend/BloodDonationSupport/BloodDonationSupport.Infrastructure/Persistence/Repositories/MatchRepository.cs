@@ -1,5 +1,6 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
+using BloodDonationSupport.Domain.Matches.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +14,12 @@ public class MatchRepository : IMatchRepository
         _context = context;
     }
 
-    public async Task<long> AddAsync(MatchData match)
+    // =============================================================
+    // DOMAIN SECTION
+    // =============================================================
+    public async Task AddDomainAsync(MatchDomain match)
     {
-        var entity = new Match
+        var ef = new Match
         {
             RequestId = match.RequestId,
             DonorId = match.DonorId,
@@ -27,93 +31,120 @@ public class MatchRepository : IMatchRepository
             CreatedAt = match.CreatedAt
         };
 
-        await _context.Matches.AddAsync(entity);
+        await _context.Matches.AddAsync(ef);
 
-        // ❗ KHÔNG SaveChanges — UnitOfWork sẽ làm
-        return entity.MatchId;
+        match.SetId(ef.MatchId);
     }
 
-    public async Task<MatchData?> GetByIdAsync(long matchId)
+    public async Task<MatchDomain?> GetDomainByIdAsync(long matchId)
     {
-        var entity = await _context.Matches.AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.MatchId == matchId);
+        var ef = await _context.Matches.FirstOrDefaultAsync(m => m.MatchId == matchId);
 
-        if (entity == null)
-            return null;
+        return ef == null
+            ? null
+            : MatchDomain.Rehydrate(
+                ef.MatchId,
+                ef.RequestId,
+                ef.DonorId,
+                ef.CompatibilityScore,
+                ef.DistanceKm,
+                ef.Status,
+                ef.ContactedAt,
+                ef.Response,
+                ef.CreatedAt
+            );
+    }
 
+    public void UpdateDomain(MatchDomain match)
+    {
+        var ef = _context.Matches.First(m => m.MatchId == match.Id);
+
+        ef.Status = match.Status;
+        ef.ContactedAt = match.ContactedAt;
+        ef.Response = match.Response;
+    }
+
+    // =============================================================
+    // DTO SECTION (CreateMatch & Queries)
+    // =============================================================
+    public async Task<long> AddDtoAsync(MatchData match)
+    {
+        var ef = new Match
+        {
+            RequestId = match.RequestId,
+            DonorId = match.DonorId,
+            CompatibilityScore = match.CompatibilityScore,
+            DistanceKm = match.DistanceKm,
+            Status = match.Status,
+            ContactedAt = match.ContactedAt,
+            Response = match.Response,
+            CreatedAt = match.CreatedAt
+        };
+
+        await _context.Matches.AddAsync(ef);
+
+        return ef.MatchId;
+    }
+
+    public async Task<MatchData?> GetDtoByIdAsync(long matchId)
+    {
+        var ef = await _context.Matches.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.MatchId == matchId);
+
+        return ef == null ? null : ToMatchData(ef);
+    }
+
+    public async Task<MatchData?> GetDtoByRequestIdAndDonorIdAsync(long requestId, long donorId)
+    {
+        var ef = await _context.Matches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.RequestId == requestId && m.DonorId == donorId);
+
+        return ef == null ? null : ToMatchData(ef);
+    }
+
+    public async Task<IEnumerable<MatchData>> GetDtosByRequestIdAsync(long requestId)
+    {
+        return await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.RequestId == requestId)
+            .Select(x => ToMatchData(x))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<MatchData>> GetDtosByDonorIdAsync(long donorId)
+    {
+        return await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.DonorId == donorId)
+            .Select(x => ToMatchData(x))
+            .ToListAsync();
+    }
+
+    public void UpdateDto(MatchData match)
+    {
+        var ef = _context.Matches.First(x => x.MatchId == match.MatchId);
+        ef.Status = match.Status;
+        ef.ContactedAt = match.ContactedAt;
+        ef.Response = match.Response;
+    }
+
+    // =============================================================
+    // Mapping helper
+    // =============================================================
+    private static MatchData ToMatchData(Match ef)
+    {
         return new MatchData
         {
-            MatchId = entity.MatchId,
-            RequestId = entity.RequestId,
-            DonorId = entity.DonorId,
-            CompatibilityScore = entity.CompatibilityScore,
-            DistanceKm = entity.DistanceKm,
-            Status = entity.Status,
-            ContactedAt = entity.ContactedAt,
-            Response = entity.Response,
-            CreatedAt = entity.CreatedAt
+            MatchId = ef.MatchId,
+            RequestId = ef.RequestId,
+            DonorId = ef.DonorId,
+            CompatibilityScore = ef.CompatibilityScore,
+            DistanceKm = ef.DistanceKm,
+            Status = ef.Status,
+            ContactedAt = ef.ContactedAt,
+            Response = ef.Response,
+            CreatedAt = ef.CreatedAt
         };
-    }
-
-    public async Task<MatchData?> GetByRequestIdAndDonorIdAsync(long requestId, long donorId)
-    {
-        var entity = await _context.Matches.AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.RequestId == requestId && m.DonorId == donorId);
-
-        if (entity == null)
-            return null;
-
-        return new MatchData
-        {
-            MatchId = entity.MatchId,
-            RequestId = entity.RequestId,
-            DonorId = entity.DonorId,
-            CompatibilityScore = entity.CompatibilityScore,
-            DistanceKm = entity.DistanceKm,
-            Status = entity.Status,
-            ContactedAt = entity.ContactedAt,
-            Response = entity.Response,
-            CreatedAt = entity.CreatedAt
-        };
-    }
-
-    public async Task<IEnumerable<MatchData>> GetByRequestIdAsync(long requestId)
-    {
-        var list = await _context.Matches.AsNoTracking()
-                    .Where(m => m.RequestId == requestId)
-                    .ToListAsync();
-
-        return list.Select(e => new MatchData
-        {
-            MatchId = e.MatchId,
-            RequestId = e.RequestId,
-            DonorId = e.DonorId,
-            CompatibilityScore = e.CompatibilityScore,
-            DistanceKm = e.DistanceKm,
-            Status = e.Status,
-            ContactedAt = e.ContactedAt,
-            Response = e.Response,
-            CreatedAt = e.CreatedAt
-        });
-    }
-
-    public async Task<IEnumerable<MatchData>> GetByDonorIdAsync(long donorId)
-    {
-        var list = await _context.Matches.AsNoTracking()
-                    .Where(m => m.DonorId == donorId)
-                    .ToListAsync();
-
-        return list.Select(e => new MatchData
-        {
-            MatchId = e.MatchId,
-            RequestId = e.RequestId,
-            DonorId = e.DonorId,
-            CompatibilityScore = e.CompatibilityScore,
-            DistanceKm = e.DistanceKm,
-            Status = e.Status,
-            ContactedAt = e.ContactedAt,
-            Response = e.Response,
-            CreatedAt = e.CreatedAt
-        });
     }
 }
