@@ -43,6 +43,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            _context.ChangeTracker.Clear();
             return await _context.SaveChangesAsync(cancellationToken);
         }
     }
