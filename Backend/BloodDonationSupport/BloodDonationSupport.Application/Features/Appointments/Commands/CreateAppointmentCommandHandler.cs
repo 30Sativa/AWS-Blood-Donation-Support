@@ -61,7 +61,19 @@ namespace BloodDonationSupport.Application.Features.Appointments.Commands
             );
 
             await _appointmentRepository.AddAsync(appointment);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.InnerException?.Message
+              + " | STACK: "
+              + ex.InnerException?.StackTrace;
+
+                return BaseResponse<AppointmentResponse>.FailureResponse(msg ?? ex.Message);
+            }
+
 
             var response = new AppointmentResponse
             {
