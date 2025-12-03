@@ -19,17 +19,21 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         public async Task LogAsync(
-            long? userId,
-            string action,
-            string entityType,
-            string? entityId,
-            string? oldValue,
-            string? newValue,
-            string? detailsJson,
-            string? ipAddress)
+    long? userId,
+    string action,
+    string entityType,
+    string? entityId,
+    string? oldValue,
+    string? newValue,
+    string? detailsJson,
+    string? ipAddress)
         {
             try
             {
+                // 🛑 RẤT QUAN TRỌNG — XÓA TẤT CẢ ENTITY EF ĐANG TRACK
+                // Ngăn EF hiểu lầm JSON và tạo AddressId / UserId SHADOW PROPS
+                _context.ChangeTracker.Clear();
+
                 var log = new AuditLog
                 {
                     UserId = userId,
@@ -44,17 +48,16 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 };
 
                 _context.AuditLogs.Add(log);
-                // Use UnitOfWork to save instead of calling SaveChanges directly on context
-                // This ensures proper transaction handling
+
                 await _unitOfWork.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                // Log the error but don't fail the main operation
-                // Audit logging should be non-blocking
-                _logger.LogError(ex, "Failed to save audit log for action: {Action}, EntityType: {EntityType}", action, entityType);
-                // Optionally, you could add to a background queue or retry mechanism here
+                _logger.LogError(ex,
+                    "Failed to save audit log for action: {Action}, EntityType: {EntityType}",
+                    action, entityType);
             }
         }
+
     }
 }
