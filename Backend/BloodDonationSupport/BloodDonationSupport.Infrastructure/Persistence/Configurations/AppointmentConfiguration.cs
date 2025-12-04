@@ -8,7 +8,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Appointment> builder)
         {
-            builder.ToTable("appointments", t => t.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"));
+            builder.ToTable("appointments", t =>
+                t.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"));
 
             builder.HasKey(a => a.AppointmentId)
                    .HasName("PK_appointments");
@@ -47,7 +48,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasDefaultValueSql("SYSUTCDATETIME()");
 
-            // Foreign keys
+            // Notes (nếu bạn có cột Notes trong entity nhưng chưa map)
+            builder.Property(a => a.Notes)
+                   .HasColumnName("notes");
+
+            // ──────────────────────────────────────
+            // Foreign keys & Relationships
+            // ──────────────────────────────────────
             builder.HasOne(a => a.Request)
                    .WithMany(r => r.Appointments)
                    .HasForeignKey(a => a.RequestId)
@@ -72,7 +79,9 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasConstraintName("FK_appointments_users")
                    .OnDelete(DeleteBehavior.Restrict);
 
+            // ──────────────────────────────────────
             // Indexes
+            // ──────────────────────────────────────
             builder.HasIndex(a => a.RequestId)
                    .HasDatabaseName("IX_appointments_req");
 
@@ -81,6 +90,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
 
             builder.HasIndex(a => new { a.ScheduledAt, a.Status })
                    .HasDatabaseName("IX_appointments_scheduled");
+
+            // ──────────────────────────────────────
+            // QUAN TRỌNG NHẤT: Chặn shadow properties gây lỗi
+            // ──────────────────────────────────────
+            builder.Ignore("AddressId");
+            builder.Ignore("UserId");
+            builder.Ignore("CreatedByNavigationId");
+            builder.Ignore("LocationId1");
         }
     }
 }
