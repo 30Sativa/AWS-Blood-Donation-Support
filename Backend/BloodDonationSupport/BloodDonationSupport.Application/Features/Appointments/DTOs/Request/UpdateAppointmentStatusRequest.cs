@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Appointments.DTOs.Request
 {
-    internal class UpdateAppointmentStatusRequest
+    public class UpdateAppointmentStatusRequest
     {
+        public string Status { get; set; } = null!;
     }
 }
