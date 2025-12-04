@@ -48,13 +48,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasDefaultValueSql("SYSUTCDATETIME()");
 
-            // Notes (nếu bạn có cột Notes trong entity nhưng chưa map)
             builder.Property(a => a.Notes)
                    .HasColumnName("notes");
 
-            // ──────────────────────────────────────
-            // Foreign keys & Relationships
-            // ──────────────────────────────────────
+            // Relationships
             builder.HasOne(a => a.Request)
                    .WithMany(r => r.Appointments)
                    .HasForeignKey(a => a.RequestId)
@@ -79,25 +76,14 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasConstraintName("FK_appointments_users")
                    .OnDelete(DeleteBehavior.Restrict);
 
-            // ──────────────────────────────────────
             // Indexes
-            // ──────────────────────────────────────
-            builder.HasIndex(a => a.RequestId)
-                   .HasDatabaseName("IX_appointments_req");
+            builder.HasIndex(a => a.RequestId).HasDatabaseName("IX_appointments_req");
+            builder.HasIndex(a => a.DonorId).HasDatabaseName("IX_appointments_donor");
+            builder.HasIndex(a => new { a.ScheduledAt, a.Status }).HasDatabaseName("IX_appointments_scheduled");
 
-            builder.HasIndex(a => a.DonorId)
-                   .HasDatabaseName("IX_appointments_donor");
-
-            builder.HasIndex(a => new { a.ScheduledAt, a.Status })
-                   .HasDatabaseName("IX_appointments_scheduled");
-
-            // ──────────────────────────────────────
-            // QUAN TRỌNG NHẤT: Chặn shadow properties gây lỗi
-            // ──────────────────────────────────────
+            // CHỈ CẦN 2 DÒNG NÀY LÀ ĐỦ – KHÔNG THÊM GÌ NỮA!
             builder.Ignore("AddressId");
             builder.Ignore("UserId");
-            builder.Ignore("CreatedByNavigationId");
-            builder.Ignore("LocationId1");
         }
     }
 }
