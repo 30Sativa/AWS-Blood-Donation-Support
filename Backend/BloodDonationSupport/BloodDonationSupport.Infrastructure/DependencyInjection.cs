@@ -17,16 +17,23 @@ namespace BloodDonationSupport.Infrastructure
         {
             //  Connect SQL Server
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(
-                    config.GetConnectionString("DBDefault"),
-                    sql =>
-                    {
-                        sql.EnableRetryOnFailure(
-                            maxRetryCount: 5,
-                            maxRetryDelay: TimeSpan.FromSeconds(10),
-                            errorNumbersToAdd: null);
-                        sql.CommandTimeout(60); // optional: extend timeout
-                    }));
+    options
+        .UseSqlServer(
+            config.GetConnectionString("DBDefault"),
+            sql =>
+            {
+                sql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null);
+                sql.CommandTimeout(60);
+            })
+        .EnableSensitiveDataLogging()          // ⭐ log giá trị truyền vào
+        .EnableDetailedErrors()                // ⭐ hiển thị chi tiết lỗi EF
+        .LogTo(Console.WriteLine,
+               Microsoft.Extensions.Logging.LogLevel.Information) // ⭐ in full SQL
+);
+
 
             // Register Repositories
             services.AddScoped<IUserRepository, UserRepository>();
