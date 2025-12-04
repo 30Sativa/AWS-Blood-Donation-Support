@@ -13,5 +13,6 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         // DTO read models
         Task<AppointmentResponse?> GetDtoByIdAsync(long appointmentId);
         Task<IEnumerable<AppointmentResponse>> GetDtosByRequestIdAsync(long requestId);
+        Task<AppointmentResponse?> GetLatestDtoByRequestIdAndDonorIdAsync(long requestId, long donorId);
     }
 }

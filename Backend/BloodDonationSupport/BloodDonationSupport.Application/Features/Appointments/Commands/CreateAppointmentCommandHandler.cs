@@ -74,22 +74,22 @@ namespace BloodDonationSupport.Application.Features.Appointments.Commands
                 return BaseResponse<AppointmentResponse>.FailureResponse(msg ?? ex.Message);
             }
 
+            // Retrieve the saved appointment to get the generated ID
+            var savedAppointment = await _appointmentRepository.GetLatestDtoByRequestIdAndDonorIdAsync(
+                req.RequestId, 
+                req.DonorId);
 
-            var response = new AppointmentResponse
+            if (savedAppointment == null)
             {
-                AppointmentId = appointment.Id,
-                RequestId = appointment.RequestId,
-                DonorId = appointment.DonorId,
-                LocationId = appointment.LocationId,
-                ScheduledAt = appointment.ScheduledAt,
-                Notes = appointment.Notes,
-                Status = appointment.Status,
-                CreatedBy = appointment.CreatedBy,
-                CreatedAt = appointment.CreatedAt
-            };
+                return BaseResponse<AppointmentResponse>.FailureResponse(
+                    "Failed to retrieve created appointment.");
+            }
+
+            // Update domain entity with the generated ID
+            appointment.SetId(savedAppointment.AppointmentId);
 
             return BaseResponse<AppointmentResponse>.SuccessResponse(
-                response,
+                savedAppointment,
                 "Appointment created successfully.");
         }
     }

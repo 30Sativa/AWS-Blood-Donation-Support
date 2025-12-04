@@ -32,7 +32,8 @@ public class AppointmentRepository : IAppointmentRepository
         };
 
         await _context.Appointments.AddAsync(ef);
-        domain.SetId(ef.AppointmentId);
+        // Note: ID will be set after SaveChangesAsync is called
+        // The AppointmentId will be populated by EF Core after saving
     }
 
     public async Task<AppointmentDomain?> GetByIdAsync(long appointmentId)
@@ -105,5 +106,26 @@ public class AppointmentRepository : IAppointmentRepository
                 CreatedAt = a.CreatedAt
             })
             .ToListAsync();
+    }
+
+    public async Task<AppointmentResponse?> GetLatestDtoByRequestIdAndDonorIdAsync(long requestId, long donorId)
+    {
+        return await _context.Appointments
+            .AsNoTracking()
+            .Where(a => a.RequestId == requestId && a.DonorId == donorId)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => new AppointmentResponse
+            {
+                AppointmentId = a.AppointmentId,
+                RequestId = a.RequestId,
+                DonorId = a.DonorId,
+                LocationId = a.LocationId,
+                ScheduledAt = a.ScheduledAt,
+                Notes = a.Notes,
+                Status = a.Status,
+                CreatedBy = a.CreatedBy,
+                CreatedAt = a.CreatedAt
+            })
+            .FirstOrDefaultAsync();
     }
 }
