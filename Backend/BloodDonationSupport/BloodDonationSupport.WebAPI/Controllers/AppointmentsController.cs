@@ -23,5 +23,12 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new CreateAppointmentCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateAppointmentStatus(long id, [FromBody] UpdateAppointmentStatusRequest request)
+        {
+            var result = await _mediator.Send(new UpdateAppointmentStatusCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }
