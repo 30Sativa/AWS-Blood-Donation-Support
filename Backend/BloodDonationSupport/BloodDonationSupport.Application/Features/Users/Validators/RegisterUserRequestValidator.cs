@@ -16,9 +16,10 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
                 .WithMessage("Password must have at least 8 characters, including upper/lowercase, number and special symbol.");
 
             RuleFor(x => x.PhoneNumber)
-    .Matches(@"^(0\d{9}|\+84\d{9})$")
+    .Matches(@"^(\+?\d{7,15})$")
     .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
-    .WithMessage("Số điện thoại không hợp lệ.");
+    .WithMessage("Invalid phone number format.");
+
 
 
             RuleFor(x => x.FullName)
