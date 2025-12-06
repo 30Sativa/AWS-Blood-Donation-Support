@@ -6,7 +6,6 @@ using BloodDonationSupport.Infrastructure.Identity;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using BloodDonationSupport.Infrastructure.Persistence.Repositories;
 using BloodDonationSupport.Infrastructure.Persistence.UnitOfWork;
-using BloodDonationSupport.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
