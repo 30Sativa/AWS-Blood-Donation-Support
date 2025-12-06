@@ -162,8 +162,17 @@ export default function LoginPage() {
               // Update AuthContext
               refreshAuth();
 
-              // Sau khi login, chuyển về trang chủ (HomePage)
-              navigate("/", { replace: true });
+              // Redirect theo role sau khi login
+              if (userRole === "admin") {
+                // Admin → Admin accounts page
+                navigate("/admin/accounts", { replace: true });
+              } else if (userRole === "staff") {
+                // Staff → Staff dashboard
+                navigate("/admin/staff-dashboard", { replace: true });
+              } else {
+                // Member → Member dashboard
+                navigate("/member/dashboard", { replace: true });
+              }
             } catch (e) {
               console.warn("Unable to save token to storage:", e);
             }

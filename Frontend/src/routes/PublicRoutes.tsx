@@ -30,6 +30,7 @@ import { Notifications } from "@/pages/member/Notifications";
 // Admin Pages
 import ManageAccounts from "@/pages/admin/ManageAccounts";
 import ManageBlog from "@/pages/admin/ManageBlog";
+import StaffDashboard from "@/pages/admin/StaffDashboard";
 
 const routes = createBrowserRouter([
   // --- 1. ROUTES CHUNG (PUBLIC) ---
@@ -113,6 +114,7 @@ const routes = createBrowserRouter([
   children: [
     { index: true, element: <Navigate to="accounts" replace /> },
     { path: "accounts", element: <ManageAccounts /> },
+    { path: "staff-dashboard", element: <StaffDashboard /> },
     { path: "manage-blog", element: <ManageBlog /> },
     { path: "reports", element: <div>Reports</div> }, 
     { path: "*", element: <Navigate to="accounts" replace /> },

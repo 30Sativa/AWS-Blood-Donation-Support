@@ -15,6 +15,11 @@ import {
 
 // Staff có thể truy cập cả member features và một số admin features
 const staffItems: SidebarItem[] = [
+  // Staff Dashboard (ưu tiên đầu tiên)
+  { path: "/admin/staff-dashboard", icon: BarChart3, label: "Staff Dashboard" },
+  // Admin features (staff có thể quản lý một số thứ)
+  { path: "/admin/accounts", icon: Users, label: "Manage Accounts" },
+  { path: "/admin/manage-blog", icon: FileText, label: "Manage Blog" },
   // Member features
   { path: "/member/register-donor", icon: UserPlus, label: "Register Donor" },
   { path: "/member/donor-profile", icon: HeartHandshake, label: "Donor Profile" },
@@ -22,10 +27,6 @@ const staffItems: SidebarItem[] = [
   { path: "/member/history", icon: History, label: "History" },
   { path: "/member/notifications", icon: Bell, label: "Notifications" },
   { path: "/member/sos", icon: AlertCircle, label: "Emergency Requests" },
-  { path: "/member/dashboard", icon: BarChart3, label: "Dashboard" },
-  // Admin features (staff có thể quản lý một số thứ)
-  { path: "/admin/accounts", icon: Users, label: "Manage Accounts" },
-  { path: "/admin/manage-blog", icon: FileText, label: "Manage Blog" },
   { path: "/member/settings", icon: Settings, label: "Settings" },
 ];
 
