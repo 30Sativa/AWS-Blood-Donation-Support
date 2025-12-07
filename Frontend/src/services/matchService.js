@@ -24,3 +24,9 @@ export const getMatchesByRequestId = async (requestId) => {
   return res.data;
 };
 
+// Mark match as contacted
+export const markMatchAsContacted = async (matchId) => {
+  const res = await api.put(`/Matches/${matchId}/contact`);
+  return res.data;
+};
+

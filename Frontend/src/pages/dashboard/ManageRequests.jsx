@@ -3,8 +3,10 @@ import { getAllRequests, getRequestById } from "../../services/requestService";
 import { getBloodTypes } from "../../services/bloodTypeService";
 import { searchNearbyDonors } from "../../services/donorService";
 import { createMatch } from "../../services/matchService";
+import { useNavigate } from "react-router-dom";
 
 export default function ManageRequests() {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [bloodTypes, setBloodTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +168,15 @@ export default function ManageRequests() {
       );
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  // Handle view matches
+  const handleViewMatches = () => {
+    if (selectedRequest) {
+      const requestId = selectedRequest.requestId || selectedRequest.id;
+      navigate(`/dashboard/staff/matches?requestId=${requestId}`);
+      setShowDetailModal(false);
     }
   };
 
@@ -338,8 +349,8 @@ export default function ManageRequests() {
       const matchData = {
         requestId: selectedRequest.requestId || selectedRequest.id,
         donorId: donor.donorId || donor.id,
-        compatibilityScore: donor.compatibilityScore || null,
-        distanceKm: donor.distanceKm || 0,
+        compatibilityScore: donor.compatibilityScore != null ? donor.compatibilityScore : null,
+        distanceKm: donor.distanceKm != null ? donor.distanceKm : 0,
       };
 
       const response = await createMatch(matchData);
@@ -786,41 +797,56 @@ export default function ManageRequests() {
                       </div>
                     </div>
                   )}
+
+                  {/* View Matches Button */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleViewMatches}
+                      className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      View Matches
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Modal Footer */}
             <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200 flex justify-between items-center">
-              <button
-                onClick={handleFindNearbyDonors}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-                disabled={searchingDonors}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {selectedRequest && selectedRequest.status !== "MATCHING" && (
+                <button
+                  onClick={handleFindNearbyDonors}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                  disabled={searchingDonors}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                {searchingDonors ? "Searching..." : "Find Nearby Donors"}
-              </button>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  {searchingDonors ? "Searching..." : "Find Nearby Donors"}
+                </button>
+              )}
               <button
                 onClick={handleCloseModal}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                className={`px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium ${selectedRequest && selectedRequest.status === "MATCHING" ? "ml-auto" : ""}`}
               >
                 Close
               </button>
@@ -1002,11 +1028,12 @@ export default function ManageRequests() {
                           <option value="">-- Select a donor --</option>
                           {nearbyDonors.map((donor, index) => {
                             const donorId = donor.donorId || donor.id || index;
+                            const bloodType = donor.bloodGroup || (donor.bloodTypeId ? getBloodTypeName(donor.bloodTypeId) : "");
                             return (
                               <option key={index} value={donorId}>
                                 {donor.fullName || "Anonymous Donor"} 
                                 {donor.distanceKm !== undefined ? ` (${donor.distanceKm.toFixed(2)} km)` : ""}
-                                {donor.bloodTypeId ? ` - ${getBloodTypeName(donor.bloodTypeId)}` : ""}
+                                {bloodType ? ` - ${bloodType}` : ""}
                               </option>
                             );
                           })}
@@ -1052,13 +1079,20 @@ export default function ManageRequests() {
                         <div className="space-y-4">
                           {/* Header */}
                           <div className="flex items-start justify-between">
-                            <div>
+                            <div className="flex-1">
                               <h4 className="text-lg font-bold text-gray-900">
                                 {donor.fullName || "Anonymous Donor"}
                               </h4>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {donor.email || "Email not available"}
-                              </p>
+                              {donor.email && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {donor.email}
+                                </p>
+                              )}
+                              {donor.donorId && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Donor ID: {donor.donorId}
+                                </p>
+                              )}
                             </div>
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -1077,9 +1111,9 @@ export default function ManageRequests() {
                               Blood Type
                             </label>
                             <p className="text-lg font-semibold text-red-600 mt-1">
-                              {donor.bloodTypeId
+                              {donor.bloodGroup || (donor.bloodTypeId
                                 ? getBloodTypeName(donor.bloodTypeId)
-                                : "Not specified"}
+                                : "Not specified")}
                             </p>
                           </div>
 
@@ -1095,6 +1129,22 @@ export default function ManageRequests() {
                             </div>
                           )}
 
+                          {/* Next Eligible Date */}
+                          {donor.nextEligibleDate && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 uppercase">
+                                Next Eligible Date
+                              </label>
+                              <p className="text-sm text-gray-700 mt-1">
+                                {new Date(donor.nextEligibleDate).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
+                          )}
+
                           {/* Travel Radius */}
                           {donor.travelRadiusKm && (
                             <div>
@@ -1103,6 +1153,18 @@ export default function ManageRequests() {
                               </label>
                               <p className="text-sm text-gray-700 mt-1">
                                 {donor.travelRadiusKm} km
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Location Coordinates */}
+                          {donor.latitude != null && donor.longitude != null && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 uppercase">
+                                Location
+                              </label>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {donor.latitude.toFixed(6)}, {donor.longitude.toFixed(6)}
                               </p>
                             </div>
                           )}
@@ -1151,6 +1213,18 @@ export default function ManageRequests() {
                               </label>
                               <p className="text-sm text-gray-700 mt-1">
                                 {donor.phoneNumber}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Email */}
+                          {donor.email && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 uppercase">
+                                Email
+                              </label>
+                              <p className="text-sm text-gray-700 mt-1">
+                                {donor.email}
                               </p>
                             </div>
                           )}

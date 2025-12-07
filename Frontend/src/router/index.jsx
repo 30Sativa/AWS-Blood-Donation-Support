@@ -19,6 +19,7 @@ import EditDonor from "../pages/dashboard/EditDonor";
 import NearbyDonors from "../pages/dashboard/NearbyDonors";
 import ManageDonors from "../pages/dashboard/ManageDonors";
 import ManageRequests from "../pages/dashboard/ManageRequests";
+import ManageMatches from "../pages/dashboard/ManageMatches";
 import DefaultRedirect from "./DefaultRedirect";
 import RequestList from "../pages/requests/RequestList";
 import RequestDetail from "../pages/requests/RequestDetail";
@@ -177,6 +178,14 @@ const router = createBrowserRouter([
         element: (
           <StaffRoute>
             <ManageRequests />
+          </StaffRoute>
+        ),
+      },
+      {
+        path: "staff/matches",
+        element: (
+          <StaffRoute>
+            <ManageMatches />
           </StaffRoute>
         ),
       },
