@@ -1,4 +1,4 @@
-﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Matches.DTOs.Response;
 using BloodDonationSupport.Domain.Matches.Entities;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
@@ -92,6 +92,35 @@ public class MatchRepository : IMatchRepository
             .Where(m => m.DonorId == donorId)
             .Select(x => ToMatchData(x))
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<MatchData>> GetDtosByUserIdAsync(long userId)
+    {
+        // Get matches where user is the requester (through requests)
+        var requestMatches = await _context.Matches
+            .AsNoTracking()
+            .Include(m => m.Request)
+            .Where(m => m.Request.RequesterUserId == userId)
+            .Select(x => ToMatchData(x))
+            .ToListAsync();
+
+        // Get matches where user is the donor (through donor profile)
+        var donorMatches = await _context.Matches
+            .AsNoTracking()
+            .Include(m => m.Donor)
+            .Where(m => m.Donor.UserId == userId)
+            .Select(x => ToMatchData(x))
+            .ToListAsync();
+
+        // Combine and remove duplicates (in case a user has both requests and donor profile)
+        var allMatches = requestMatches
+            .Concat(donorMatches)
+            .GroupBy(m => m.MatchId)
+            .Select(g => g.First())
+            .OrderByDescending(m => m.CreatedAt)
+            .ToList();
+
+        return allMatches;
     }
 
     public async Task<long> AddDtoAsync(MatchData match)

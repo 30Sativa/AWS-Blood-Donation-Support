@@ -1,4 +1,4 @@
-﻿using BloodDonationSupport.Application.Features.Matches.Commands;
+using BloodDonationSupport.Application.Features.Matches.Commands;
 using BloodDonationSupport.Application.Features.Matches.Commands.CreateMatch;
 using BloodDonationSupport.Application.Features.Matches.DTOs.Request;
 using BloodDonationSupport.Application.Features.Matches.Queries;
@@ -93,6 +93,17 @@ namespace BloodDonationSupport.WebAPI.Controllers
         public async Task<IActionResult> GetMatchById(long id)
         {
             var result = await _mediator.Send(new GetMatchByIdQuery(id));
+            return Ok(result);
+        }
+
+        // =============================================
+        // GET /api/matches/me (Get my matches)
+        // =============================================
+        [HttpGet("me")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> GetMyMatches()
+        {
+            var result = await _mediator.Send(new GetMyMatchesQuery());
             return Ok(result);
         }
     }

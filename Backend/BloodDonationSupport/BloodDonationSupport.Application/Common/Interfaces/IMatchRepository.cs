@@ -14,6 +14,7 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<MatchData?> GetDtoByRequestIdAndDonorIdAsync(long requestId, long donorId);
         Task<IEnumerable<MatchData>> GetDtosByRequestIdAsync(long requestId);
         Task<IEnumerable<MatchData>> GetDtosByDonorIdAsync(long donorId);
+        Task<IEnumerable<MatchData>> GetDtosByUserIdAsync(long userId);
         Task<IEnumerable<MatchData>> GetAllDtosAsync();
 
         Task<long> AddDtoAsync(MatchData match);
