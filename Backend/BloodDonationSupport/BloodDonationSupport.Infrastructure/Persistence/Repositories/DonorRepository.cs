@@ -517,5 +517,19 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
             return donor;
         }
 
+        public async Task<IEnumerable<DonorDomain>> GetAllWithRelationsAsync()
+        {
+            var donors = await _context.Donors
+        .Include(d => d.User)
+            .ThenInclude(u => u.UserProfile)
+        .Include(d => d.BloodType)
+        .Include(d => d.DonorAvailabilities)
+        .Include(d => d.DonorHealthConditions)
+        .Include(d => d.Address)
+        .AsNoTracking()
+        .ToListAsync();
+
+            return donors.Select(MapToDomainWithRelations);
+        }
     }
 }

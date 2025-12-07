@@ -41,5 +41,8 @@ namespace BloodDonationSupport.Application.Common.Interfaces
         Task<long> GetDonorIdByUserIdAsync(long userId);
 
         Task<List<DonorDomain>> GetDonorsByBloodTypesAsync(IEnumerable<int> bloodTypeIds);
+
+        Task<IEnumerable<DonorDomain>> GetAllWithRelationsAsync();
+
     }
 }

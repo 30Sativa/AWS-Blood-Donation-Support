@@ -24,7 +24,7 @@ namespace BloodDonationSupport.Application.Features.Donors.Queries
             GetAllDonorsQuery request,
             CancellationToken cancellationToken)
         {
-            var donors = await _donorRepo.GetAllAsync();
+            var donors = await _donorRepo.GetAllWithRelationsAsync();
 
             var result = donors.Select(d => new DonorProfileResponse
             {
