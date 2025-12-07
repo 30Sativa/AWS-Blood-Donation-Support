@@ -117,5 +117,26 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new GetMyRequestsQuery());
             return Ok(result);
         }
+
+        // [GET] api/requests/user/{userId} (get requests by user ID)
+        [HttpGet("user/{userId:long}")]
+        public async Task<IActionResult> GetRequestsByUserId(long userId)
+        {
+            var result = await _mediator.Send(new GetRequestsByUserIdQuery(userId));
+            return Ok(result);
+        }
+        // =====================================================
+        // [PUT] api/requests/{id}/cancel  (cancel a request)
+        // =====================================================
+        [HttpPut("{id:long}/cancel")]
+        public async Task<IActionResult> CancelRequest(CancelRequestByRequest request)
+        {
+            var result = await _mediator.Send(new CancelRequestCommand(request));
+
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
     }
 }
