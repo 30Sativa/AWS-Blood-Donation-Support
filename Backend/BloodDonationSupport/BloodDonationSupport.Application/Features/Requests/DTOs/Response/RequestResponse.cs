@@ -10,6 +10,10 @@
         public int QuantityUnits { get; set; }
         public DateTime? NeedBeforeUtc { get; set; }
         public long? DeliveryAddressId { get; set; }
+        public string? DeliveryAddressName { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
         public string Status { get; set; } = string.Empty;
         public string? ClinicalNotes { get; set; }
         public DateTime CreatedAt { get; set; }
