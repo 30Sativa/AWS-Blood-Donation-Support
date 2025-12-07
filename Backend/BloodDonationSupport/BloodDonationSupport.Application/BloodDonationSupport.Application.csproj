@@ -35,8 +35,6 @@
 
     <Folder Include="Features\Matches\DTOs\Request\" />
 
-    <Folder Include="Features\Matches\Queries\" />
-
     <Folder Include="Features\Users\Events\" />
   </ItemGroup>
 

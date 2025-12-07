@@ -139,4 +139,12 @@ public class MatchRepository : IMatchRepository
             CreatedAt = ef.CreatedAt
         };
     }
+
+    public async Task<IEnumerable<MatchData>> GetAllDtosAsync()
+    {
+        return await _context.Matches
+        .AsNoTracking()
+        .Select(x => ToMatchData(x))
+        .ToListAsync();
+    }
 }

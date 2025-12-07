@@ -1,6 +1,7 @@
 ﻿using BloodDonationSupport.Application.Features.Matches.Commands;
 using BloodDonationSupport.Application.Features.Matches.Commands.CreateMatch;
 using BloodDonationSupport.Application.Features.Matches.DTOs.Request;
+using BloodDonationSupport.Application.Features.Matches.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -73,6 +74,26 @@ namespace BloodDonationSupport.WebAPI.Controllers
         {
             var result = await _mediator.Send(new MarkNoAnswerCommand (id));
             return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // =============================================
+        // GET /api/Matches  (Staff xem tất cả match)
+        // =============================================
+        [HttpGet]
+        public async Task<IActionResult> GetAllMatches()
+        {
+            var result = await _mediator.Send(new GetAllMatchesQuery());
+            return Ok(result);
+        }
+
+        // =============================================
+        // GET /api/Matches/{id} (Staff xem chi tiết)
+        // =============================================
+        [HttpGet("{id:long}")]
+        public async Task<IActionResult> GetMatchById(long id)
+        {
+            var result = await _mediator.Send(new GetMatchByIdQuery(id));
+            return Ok(result);
         }
     }
 }
