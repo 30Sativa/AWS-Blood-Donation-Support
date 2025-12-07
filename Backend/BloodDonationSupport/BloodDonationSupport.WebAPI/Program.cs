@@ -71,9 +71,18 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowLocalFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173") // React frontend local
+            .SetIsOriginAllowed(origin =>
+            {
+                // parse origin
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return uri.Host == "localhost" || uri.Host == "127.0.0.1";
+                }
+                return false;
+            })
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
