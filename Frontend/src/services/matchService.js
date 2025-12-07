@@ -30,3 +30,21 @@ export const markMatchAsContacted = async (matchId) => {
   return res.data;
 };
 
+// Get my matches (for member)
+export const getMyMatches = async () => {
+  const res = await api.get("/Matches/me");
+  return res.data;
+};
+
+// Accept a match
+export const acceptMatch = async (matchId) => {
+  const res = await api.put(`/Matches/${matchId}/accept`);
+  return res.data;
+};
+
+// Decline a match
+export const declineMatch = async (matchId) => {
+  const res = await api.put(`/Matches/${matchId}/decline`);
+  return res.data;
+};
+

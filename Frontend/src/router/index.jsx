@@ -20,6 +20,7 @@ import NearbyDonors from "../pages/dashboard/NearbyDonors";
 import ManageDonors from "../pages/dashboard/ManageDonors";
 import ManageRequests from "../pages/dashboard/ManageRequests";
 import ManageMatches from "../pages/dashboard/ManageMatches";
+import MyMatches from "../pages/dashboard/MyMatches";
 import DefaultRedirect from "./DefaultRedirect";
 import RequestList from "../pages/requests/RequestList";
 import RequestDetail from "../pages/requests/RequestDetail";
@@ -202,6 +203,14 @@ const router = createBrowserRouter([
         element: (
           <MemberRoute>
             <NewRequest />
+          </MemberRoute>
+        ),
+      },
+      {
+        path: "member/matches",
+        element: (
+          <MemberRoute>
+            <MyMatches />
           </MemberRoute>
         ),
       },
