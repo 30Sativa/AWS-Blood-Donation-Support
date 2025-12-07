@@ -129,8 +129,8 @@ export default function RequestDetail() {
   // Fetch user location from request or donor info
   const fetchUserLocation = async (requestData) => {
     try {
-      // First, check if location is directly in request data
-      if (requestData.latitude && requestData.longitude) {
+      // First, check if location is directly in request data (API returns latitude/longitude directly)
+      if (requestData.latitude != null && requestData.longitude != null) {
         setUserLocation({
           latitude: requestData.latitude,
           longitude: requestData.longitude,
@@ -139,7 +139,7 @@ export default function RequestDetail() {
       }
 
       // Check if request has requester location data
-      if (requestData.requesterUser && requestData.requesterUser.latitude && requestData.requesterUser.longitude) {
+      if (requestData.requesterUser && requestData.requesterUser.latitude != null && requestData.requesterUser.longitude != null) {
         setUserLocation({
           latitude: requestData.requesterUser.latitude,
           longitude: requestData.requesterUser.longitude,
@@ -148,7 +148,7 @@ export default function RequestDetail() {
       }
 
       // Check if request has delivery address with location
-      if (requestData.deliveryAddress && requestData.deliveryAddress.latitude && requestData.deliveryAddress.longitude) {
+      if (requestData.deliveryAddress && requestData.deliveryAddress.latitude != null && requestData.deliveryAddress.longitude != null) {
         setUserLocation({
           latitude: requestData.deliveryAddress.latitude,
           longitude: requestData.deliveryAddress.longitude,
@@ -162,7 +162,7 @@ export default function RequestDetail() {
         const donorResponse = await getMyDonor();
         if (donorResponse.success && donorResponse.data) {
           const donor = donorResponse.data;
-          if (donor.latitude && donor.longitude) {
+          if (donor.latitude != null && donor.longitude != null) {
             setUserLocation({
               latitude: donor.latitude,
               longitude: donor.longitude,

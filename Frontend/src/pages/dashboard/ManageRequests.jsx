@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getAllRequests, getRequestById } from "../../services/requestService";
 import { getBloodTypes } from "../../services/bloodTypeService";
 import { searchNearbyDonors } from "../../services/donorService";
+import { createMatch } from "../../services/matchService";
 
 export default function ManageRequests() {
   const [requests, setRequests] = useState([]);
@@ -18,6 +19,8 @@ export default function ManageRequests() {
   const [userLocation, setUserLocation] = useState(null);
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [manualLocation, setManualLocation] = useState({ latitude: "", longitude: "" });
+  const [selectedDonorId, setSelectedDonorId] = useState(null);
+  const [creatingMatch, setCreatingMatch] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,8 +174,8 @@ export default function ManageRequests() {
     try {
       console.log("Request data for location:", requestData);
       
-      // First, check if location is directly in request data
-      if (requestData.latitude && requestData.longitude) {
+      // First, check if location is directly in request data (API returns latitude/longitude directly)
+      if (requestData.latitude != null && requestData.longitude != null) {
         console.log("Found location in request data:", requestData.latitude, requestData.longitude);
         setUserLocation({
           latitude: requestData.latitude,
@@ -184,7 +187,7 @@ export default function ManageRequests() {
       // Check if request has requester location data
       if (requestData.requesterUser) {
         console.log("Requester user data:", requestData.requesterUser);
-        if (requestData.requesterUser.latitude && requestData.requesterUser.longitude) {
+        if (requestData.requesterUser.latitude != null && requestData.requesterUser.longitude != null) {
           console.log("Found location in requester user:", requestData.requesterUser.latitude, requestData.requesterUser.longitude);
           setUserLocation({
             latitude: requestData.requesterUser.latitude,
@@ -193,7 +196,7 @@ export default function ManageRequests() {
           return;
         }
         // Check if requester has donor with location
-        if (requestData.requesterUser.donor && requestData.requesterUser.donor.latitude && requestData.requesterUser.donor.longitude) {
+        if (requestData.requesterUser.donor && requestData.requesterUser.donor.latitude != null && requestData.requesterUser.donor.longitude != null) {
           console.log("Found location in requester donor:", requestData.requesterUser.donor.latitude, requestData.requesterUser.donor.longitude);
           setUserLocation({
             latitude: requestData.requesterUser.donor.latitude,
@@ -206,7 +209,7 @@ export default function ManageRequests() {
       // Check if request has delivery address with location
       if (requestData.deliveryAddress) {
         console.log("Delivery address data:", requestData.deliveryAddress);
-        if (requestData.deliveryAddress.latitude && requestData.deliveryAddress.longitude) {
+        if (requestData.deliveryAddress.latitude != null && requestData.deliveryAddress.longitude != null) {
           console.log("Found location in delivery address:", requestData.deliveryAddress.latitude, requestData.deliveryAddress.longitude);
           setUserLocation({
             latitude: requestData.deliveryAddress.latitude,
@@ -220,7 +223,7 @@ export default function ManageRequests() {
           // Location might be in format { lat, lng } or { latitude, longitude }
           const lat = requestData.deliveryAddress.location.lat || requestData.deliveryAddress.location.latitude;
           const lng = requestData.deliveryAddress.location.lng || requestData.deliveryAddress.location.longitude;
-          if (lat && lng) {
+          if (lat != null && lng != null) {
             setUserLocation({
               latitude: lat,
               longitude: lng,
@@ -317,6 +320,48 @@ export default function ManageRequests() {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+  };
+
+  // Handle create match
+  const handleCreateMatch = async (donor) => {
+    if (!selectedRequest || !donor) {
+      alert("Request or donor information is missing");
+      return;
+    }
+
+    if (!window.confirm(`Create match between Request #${selectedRequest.requestId} and ${donor.fullName || "Donor"}?`)) {
+      return;
+    }
+
+    setCreatingMatch(true);
+    try {
+      const matchData = {
+        requestId: selectedRequest.requestId || selectedRequest.id,
+        donorId: donor.donorId || donor.id,
+        compatibilityScore: donor.compatibilityScore || null,
+        distanceKm: donor.distanceKm || 0,
+      };
+
+      const response = await createMatch(matchData);
+
+      if (response.success) {
+        alert("Match created successfully!");
+        // Optionally close the modal or refresh data
+        setShowNearbyDonors(false);
+        setSelectedDonorId(null);
+      } else {
+        alert(response.message || "Failed to create match");
+      }
+    } catch (err) {
+      console.error("Error creating match:", err);
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to create match. Please try again."
+      );
+    } finally {
+      setCreatingMatch(false);
+    }
   };
 
   // Close modal
@@ -573,84 +618,14 @@ export default function ManageRequests() {
                   <p className="mt-4 text-gray-600">Loading request details...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left Column */}
-                  <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Header Section with Status and Urgency */}
+                  <div className="flex items-start justify-between pb-4 border-b border-gray-200">
                     <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Request ID
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        #{selectedRequest.requestId || selectedRequest.id}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Requester User ID
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {selectedRequest.requesterUserId || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Blood Type
-                      </label>
-                      <p className="mt-1">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-800 border border-red-300">
-                          {selectedRequest.bloodTypeId
-                            ? getBloodTypeName(selectedRequest.bloodTypeId)
-                            : "N/A"}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Component ID
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {selectedRequest.componentId || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Quantity Units
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {selectedRequest.quantityUnits || 0} units
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Urgency
-                      </label>
-                      <p className="mt-1">
-                        <span
-                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold border ${getUrgencyColor(
-                            selectedRequest.urgency
-                          )}`}
-                        >
-                          {selectedRequest.urgency || "NORMAL"}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Delivery Address ID
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {selectedRequest.deliveryAddressId || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Status
-                      </label>
-                      <p className="mt-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        Request #{selectedRequest.requestId || selectedRequest.id}
+                      </h3>
+                      <div className="flex items-center gap-3 flex-wrap">
                         <span
                           className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold border ${getStatusColor(
                             selectedRequest.status
@@ -658,43 +633,159 @@ export default function ManageRequests() {
                         >
                           {selectedRequest.status || "PENDING"}
                         </span>
-                      </p>
+                        <span
+                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold border ${getUrgencyColor(
+                            selectedRequest.urgency
+                          )}`}
+                        >
+                          {selectedRequest.urgency || "NORMAL"} Priority
+                        </span>
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-800 border border-red-300">
+                          {selectedRequest.bloodTypeId
+                            ? getBloodTypeName(selectedRequest.bloodTypeId)
+                            : "N/A"}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Created At
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {formatDate(selectedRequest.createdAt) || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Updated At
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {formatDate(selectedRequest.updatedAt) || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Need Before (UTC)
-                      </label>
-                      <p className="text-lg font-semibold text-gray-900 mt-1">
-                        {formatDate(selectedRequest.needBeforeUtc) || "N/A"}
-                      </p>
-                    </div>
-                    {selectedRequest.clinicalNotes && (
+                  </div>
+
+                  {/* Main Information Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column */}
+                    <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                          Clinical Notes
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Request ID
                         </label>
-                        <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap">
+                        <p className="text-lg font-semibold text-gray-900">
+                          #{selectedRequest.requestId || selectedRequest.id}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Requester User ID
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {selectedRequest.requesterUserId || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Blood Type
+                        </label>
+                        <p>
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-800 border border-red-300">
+                            {selectedRequest.bloodTypeId
+                              ? getBloodTypeName(selectedRequest.bloodTypeId)
+                              : "N/A"}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Component ID
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {selectedRequest.componentId || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Quantity Required
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {selectedRequest.quantityUnits || 0} units
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Need Before (UTC)
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {formatDate(selectedRequest.needBeforeUtc) || "Not specified"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Created At
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {formatDate(selectedRequest.createdAt) || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">
+                          Updated At
+                        </label>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {formatDate(selectedRequest.updatedAt) || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delivery Address Section */}
+                  {(selectedRequest.deliveryAddressName || selectedRequest.deliveryAddressId || (selectedRequest.latitude && selectedRequest.longitude)) && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">
+                        Delivery Address
+                      </label>
+                      {selectedRequest.deliveryAddressName && (
+                        <p className="text-base font-semibold text-gray-900 mb-2">
+                          {selectedRequest.deliveryAddressName}
+                        </p>
+                      )}
+                      {selectedRequest.deliveryAddressId && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          Address ID: {selectedRequest.deliveryAddressId}
+                        </p>
+                      )}
+                      {selectedRequest.latitude != null && selectedRequest.longitude != null && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          </svg>
+                          <span>
+                            {selectedRequest.latitude.toFixed(6)}, {selectedRequest.longitude.toFixed(6)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Clinical Notes Section */}
+                  {selectedRequest.clinicalNotes && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">
+                        Clinical Notes
+                      </label>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">
                           {selectedRequest.clinicalNotes}
                         </p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -750,6 +841,7 @@ export default function ManageRequests() {
                 onClick={() => {
                   setShowNearbyDonors(false);
                   setDonorSearchError(null);
+                  setSelectedDonorId(null);
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -886,12 +978,69 @@ export default function ManageRequests() {
                 </div>
               ) : nearbyDonors.length > 0 ? (
                 <>
-                  <div className="mb-4 text-sm text-gray-600">
-                    Found {nearbyDonors.length} donor{nearbyDonors.length !== 1 ? "s" : ""} within 10km radius
-                    {(userLocation || (manualLocation.latitude && manualLocation.longitude)) && (
-                      <span className="ml-2 text-gray-500">
-                        (from: {(userLocation?.latitude || manualLocation.latitude).toFixed(4)}, {(userLocation?.longitude || manualLocation.longitude).toFixed(4)})
-                      </span>
+                  <div className="mb-4 space-y-3">
+                    <div className="text-sm text-gray-600">
+                      Found {nearbyDonors.length} donor{nearbyDonors.length !== 1 ? "s" : ""} within 10km radius
+                      {(userLocation || (manualLocation.latitude && manualLocation.longitude)) && (
+                        <span className="ml-2 text-gray-500">
+                          (from: {(userLocation?.latitude || manualLocation.latitude).toFixed(4)}, {(userLocation?.longitude || manualLocation.longitude).toFixed(4)})
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Select Donor Dropdown - Show if more than 2 donors */}
+                    {nearbyDonors.length > 2 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Donor to Create Match
+                        </label>
+                        <select
+                          value={selectedDonorId !== null ? selectedDonorId : ""}
+                          onChange={(e) => setSelectedDonorId(e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">-- Select a donor --</option>
+                          {nearbyDonors.map((donor, index) => {
+                            const donorId = donor.donorId || donor.id || index;
+                            return (
+                              <option key={index} value={donorId}>
+                                {donor.fullName || "Anonymous Donor"} 
+                                {donor.distanceKm !== undefined ? ` (${donor.distanceKm.toFixed(2)} km)` : ""}
+                                {donor.bloodTypeId ? ` - ${getBloodTypeName(donor.bloodTypeId)}` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        {selectedDonorId !== null && (
+                          <button
+                            onClick={() => {
+                              const selectedDonor = nearbyDonors.find((donor, index) => {
+                                const donorId = donor.donorId || donor.id || index;
+                                return donorId === selectedDonorId;
+                              });
+                              if (selectedDonor) {
+                                handleCreateMatch(selectedDonor);
+                              }
+                            }}
+                            disabled={creatingMatch}
+                            className="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {creatingMatch ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Creating Match...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Create Match
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1003,6 +1152,31 @@ export default function ManageRequests() {
                               <p className="text-sm text-gray-700 mt-1">
                                 {donor.phoneNumber}
                               </p>
+                            </div>
+                          )}
+
+                          {/* Create Match Button - Show for each donor if 2 or fewer donors */}
+                          {nearbyDonors.length <= 2 && (
+                            <div className="pt-2 border-t border-gray-200">
+                              <button
+                                onClick={() => handleCreateMatch(donor)}
+                                disabled={creatingMatch}
+                                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                {creatingMatch ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Creating Match...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Create Match
+                                  </>
+                                )}
+                              </button>
                             </div>
                           )}
                         </div>
