@@ -117,5 +117,14 @@ namespace BloodDonationSupport.WebAPI.Controllers
             var result = await _mediator.Send(new UpdateMyDonorAddressCommand(request));
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        // [GET] api/donors (Get all donors)
+        [HttpGet]
+        public async Task<IActionResult> GetAllDonors()
+        {
+            var result = await _mediator.Send(new GetAllDonorsQuery());
+            return Ok(result);
+        }
+
     }
 }
