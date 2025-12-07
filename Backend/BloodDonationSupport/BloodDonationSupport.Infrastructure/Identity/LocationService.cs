@@ -1,4 +1,4 @@
-﻿using Amazon.LocationService;
+using Amazon.LocationService;
 using Amazon.LocationService.Model;
 using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Application.Features.Addresses.DTOs;
@@ -130,15 +130,25 @@ namespace BloodDonationSupport.Infrastructure.Identity
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
             var results = new List<NearbyDonorResponse>();
 
-            int count = Math.Min(prefiltered.Count, resp.RouteMatrix.Count);
+            // RouteMatrix structure: [row][column]
+            // Since we have only 1 departure, we only have 1 row (index 0)
+            // Each column in that row corresponds to a destination
+            if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
+                return results;
+
+            var firstRow = resp.RouteMatrix[0];
+            if (firstRow == null)
+                return results;
+
+            int count = Math.Min(prefiltered.Count, firstRow.Count);
 
             for (int i = 0; i < count; i++)
             {
-                var row = resp.RouteMatrix[i];
-                if (row == null || row.Count == 0 || row[0]?.Distance == null)
+                var entry = firstRow[i];
+                if (entry == null || entry.Distance == null)
                     continue;
 
-                double distanceKm = row[0].Distance.Value / 1000.0;
+                double distanceKm = entry.Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
                 {
@@ -214,15 +224,25 @@ namespace BloodDonationSupport.Infrastructure.Identity
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
             var results = new List<NearbyRequestResponse>();
 
-            int count = Math.Min(prefiltered.Count, resp.RouteMatrix.Count);
+            // RouteMatrix structure: [row][column]
+            // Since we have only 1 departure, we only have 1 row (index 0)
+            // Each column in that row corresponds to a destination
+            if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
+                return results;
+
+            var firstRow = resp.RouteMatrix[0];
+            if (firstRow == null)
+                return results;
+
+            int count = Math.Min(prefiltered.Count, firstRow.Count);
 
             for (int i = 0; i < count; i++)
             {
-                var row = resp.RouteMatrix[i];
-                if (row == null || row.Count == 0 || row[0]?.Distance == null)
+                var entry = firstRow[i];
+                if (entry == null || entry.Distance == null)
                     continue;
 
-                double distanceKm = row[0].Distance.Value / 1000.0;
+                double distanceKm = entry.Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
                 {
