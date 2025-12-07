@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { getAllDonors } from "../../services/donorService";
+import { getAllDonors, getDonorById } from "../../services/donorService";
 
 export default function ManageDonors() {
   const [donors, setDonors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDonor, setSelectedDonor] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     const fetchDonors = async () => {
@@ -62,6 +65,35 @@ export default function ManageDonors() {
           `${getWeekdayName(avail.weekday)}: ${minutesToTime(avail.timeFromMin)} - ${minutesToTime(avail.timeToMin)}`
       )
       .join(", ");
+  };
+
+  // Handle view detail
+  const handleViewDetail = async (donorId) => {
+    try {
+      setDetailLoading(true);
+      const response = await getDonorById(donorId);
+      if (response.success && response.data) {
+        setSelectedDonor(response.data);
+        setShowDetailModal(true);
+      } else {
+        alert(response.message || "Failed to load donor details");
+      }
+    } catch (err) {
+      console.error("Error fetching donor details:", err);
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load donor details"
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Close modal
+  const handleCloseModal = () => {
+    setShowDetailModal(false);
+    setSelectedDonor(null);
   };
 
   return (
@@ -131,123 +163,86 @@ export default function ManageDonors() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-          {/* Table Header */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          {/* Table Container - No horizontal scroll */}
+          <div className="overflow-x-visible">
+            <table className="w-full table-auto">
+              <thead className="bg-gradient-to-r from-red-50 via-red-50 to-red-100 border-b-2 border-red-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Donor ID
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">
+                    ID
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
                     Name / Email
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
                     Phone
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">
                     Blood Type
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Address
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Travel Radius
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Next Eligible
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Availability
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-800 uppercase tracking-wider">
+                    Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {donors.map((donor) => (
+              <tbody className="bg-white divide-y divide-gray-100">
+                {donors.map((donor, index) => (
                   <tr
                     key={donor.donorId}
-                    className="hover:bg-gray-50 transition-colors"
+                    className="group hover:bg-red-50/50 transition-all duration-200 cursor-pointer"
+                    onClick={() => handleViewDetail(donor.donorId)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-gray-900">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <span className="text-sm font-bold text-gray-900">
                         #{donor.donorId}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <div className="text-sm">
-                        <div className="font-medium text-gray-900">
+                        <div className="font-semibold text-gray-900 mb-1" title={donor.fullName || "N/A"}>
                           {donor.fullName || "N/A"}
                         </div>
-                        <div className="text-gray-500 text-xs mt-1">
+                        <div 
+                          className="text-gray-500 text-xs" 
+                          title={donor.email}
+                        >
                           {donor.email}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-900 font-medium">
                         {donor.phoneNumber || "N/A"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 shadow-sm">
                         {donor.bloodGroup || `ID: ${donor.bloodTypeId}`}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate">
-                        {donor.addressDisplay || "N/A"}
-                      </div>
-                      {donor.latitude && donor.longitude && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {donor.latitude.toFixed(4)}, {donor.longitude.toFixed(4)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {donor.travelRadiusKm || 0} km
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${
                           donor.isReady
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            ? "bg-green-100 text-green-800 border border-green-300"
+                            : "bg-yellow-100 text-yellow-800 border border-yellow-300"
                         }`}
                       >
                         {donor.isReady ? "Ready" : "Not Ready"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {donor.nextEligibleDate
-                          ? new Date(donor.nextEligibleDate).toLocaleDateString(
-                              "en-US",
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              }
-                            )
-                          : "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-gray-600 max-w-xs">
-                        {formatAvailability(donor.availabilities)}
-                      </div>
-                      {donor.healthConditions &&
-                        donor.healthConditions.length > 0 && (
-                          <div className="mt-1 text-xs text-gray-500">
-                            {donor.healthConditions.length} health condition
-                            {donor.healthConditions.length > 1 ? "s" : ""}
-                          </div>
-                        )}
+                    <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleViewDetail(donor.donorId)}
+                        disabled={detailLoading}
+                        className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 active:bg-red-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105"
+                      >
+                        View Detail
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -256,21 +251,227 @@ export default function ManageDonors() {
           </div>
 
           {/* Footer Stats */}
-          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Total Donors: <span className="font-semibold text-gray-900">{donors.length}</span>
-              </span>
-              <span>
-                Ready:{" "}
-                <span className="font-semibold text-green-600">
-                  {donors.filter((d) => d.isReady).length}
-                </span>{" "}
-                | Not Ready:{" "}
-                <span className="font-semibold text-yellow-600">
-                  {donors.filter((d) => !d.isReady).length}
-                </span>
-              </span>
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-t-2 border-gray-200">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-700 font-medium">Total Donors:</span>
+                <span className="font-bold text-gray-900 text-base">{donors.length}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 font-medium">Ready:</span>
+                  <span className="font-bold text-green-700 text-base bg-green-100 px-3 py-1 rounded-full border border-green-300">
+                    {donors.filter((d) => d.isReady).length}
+                  </span>
+                </div>
+                <span className="text-gray-400">|</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 font-medium">Not Ready:</span>
+                  <span className="font-bold text-yellow-700 text-base bg-yellow-100 px-3 py-1 rounded-full border border-yellow-300">
+                    {donors.filter((d) => !d.isReady).length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Donor Detail Modal */}
+      {showDetailModal && selectedDonor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-xl flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Donor Details</h2>
+              <button
+                onClick={handleCloseModal}
+                className="text-white hover:text-red-200 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {detailLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                  <p className="mt-4 text-gray-600">Loading donor details...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Donor ID
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        #{selectedDonor.donorId || selectedDonor.id}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Full Name
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.fullName || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Email
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.email || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Phone Number
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.phoneNumber || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Blood Type
+                      </label>
+                      <p className="text-lg font-semibold text-red-600 mt-1">
+                        {selectedDonor.bloodGroup ||
+                          (selectedDonor.bloodTypeId
+                            ? `ID: ${selectedDonor.bloodTypeId}`
+                            : "N/A")}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Status
+                      </label>
+                      <p className="mt-1">
+                        <span
+                          className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
+                            selectedDonor.isReady
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {selectedDonor.isReady ? "Ready" : "Not Ready"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Address
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.addressDisplay ||
+                          selectedDonor.fullAddress ||
+                          "N/A"}
+                      </p>
+                      {selectedDonor.latitude && selectedDonor.longitude && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Coordinates: {selectedDonor.latitude.toFixed(4)},{" "}
+                          {selectedDonor.longitude.toFixed(4)}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Travel Radius
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.travelRadiusKm
+                          ? `${selectedDonor.travelRadiusKm} km`
+                          : "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Next Eligible Date
+                      </label>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedDonor.nextEligibleDate
+                          ? new Date(
+                              selectedDonor.nextEligibleDate
+                            ).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Availability
+                      </label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {selectedDonor.availabilities &&
+                        selectedDonor.availabilities.length > 0 ? (
+                          <div className="space-y-1">
+                            {selectedDonor.availabilities.map((avail, idx) => (
+                              <div key={idx} className="text-sm">
+                                {getWeekdayName(avail.weekday)}:{" "}
+                                {minutesToTime(avail.timeFromMin)} -{" "}
+                                {minutesToTime(avail.timeToMin)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">No availability set</p>
+                        )}
+                      </div>
+                    </div>
+                    {selectedDonor.healthConditions &&
+                      selectedDonor.healthConditions.length > 0 && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                            Health Conditions ({selectedDonor.healthConditions.length})
+                          </label>
+                          <div className="mt-1 space-y-1">
+                            {selectedDonor.healthConditions.map((condition, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs mr-2 mb-1"
+                              >
+                                {condition.name || condition.healthConditionName || `Condition ${idx + 1}`}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200 flex justify-end">
+              <button
+                onClick={handleCloseModal}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

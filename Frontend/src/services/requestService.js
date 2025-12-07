@@ -30,3 +30,17 @@ export const cancelRequest = async (requestId) => {
   const res = await api.post(`/Requests/${requestId}/cancel`, {});
   return res.data;
 };
+
+// Get all requests (for Staff) with pagination
+export const getAllRequests = async (pageNumber = 1, pageSize = 10) => {
+  try {
+    const res = await api.get(`/Requests?pageNumber=${pageNumber}&pageSize=${pageSize}`);
+    console.log("API Response:", res);
+    console.log("API Response Data:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("Error in getAllRequests:", error);
+    console.error("Error response:", error.response);
+    throw error;
+  }
+};
