@@ -37,3 +37,9 @@ export const searchNearbyDonors = async (latitude, longitude, radiusKm) => {
   );
   return res.data;
 };
+
+// Get all donors (for Staff)
+export const getAllDonors = async () => {
+  const res = await api.get("/Donors");
+  return res.data;
+};
