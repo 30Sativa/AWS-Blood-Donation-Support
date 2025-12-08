@@ -68,21 +68,17 @@ builder.Services.AddInfrastructure(config);
 // =========================================================
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowLocalFrontend", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy
-            .SetIsOriginAllowed(origin =>
-            {
-                // parse origin
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                {
-                    return uri.Host == "localhost" || uri.Host == "127.0.0.1";
-                }
-                return false;
-            })
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+        policy.WithOrigins(
+            "http://localhost:5173",
+            "https://d3schqa5sv96eb.cloudfront.net",
+            "https://www.bloodconnect.cloud",
+            "https://api.bloodconnect.cloud"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
@@ -202,7 +198,7 @@ if (app.Environment.IsDevelopment() || enableSwagger)
 app.UseHttpsRedirection();
 
 // ✅ CORS
-app.UseCors("AllowLocalFrontend");
+app.UseCors("AllowFrontend");
 
 // ✅ Authentication & Authorization
 app.UseAuthentication();
