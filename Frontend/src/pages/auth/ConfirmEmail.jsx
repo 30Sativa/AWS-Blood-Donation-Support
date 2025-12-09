@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { confirmEmail } from "../../services/userService";
+import { confirmEmail, resendConfirmationCode } from "../../services/userService";
 
 export default function ConfirmEmail() {
   const navigate = useNavigate();
@@ -14,6 +14,8 @@ export default function ConfirmEmail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loadingResend, setLoadingResend] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   // Update email when URL param changes
   useEffect(() => {
@@ -63,6 +65,34 @@ export default function ConfirmEmail() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!formData.email) {
+      setError("Please enter your email address first");
+      return;
+    }
+
+    setLoadingResend(true);
+    setResendMessage("");
+    setError("");
+
+    try {
+      const response = await resendConfirmationCode(formData.email);
+      if (response.success) {
+        setResendMessage("Verification code has been resent to your email. Please check your inbox.");
+      } else {
+        setResendMessage(response.message || "Failed to resend code. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error resending confirmation code:", err);
+      setResendMessage(
+        err.response?.data?.message ||
+          "Failed to resend code. Please try again."
+      );
+    } finally {
+      setLoadingResend(false);
     }
   };
 
@@ -152,6 +182,29 @@ export default function ConfirmEmail() {
               {error && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
                   <p className="text-red-800 text-sm font-medium">{error}</p>
+                  {(error.toLowerCase().includes("expired") || 
+                    error.toLowerCase().includes("invalid") ||
+                    error.toLowerCase().includes("code")) && (
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={loadingResend}
+                      className="mt-3 text-sm text-red-600 hover:text-red-700 font-medium underline disabled:opacity-50"
+                    >
+                      {loadingResend ? "Resending..." : "Resend Code"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Resend Success Message */}
+              {resendMessage && !error && (
+                <div className={`p-4 rounded-xl text-sm font-medium ${
+                  resendMessage.includes("resent") || resendMessage.includes("sent")
+                    ? "bg-green-50 border border-green-200 text-green-800"
+                    : "bg-red-50 border border-red-200 text-red-800"
+                }`}>
+                  {resendMessage}
                 </div>
               )}
 
@@ -205,8 +258,19 @@ export default function ConfirmEmail() {
           {/* Help Text */}
           {!success && (
             <div className="mt-8 pt-6 border-t text-center">
-              <p className="text-sm text-gray-500">
-                Didn't receive the code?{" "}
+              <p className="text-sm text-gray-500 mb-2">
+                Didn't receive the code or code expired?
+              </p>
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={loadingResend || !formData.email}
+                className="text-red-600 hover:text-red-700 font-medium underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingResend ? "Resending..." : "Resend Verification Code"}
+              </button>
+              <p className="text-sm text-gray-500 mt-3">
+                or{" "}
                 <Link
                   to="/login"
                   className="text-red-600 hover:text-red-700 font-medium"

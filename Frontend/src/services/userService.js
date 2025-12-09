@@ -33,3 +33,11 @@ export const resetPassword = async (email, newPassword, confirmationCode) => {
   });
   return res.data;
 };
+
+// Resend confirmation code (for email confirmation or forgot password)
+export const resendConfirmationCode = async (email) => {
+  const res = await api.post("/Users/resend-confirmation-code", {
+    email,
+  });
+  return res.data;
+};

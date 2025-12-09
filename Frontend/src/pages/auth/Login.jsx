@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api"; // axios instance dùng token
-import { forgotPassword, resetPassword } from "../../services/userService";
+import { forgotPassword, resetPassword, resendConfirmationCode } from "../../services/userService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,6 +26,7 @@ export default function Login() {
   });
   const [loadingResetPassword, setLoadingResetPassword] = useState(false);
   const [resetPasswordMessage, setResetPasswordMessage] = useState("");
+  const [loadingResendCode, setLoadingResendCode] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -171,6 +172,33 @@ export default function Login() {
       );
     } finally {
       setLoadingResetPassword(false);
+    }
+  };
+
+  const handleResendResetCode = async () => {
+    if (!resetPasswordData.email) {
+      setResetPasswordMessage("Please enter your email address first");
+      return;
+    }
+
+    setLoadingResendCode(true);
+    setResetPasswordMessage("");
+
+    try {
+      const response = await resendConfirmationCode(resetPasswordData.email);
+      if (response.success) {
+        setResetPasswordMessage("Reset code has been resent to your email. Please check your inbox.");
+      } else {
+        setResetPasswordMessage(response.message || "Failed to resend code. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error resending reset code:", err);
+      setResetPasswordMessage(
+        err.response?.data?.message ||
+          "Failed to resend code. Please try again."
+      );
+    } finally {
+      setLoadingResendCode(false);
     }
   };
 
@@ -420,7 +448,20 @@ export default function Login() {
                   ? "bg-green-50 text-green-800 border border-green-200"
                   : "bg-red-50 text-red-800 border border-red-200"
               }`}>
-                {resetPasswordMessage}
+                <p>{resetPasswordMessage}</p>
+                {(resetPasswordMessage.toLowerCase().includes("expired") || 
+                  resetPasswordMessage.toLowerCase().includes("invalid") ||
+                  (resetPasswordMessage.toLowerCase().includes("code") && 
+                   !resetPasswordMessage.toLowerCase().includes("sent"))) && (
+                  <button
+                    type="button"
+                    onClick={handleResendResetCode}
+                    disabled={loadingResendCode || !resetPasswordData.email}
+                    className="mt-2 text-xs text-red-600 hover:text-red-700 font-medium underline disabled:opacity-50"
+                  >
+                    {loadingResendCode ? "Resending..." : "Resend Code"}
+                  </button>
+                )}
               </div>
             )}
 
@@ -462,7 +503,17 @@ export default function Login() {
                   className="w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-red-500 text-center text-xl tracking-widest font-mono"
                   maxLength={6}
                 />
-                <p className="mt-1 text-xs text-gray-500">Check your email for the confirmation code</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Check your email for the confirmation code</p>
+                  <button
+                    type="button"
+                    onClick={handleResendResetCode}
+                    disabled={loadingResendCode || !resetPasswordData.email}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingResendCode ? "Resending..." : "Resend Code"}
+                  </button>
+                </div>
               </div>
 
               <div>
