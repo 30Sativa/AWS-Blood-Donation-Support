@@ -13,6 +13,8 @@ export default function ManageMatches() {
   const [error, setError] = useState(null);
   const [markingContacted, setMarkingContacted] = useState(null);
   const [requestInfo, setRequestInfo] = useState(null);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortDir, setSortDir] = useState("desc"); // asc|desc
 
   useEffect(() => {
     const fetchData = async () => {
@@ -112,6 +114,38 @@ export default function ManageMatches() {
     });
   };
 
+  // Sort matches client-side
+  const sortedMatches = [...matches].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const val = (key) => {
+      switch (key) {
+        case "createdAt":
+          return a.createdAt && b.createdAt
+            ? new Date(a.createdAt) - new Date(b.createdAt)
+            : 0;
+        case "contactedAt":
+          return a.contactedAt && b.contactedAt
+            ? new Date(a.contactedAt) - new Date(b.contactedAt)
+            : a.contactedAt
+            ? -1
+            : b.contactedAt
+            ? 1
+            : 0;
+        case "compatibility":
+          return (a.compatibilityScore ?? -Infinity) - (b.compatibilityScore ?? -Infinity);
+        case "distance":
+          return (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity);
+        case "status":
+          return (a.status || "").localeCompare(b.status || "");
+        case "matchId":
+          return (a.matchId ?? 0) - (b.matchId ?? 0);
+        default:
+          return 0;
+      }
+    };
+    return val(sortBy) * dir;
+  });
+
   // Get status badge color
   const getStatusColor = (status) => {
     const statusColors = {
@@ -170,6 +204,36 @@ export default function ManageMatches() {
           )}
         </div>
       </div>
+
+    {/* Sort controls */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-wrap gap-4 items-center">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">Sort by:</span>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+        >
+          <option value="createdAt">Created At</option>
+          <option value="contactedAt">Contacted At</option>
+          <option value="compatibility">Compatibility</option>
+          <option value="distance">Distance</option>
+          <option value="status">Status</option>
+          <option value="matchId">Match ID</option>
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">Direction:</span>
+        <select
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+        >
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+      </div>
+    </div>
 
       {/* Loading State */}
       {loading ? (
@@ -263,7 +327,7 @@ export default function ManageMatches() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {matches.map((match) => (
+                {sortedMatches.map((match) => (
                   <tr
                     key={match.matchId}
                     className="group hover:bg-red-50/50 transition-all duration-200"

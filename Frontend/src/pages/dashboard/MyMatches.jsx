@@ -270,8 +270,8 @@ export default function MyMatches() {
                   )}
                 </div>
 
-                {/* Action Buttons - Only show for PROPOSED status */}
-                {match.status === "PROPOSED" && (
+                {/* Action Buttons - show if not accepted/declined */}
+                {!["ACCEPTED", "DECLINED"].includes(match.status) && (
                   <div className="pt-4 border-t border-gray-200 flex gap-3">
                     <button
                       onClick={() => handleAcceptMatch(match.matchId)}

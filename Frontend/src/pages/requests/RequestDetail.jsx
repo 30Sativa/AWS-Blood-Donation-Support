@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { getRequestById, cancelRequest } from "../../services/requestService";
 import { getBloodTypes } from "../../services/bloodTypeService";
 import { searchNearbyDonors } from "../../services/donorService";
+import { createMatch } from "../../services/matchService";
 import { getMyDonor } from "../../services/donorService";
 
 export default function RequestDetail() {
@@ -20,6 +21,8 @@ export default function RequestDetail() {
   const [donorSearchError, setDonorSearchError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [radiusKm, setRadiusKm] = useState(10);
+  const [selectedDonorId, setSelectedDonorId] = useState(null);
+  const [creatingMatch, setCreatingMatch] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,6 +102,36 @@ export default function RequestDetail() {
   const getBloodTypeName = (bloodTypeId) => {
     const bloodType = bloodTypes.find((bt) => bt.id === bloodTypeId);
     return bloodType ? bloodType.name : `ID: ${bloodTypeId}`;
+  };
+
+  // Render donor blood type with multiple fallbacks
+  const getDonorBloodType = (donor) => {
+    // Preferred: explicit name from API
+    if (donor?.bloodTypeName) return donor.bloodTypeName.trim();
+
+    // If API returns consolidated bloodGroup string (e.g., "O  +")
+    if (donor?.bloodGroup) {
+      const cleaned = donor.bloodGroup.replace(/\s+/g, "").toUpperCase();
+      // Normalize forms like "O+" or "A-" etc.
+      if (cleaned.length <= 3) return cleaned;
+      return donor.bloodGroup.trim();
+    }
+
+    // If API returns nested bloodType object with abo/rh
+    if (donor?.bloodType?.abo && donor?.bloodType?.rh) {
+      return `${donor.bloodType.abo}${donor.bloodType.rh}`;
+    }
+    if (donor?.bloodType?.name) return donor.bloodType.name;
+
+    // If API returns separate fields
+    if (donor?.abo && donor?.rh) return `${donor.abo}${donor.rh}`;
+
+    // Fallback to lookup by Id
+    if (donor?.bloodTypeId) {
+      return getBloodTypeName(donor.bloodTypeId);
+    }
+
+    return "Not specified";
   };
 
   // Get status badge color
@@ -224,6 +257,64 @@ export default function RequestDetail() {
       );
     } finally {
       setSearchingDonors(false);
+    }
+  };
+
+  // Create match with selected donor
+  const handleCreateMatch = async () => {
+    if (!request || selectedDonorId == null) {
+      setDonorSearchError("Please select a donor to create a match.");
+      return;
+    }
+
+    const selectedDonor = nearbyDonors.find((donor, index) => {
+      const donorId = donor.donorId ?? donor.id ?? index;
+      return donorId === selectedDonorId;
+    });
+
+    if (!selectedDonor) {
+      setDonorSearchError("Selected donor not found.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Create match between Request #${request.requestId} and ${selectedDonor.fullName || "Donor"}?`
+      )
+    ) {
+      return;
+    }
+
+    setCreatingMatch(true);
+    try {
+      const matchData = {
+        requestId: request.requestId,
+        donorId: selectedDonor.donorId ?? selectedDonor.id ?? selectedDonorId,
+        compatibilityScore:
+          selectedDonor.compatibilityScore != null
+            ? selectedDonor.compatibilityScore
+            : 0,
+        distanceKm: selectedDonor.distanceKm != null ? selectedDonor.distanceKm : 0,
+      };
+
+      const response = await createMatch(matchData);
+
+      if (response.success) {
+        alert("Match created successfully!");
+        setSelectedDonorId(null);
+        setShowNearbyDonors(false);
+      } else {
+        setDonorSearchError(response.message || "Failed to create match.");
+      }
+    } catch (err) {
+      console.error("Error creating match:", err);
+      setDonorSearchError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to create match. Please try again."
+      );
+    } finally {
+      setCreatingMatch(false);
     }
   };
 
@@ -619,6 +710,65 @@ export default function RequestDetail() {
                   </button>
                 </div>
                 <div className="p-6">
+                  {/* Donor selection and create match */}
+                  {nearbyDonors.length > 0 && (
+                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Select donor to create a match
+                        </label>
+                        <select
+                          value={selectedDonorId ?? ""}
+                          onChange={(e) =>
+                            setSelectedDonorId(
+                              e.target.value === "" ? null : Number(e.target.value)
+                            )
+                          }
+                          className="w-full md:w-80 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">-- Choose a donor --</option>
+                          {nearbyDonors.map((donor, index) => {
+                            const donorId = donor.donorId ?? donor.id ?? index;
+                            return (
+                              <option key={donorId} value={donorId}>
+                                {donor.fullName || "Donor"} {donor.addressDisplay ? `- ${donor.addressDisplay}` : ""} {donor.distanceKm != null ? `(${donor.distanceKm.toFixed(2)} km)` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                      <button
+                        onClick={handleCreateMatch}
+                        disabled={creatingMatch || selectedDonorId == null}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creatingMatch ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Creating Match...
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                            Create Match
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
                   {searchingDonors ? (
                     <div className="text-center py-12">
                       <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
@@ -690,9 +840,7 @@ export default function RequestDetail() {
                                   Blood Type
                                 </label>
                                 <p className="text-lg font-semibold text-red-600 mt-1">
-                                  {donor.bloodTypeId
-                                    ? getBloodTypeName(donor.bloodTypeId)
-                                    : "Not specified"}
+                                  {getDonorBloodType(donor)}
                                 </p>
                               </div>
 
