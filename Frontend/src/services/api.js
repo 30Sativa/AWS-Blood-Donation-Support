@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://13.239.7.174/api",
+  baseURL: "https://api.bloodconnect.cloud/api",
 });
 
 api.interceptors.request.use((config) => {
