@@ -138,7 +138,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 var entry = firstRow[i];
                 if (entry?.Distance == null)
                     continue;
-
+                Console.WriteLine($"[AWS RAW] Donor #{i} → Distance = {entry.Distance}");
                 double distanceKm = entry.Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
