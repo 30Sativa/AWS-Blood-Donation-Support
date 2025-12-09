@@ -42,8 +42,9 @@ namespace BloodDonationSupport.Infrastructure.Identity
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
         {
-            _logger.LogWarning($"[START] GetNearbyDonors: ({latitude}, {longitude}) Radius = {radiusKm}");
+            _logger.LogWarning($"[START] GetNearbyDonors: Requester = ({latitude}, {longitude}), Radius = {radiusKm} km");
 
+            // Load donors có tọa độ
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
                 .Include(d => d.BloodType)
@@ -51,7 +52,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Where(d => d.IsReady && d.Latitude != null && d.Longitude != null)
                 .ToListAsync();
 
-            _logger.LogWarning($"[DB] Total Ready Donors Loaded: {donors.Count}");
+            _logger.LogWarning($"[DB] Total donors loaded with valid Lat/Lng: {donors.Count}");
 
             if (!donors.Any())
             {
@@ -59,31 +60,64 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 return new List<NearbyDonorResponse>();
             }
 
-            // Log toàn bộ donor trong DB
+            // ================================================
+            // 1) Lọc donor không hợp lệ, thêm log FULL
+            // ================================================
+            var validCandidates = new List<dynamic>();
+
             foreach (var d in donors)
-                _logger.LogWarning($"[DB DONOR] ID={d.DonorId} Lat={d.Latitude} Lng={d.Longitude}");
-
-            var candidates = donors.ToList();
-
-            // Log DestinationPositions trước AWS
-            _logger.LogWarning("=== AWS Request Input ===");
-            _logger.LogWarning($"Departure: [{longitude}, {latitude}]");
-
-            for (int i = 0; i < candidates.Count; i++)
             {
-                _logger.LogWarning($"Dest #{i}: [{candidates[i].Longitude}, {candidates[i].Latitude}]");
+                double donorLat = d.Latitude!.Value;
+                double donorLng = d.Longitude!.Value;
+
+                if (donorLat == 0 || donorLng == 0)
+                {
+                    _logger.LogError($"[SKIP] Donor {d.DonorId} has invalid coordinates (0,0)");
+                    continue;
+                }
+
+                // Tính khoảng cách thẳng (Haversine)
+                var straight = Haversine(latitude, longitude, donorLat, donorLng);
+
+                _logger.LogWarning($"[CHECK] Donor {d.DonorId}: Haversine = {straight} km → Address = {d.Address?.Line1}");
+
+                // AWS giới hạn 400km → phải skip trước
+                if (straight > 400)
+                {
+                    _logger.LogError($"[SKIP] Donor {d.DonorId} is {straight} km away (>400 km AWS limit)");
+                    continue;
+                }
+
+                validCandidates.Add(new { Donor = d, DistanceStraight = straight });
             }
+
+            _logger.LogWarning($"[VALID] Total donors after Haversine pre-filter: {validCandidates.Count}");
+
+            if (!validCandidates.Any())
+            {
+                _logger.LogWarning("[WARN] No donors within AWS 400km limit.");
+                return new List<NearbyDonorResponse>();
+            }
+
+
+            // ================================================
+            // 2) Gọi AWS Location RouteMatrix
+            // ================================================
+            _logger.LogWarning("=== AWS RouteMatrix Input ===");
+            _logger.LogWarning($"Departure = [{longitude}, {latitude}]");
+
+            foreach (var c in validCandidates)
+                _logger.LogWarning($"Dest Donor {c.Donor.DonorId} = [{c.Donor.Longitude}, {c.Donor.Latitude}]");
 
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
-                DeparturePositions = new List<List<double>>
-                {
-                    new() { longitude, latitude }
-                },
-                DestinationPositions = candidates
-                    .Select(x => new List<double> { x.Longitude!.Value, x.Latitude!.Value })
+                DeparturePositions = new List<List<double>> {
+            new() { longitude, latitude }
+        },
+                DestinationPositions = validCandidates
+                    .Select(x => new List<double> { x.Donor.Longitude!.Value, x.Donor.Latitude!.Value })
                     .ToList()
             };
 
@@ -93,9 +127,14 @@ namespace BloodDonationSupport.Infrastructure.Identity
             {
                 resp = await _locationClient.CalculateRouteMatrixAsync(req);
             }
+            catch (ValidationException vex)
+            {
+                _logger.LogError(vex, "[AWS ERROR] ValidationException → Likely >400 km distance in input");
+                throw;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[ERROR] AWS RouteMatrix failed");
+                _logger.LogError(ex, "[AWS ERROR] RouteMatrix failed");
                 throw;
             }
 
@@ -105,29 +144,29 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 return new List<NearbyDonorResponse>();
             }
 
-            var firstRow = resp.RouteMatrix[0];
+            var row = resp.RouteMatrix[0];
             var results = new List<NearbyDonorResponse>();
 
-            // Log response
-            _logger.LogWarning("=== AWS Response ===");
+            _logger.LogWarning("=== AWS RouteMatrix Response ===");
 
-            for (int i = 0; i < candidates.Count; i++)
+            for (int i = 0; i < validCandidates.Count; i++)
             {
-                var entry = firstRow[i];
+                var entry = row[i];
+                var candidate = validCandidates[i];
 
                 if (entry?.Distance == null)
                 {
-                    _logger.LogWarning($"[AWS RAW] Donor #{i} → NULL Distance");
+                    _logger.LogWarning($"[AWS] Donor {candidate.Donor.DonorId} → Distance NULL");
                     continue;
                 }
 
-                double distanceKm = entry.Distance.Value;
+                double routeKm = entry.Distance.Value;
+                _logger.LogWarning($"[AWS] Donor {candidate.Donor.DonorId} → Route = {routeKm} km, Straight = {candidate.DistanceStraight} km");
 
-                _logger.LogWarning($"[AWS RAW] Donor #{i} → Distance = {distanceKm} KM");
-
-                if (distanceKm <= radiusKm)
+                if (routeKm <= radiusKm)
                 {
-                    var d = candidates[i];
+                    var d = candidate.Donor;
+
                     results.Add(new NearbyDonorResponse
                     {
                         DonorId = d.DonorId,
@@ -137,18 +176,19 @@ namespace BloodDonationSupport.Infrastructure.Identity
                         NextEligibleDate = d.NextEligibleDate,
                         Latitude = d.Latitude,
                         Longitude = d.Longitude,
-                        DistanceKm = distanceKm,
+                        DistanceKm = routeKm,
                         IsReady = true
                     });
                 }
                 else
                 {
-                    _logger.LogWarning($"[FILTER] Donor #{i} removed → distance {distanceKm} > {radiusKm}");
+                    _logger.LogWarning($"[FILTER] Donor {candidate.Donor.DonorId} removed (route {routeKm} > {radiusKm})");
                 }
             }
 
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
+
 
         // ============================================================
         // GET NEARBY REQUESTS — ALSO LOGGING
@@ -225,6 +265,21 @@ namespace BloodDonationSupport.Infrastructure.Identity
             _logger.LogWarning($"[ParseAddress] Parsed → Lat={latitude}, Lng={longitude}");
 
             return result;
+        }
+        private static double Haversine(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371; // km
+            double dLat = (lat2 - lat1) * Math.PI / 180.0;
+            double dLon = (lon2 - lon1) * Math.PI / 180.0;
+
+            double a =
+                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+            return R * c;
         }
 
     }
