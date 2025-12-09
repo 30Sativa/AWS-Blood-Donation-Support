@@ -411,12 +411,32 @@ export default function RequestDetail() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2 block">
-                    Delivery Address ID
+                    Delivery Address
                   </label>
-                  <p className="text-xl font-semibold text-gray-900">
-                    {request.deliveryAddressId || "N/A"}
-                  </p>
+                  {request.deliveryAddressName ? (
+                    <p className="text-xl font-semibold text-gray-900">
+                      {request.deliveryAddressName}
+                    </p>
+                  ) : (
+                    <p className="text-xl font-semibold text-gray-900">
+                      Address ID: {request.deliveryAddressId || "N/A"}
+                    </p>
+                  )}
                 </div>
+                {/* Display coordinates if available */}
+                {(request.latitude != null && request.longitude != null) && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2 block">
+                      Location Coordinates
+                    </label>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {request.latitude.toFixed(6)}, {request.longitude.toFixed(6)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      (Latitude, Longitude)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
