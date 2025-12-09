@@ -5,6 +5,7 @@ using BloodDonationSupport.Application.Features.Addresses.DTOs;
 using BloodDonationSupport.Application.Features.Donors.DTOs.Response;
 using BloodDonationSupport.Application.Features.Requests.DTOs.Response;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
+using BloodDonationSupport.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -42,9 +43,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
         {
-            _logger.LogWarning($"[START] GetNearbyDonors: Requester = ({latitude}, {longitude}), Radius = {radiusKm} km");
+            _logger.LogWarning($"[START] GetNearbyDonors: requester=({latitude}, {longitude}), radius={radiusKm}");
 
-            // Load donors có tọa độ
             var donors = await _context.Donors
                 .Include(d => d.User).ThenInclude(u => u.UserProfile)
                 .Include(d => d.BloodType)
@@ -52,72 +52,70 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Where(d => d.IsReady && d.Latitude != null && d.Longitude != null)
                 .ToListAsync();
 
-            _logger.LogWarning($"[DB] Total donors loaded with valid Lat/Lng: {donors.Count}");
+            _logger.LogWarning($"[DB] Loaded donors with coords: {donors.Count}");
 
             if (!donors.Any())
-            {
-                _logger.LogWarning("[WARN] No donors found.");
                 return new List<NearbyDonorResponse>();
-            }
 
-            // ================================================
-            // 1) Lọc donor không hợp lệ, thêm log FULL
-            // ================================================
-            var validCandidates = new List<dynamic>();
+            // =============================================
+            // 1) Pre-filter using Haversine + skip invalid
+            // =============================================
+
+            var validCandidates = new List<(Donor donor, double straight)>();
 
             foreach (var d in donors)
             {
-                double donorLat = d.Latitude!.Value;
-                double donorLng = d.Longitude!.Value;
+                var lat = d.Latitude!.Value;
+                var lng = d.Longitude!.Value;
 
-                if (donorLat == 0 || donorLng == 0)
+                if (lat == 0 || lng == 0)
                 {
-                    _logger.LogError($"[SKIP] Donor {d.DonorId} has invalid coordinates (0,0)");
+                    _logger.LogError($"[SKIP] Donor {d.DonorId} invalid coords (0,0)");
                     continue;
                 }
 
-                // Tính khoảng cách thẳng (Haversine)
-                var straight = Haversine(latitude, longitude, donorLat, donorLng);
+                var straight = Haversine(latitude, longitude, lat, lng);
+                _logger.LogWarning($"[CHECK] Donor {d.DonorId}: straight={straight} km");
 
-                _logger.LogWarning($"[CHECK] Donor {d.DonorId}: Haversine = {straight} km → Address = {d.Address?.Line1}");
-
-                // AWS giới hạn 400km → phải skip trước
                 if (straight > 400)
                 {
-                    _logger.LogError($"[SKIP] Donor {d.DonorId} is {straight} km away (>400 km AWS limit)");
+                    _logger.LogError($"[SKIP] Donor {d.DonorId} straight={straight} > 400km AWS limit");
                     continue;
                 }
 
-                validCandidates.Add(new { Donor = d, DistanceStraight = straight });
+                validCandidates.Add((d, straight));
             }
 
-            _logger.LogWarning($"[VALID] Total donors after Haversine pre-filter: {validCandidates.Count}");
+            _logger.LogWarning($"[VALID] Candidates after precheck: {validCandidates.Count}");
 
             if (!validCandidates.Any())
             {
-                _logger.LogWarning("[WARN] No donors within AWS 400km limit.");
+                _logger.LogWarning("[WARN] No donors within AWS 400km zone");
                 return new List<NearbyDonorResponse>();
             }
 
+            // =============================================
+            // 2) Prepare AWS RouteMatrix request
+            // =============================================
 
-            // ================================================
-            // 2) Gọi AWS Location RouteMatrix
-            // ================================================
             _logger.LogWarning("=== AWS RouteMatrix Input ===");
             _logger.LogWarning($"Departure = [{longitude}, {latitude}]");
 
             foreach (var c in validCandidates)
-                _logger.LogWarning($"Dest Donor {c.Donor.DonorId} = [{c.Donor.Longitude}, {c.Donor.Latitude}]");
+            {
+                _logger.LogWarning($"Dest Donor {c.donor.DonorId} = [{c.donor.Longitude}, {c.donor.Latitude}]");
+            }
 
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
-                DeparturePositions = new List<List<double>> {
+                DeparturePositions = new List<List<double>>
+        {
             new() { longitude, latitude }
         },
                 DestinationPositions = validCandidates
-                    .Select(x => new List<double> { x.Donor.Longitude!.Value, x.Donor.Latitude!.Value })
+                    .Select(c => new List<double> { c.donor.Longitude!.Value, c.donor.Latitude!.Value })
                     .ToList()
             };
 
@@ -129,7 +127,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
             }
             catch (ValidationException vex)
             {
-                _logger.LogError(vex, "[AWS ERROR] ValidationException → Likely >400 km distance in input");
+                _logger.LogError(vex, "[AWS ERROR] ValidationException - likely still >400km");
                 throw;
             }
             catch (Exception ex)
@@ -138,11 +136,12 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 throw;
             }
 
-            if (resp?.RouteMatrix == null)
-            {
-                _logger.LogError("[ERROR] RouteMatrix NULL");
+            if (resp.RouteMatrix == null)
                 return new List<NearbyDonorResponse>();
-            }
+
+            // =============================================
+            // 3) Parse AWS results
+            // =============================================
 
             var row = resp.RouteMatrix[0];
             var results = new List<NearbyDonorResponse>();
@@ -152,42 +151,38 @@ namespace BloodDonationSupport.Infrastructure.Identity
             for (int i = 0; i < validCandidates.Count; i++)
             {
                 var entry = row[i];
-                var candidate = validCandidates[i];
+                var (donor, straight) = validCandidates[i];
 
                 if (entry?.Distance == null)
                 {
-                    _logger.LogWarning($"[AWS] Donor {candidate.Donor.DonorId} → Distance NULL");
+                    _logger.LogWarning($"[AWS] Donor {donor.DonorId} → NULL distance");
                     continue;
                 }
 
                 double routeKm = entry.Distance.Value;
-                _logger.LogWarning($"[AWS] Donor {candidate.Donor.DonorId} → Route = {routeKm} km, Straight = {candidate.DistanceStraight} km");
+
+                _logger.LogWarning($"[AWS] Donor {donor.DonorId}: route={routeKm} km, straight={straight} km");
 
                 if (routeKm <= radiusKm)
                 {
-                    var d = candidate.Donor;
-
                     results.Add(new NearbyDonorResponse
                     {
-                        DonorId = d.DonorId,
-                        FullName = d.User.UserProfile.FullName,
-                        BloodGroup = $"{d.BloodType?.Abo} {d.BloodType?.Rh}",
-                        AddressDisplay = d.Address?.Line1 ?? "Chưa có địa chỉ",
-                        NextEligibleDate = d.NextEligibleDate,
-                        Latitude = d.Latitude,
-                        Longitude = d.Longitude,
+                        DonorId = donor.DonorId,
+                        FullName = donor.User.UserProfile.FullName,
+                        BloodGroup = $"{donor.BloodType?.Abo} {donor.BloodType?.Rh}",
+                        AddressDisplay = donor.Address?.Line1,
+                        NextEligibleDate = donor.NextEligibleDate,
+                        Latitude = donor.Latitude,
+                        Longitude = donor.Longitude,
                         DistanceKm = routeKm,
                         IsReady = true
                     });
-                }
-                else
-                {
-                    _logger.LogWarning($"[FILTER] Donor {candidate.Donor.DonorId} removed (route {routeKm} > {radiusKm})");
                 }
             }
 
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
+
 
 
         // ============================================================
