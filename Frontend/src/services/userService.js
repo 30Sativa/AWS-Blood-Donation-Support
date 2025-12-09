@@ -7,10 +7,17 @@ export const getUserProfile = async () => {
 
 // Confirm email
 export const confirmEmail = async (email, verificationCode) => {
+  // Backend expects Email and ConfirmationCode (case-sensitive property names)
   const res = await api.post("/Users/confirm-email", {
-    email,
-    verificationCode,
+    Email: email,
+    ConfirmationCode: verificationCode,
   });
+  console.log("Confirm email API request:", {
+    Email: email,
+    ConfirmationCode: verificationCode,
+  });
+  console.log("Confirm email API response:", res);
+  console.log("Confirm email response data:", res.data);
   return res.data;
 };
 

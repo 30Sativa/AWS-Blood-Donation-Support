@@ -40,29 +40,95 @@ export default function ConfirmEmail() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setResendMessage("");
+    
+    // Validate form before submitting
+    if (!formData.email || !formData.email.trim()) {
+      setError("Email address is required.");
+      return;
+    }
+    
+    if (!formData.verificationCode || !formData.verificationCode.trim()) {
+      setError("Confirmation code cannot be empty.");
+      return;
+    }
+    
     setLoading(true);
 
     try {
       const response = await confirmEmail(
-        formData.email,
-        formData.verificationCode
+        formData.email.trim(),
+        formData.verificationCode.trim()
       );
 
-      if (response.success) {
+      console.log("Confirm email response:", response);
+      console.log("Response type:", typeof response);
+      console.log("Response.success:", response?.success);
+      console.log("Response.message:", response?.message);
+
+      // Check if response is successful - handle multiple response formats
+      const isSuccess = response?.success === true || 
+                       response?.success === "true" ||
+                       (response?.message && response.message.includes("activated")) ||
+                       (response?.message && response.message.includes("confirmed"));
+
+      if (isSuccess) {
+        console.log("Email confirmation successful!");
         setSuccess(true);
+        setError(""); // Clear any previous errors
+        setResendMessage(""); // Clear resend message
+        // Clear the form
+        setFormData((prev) => ({
+          ...prev,
+          verificationCode: "",
+        }));
         // Redirect to login after 2 seconds
         setTimeout(() => {
           navigate("/login");
         }, 2000);
       } else {
-        setError(response.message || "Invalid or expired verification code.");
+        // Handle case where success is false or response structure is unexpected
+        console.log("Email confirmation failed:", response);
+        const errorMsg = response?.message || 
+                        response?.error || 
+                        "Invalid or expired verification code.";
+        setError(errorMsg);
+        setSuccess(false);
       }
     } catch (err) {
       console.error("Error confirming email:", err);
-      setError(
-        err.response?.data?.message ||
-          "Failed to confirm email. Please try again."
-      );
+      console.error("Error details:", {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+
+      // Check if it's actually a success response but caught as error
+      if (err.response?.status === 200 || err.response?.data?.success === true) {
+        // This shouldn't happen, but handle it just in case
+        setSuccess(true);
+        setError("");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      } else {
+        // Real error - extract message from response
+        const errorData = err.response?.data;
+        let errorMsg = "Failed to confirm email. Please try again.";
+        
+        if (errorData) {
+          // Try different possible error message fields
+          errorMsg = errorData.message || 
+                    errorData.error || 
+                    errorData.Message ||
+                    (typeof errorData === 'string' ? errorData : errorMsg);
+        } else if (err.message) {
+          errorMsg = err.message;
+        }
+        
+        setError(errorMsg);
+        setSuccess(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -197,16 +263,7 @@ export default function ConfirmEmail() {
                 </div>
               )}
 
-              {/* Resend Success Message */}
-              {resendMessage && !error && (
-                <div className={`p-4 rounded-xl text-sm font-medium ${
-                  resendMessage.includes("resent") || resendMessage.includes("sent")
-                    ? "bg-green-50 border border-green-200 text-green-800"
-                    : "bg-red-50 border border-red-200 text-red-800"
-                }`}>
-                  {resendMessage}
-                </div>
-              )}
+              {/* Resend Success Message - moved to bottom section */}
 
               {/* Email */}
               <div>
@@ -255,25 +312,51 @@ export default function ConfirmEmail() {
             </form>
           )}
 
-          {/* Help Text */}
+          {/* Help Text - Resend Code Section */}
           {!success && (
-            <div className="mt-8 pt-6 border-t text-center">
-              <p className="text-sm text-gray-500 mb-2">
-                Didn't receive the code or code expired?
-              </p>
-              <button
-                type="button"
-                onClick={handleResendCode}
-                disabled={loadingResend || !formData.email}
-                className="text-red-600 hover:text-red-700 font-medium underline disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loadingResend ? "Resending..." : "Resend Verification Code"}
-              </button>
-              <p className="text-sm text-gray-500 mt-3">
+            <div className="mt-8 pt-6 border-t">
+              <div className="text-center mb-4">
+                <p className="text-sm text-gray-600 mb-3">
+                  Didn't receive the code or code expired?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={loadingResend || !formData.email}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-semibold rounded-xl border-2 border-red-200 hover:border-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-50"
+                >
+                  {loadingResend ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Resending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Resend Verification Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {resendMessage && (
+                <div className={`mb-3 p-3 rounded-lg text-sm text-center ${
+                  resendMessage.includes("resent") || resendMessage.includes("sent")
+                    ? "bg-green-50 text-green-800 border border-green-200"
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}>
+                  {resendMessage}
+                </div>
+              )}
+              <p className="text-sm text-gray-500 text-center">
                 or{" "}
                 <Link
                   to="/login"
-                  className="text-red-600 hover:text-red-700 font-medium"
+                  className="text-red-600 hover:text-red-700 font-medium underline"
                 >
                   Try logging in again
                 </Link>
