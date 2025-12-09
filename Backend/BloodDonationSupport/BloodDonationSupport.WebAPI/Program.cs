@@ -1,4 +1,4 @@
-﻿using BloodDonationSupport.Application;
+using BloodDonationSupport.Application;
 using BloodDonationSupport.Infrastructure;
 using BloodDonationSupport.WebAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -70,6 +70,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
+
+        policy
+            .WithOrigins("http://localhost:5173", "http://localhost:5175") // React frontend local
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+
         policy.WithOrigins(
             "http://localhost:5173",
             "https://d3schqa5sv96eb.cloudfront.net",
@@ -79,6 +86,7 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials();
+
     });
 });
 
