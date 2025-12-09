@@ -130,9 +130,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
             var results = new List<NearbyDonorResponse>();
 
-            // RouteMatrix structure: [row][column]
-            // Since we have only 1 departure, we only have 1 row (index 0)
-            // Each column in that row corresponds to a destination
+            // RouteMatrix is [departure][destination]; we have a single departure so use row 0.
             if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
                 return results;
 
@@ -224,9 +222,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
             var results = new List<NearbyRequestResponse>();
 
-            // RouteMatrix structure: [row][column]
-            // Since we have only 1 departure, we only have 1 row (index 0)
-            // Each column in that row corresponds to a destination
+            // RouteMatrix is [departure][destination]; we have a single departure so use row 0.
             if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
                 return results;
 
