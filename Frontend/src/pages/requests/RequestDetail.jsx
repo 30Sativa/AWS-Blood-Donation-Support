@@ -19,6 +19,7 @@ export default function RequestDetail() {
   const [searchingDonors, setSearchingDonors] = useState(false);
   const [donorSearchError, setDonorSearchError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [radiusKm, setRadiusKm] = useState(10);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -180,6 +181,13 @@ export default function RequestDetail() {
 
   // Handle find nearby donors
   const handleFindNearbyDonors = async () => {
+    const radius = parseFloat(radiusKm);
+    if (Number.isNaN(radius) || radius <= 0) {
+      setDonorSearchError("Please enter a valid radius (km) greater than 0.");
+      setShowNearbyDonors(true);
+      return;
+    }
+
     if (!userLocation) {
       setDonorSearchError("Location information not available. Please ensure your profile has location data.");
       setShowNearbyDonors(true);
@@ -191,12 +199,10 @@ export default function RequestDetail() {
     setShowNearbyDonors(true);
 
     try {
-      // Default radius of 10km, can be adjusted
-      const radiusKm = 10;
       const response = await searchNearbyDonors(
         userLocation.latitude,
         userLocation.longitude,
-        radiusKm
+        radius
       );
 
       if (response.success && response.data) {
@@ -502,6 +508,19 @@ export default function RequestDetail() {
               >
                 Back to Requests
               </Link>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">
+                Search radius (km)
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={radiusKm}
+                onChange={(e) => setRadiusKm(e.target.value)}
+                className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
               <button
                 onClick={handleFindNearbyDonors}
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-semibold flex items-center gap-2"
@@ -623,17 +642,17 @@ export default function RequestDetail() {
                       <p className="text-gray-600 text-lg mb-2">{donorSearchError}</p>
                       {userLocation && (
                         <p className="text-gray-500 text-sm">
-                          Searching from: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                          Searching from: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)} | Radius: {parseFloat(radiusKm) || 0} km
                         </p>
                       )}
                     </div>
                   ) : nearbyDonors.length > 0 ? (
                     <>
                       <div className="mb-4 text-sm text-gray-600">
-                        Found {nearbyDonors.length} donor{nearbyDonors.length !== 1 ? "s" : ""} within 10km radius
+                        Found {nearbyDonors.length} donor{nearbyDonors.length !== 1 ? "s" : ""} within {parseFloat(radiusKm) || 0} km radius
                         {userLocation && (
                           <span className="ml-2 text-gray-500">
-                            (from: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)})
+                            (from: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)} | Radius: {parseFloat(radiusKm) || 0} km)
                           </span>
                         )}
                       </div>
