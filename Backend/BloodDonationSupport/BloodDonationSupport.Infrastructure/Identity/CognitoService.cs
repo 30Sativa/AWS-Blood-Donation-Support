@@ -275,6 +275,14 @@ namespace BloodDonationSupport.Infrastructure.Identity
         {
             try
             {
+                // Trim whitespace from confirmation code
+                confirmationCode = confirmationCode?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrEmpty(confirmationCode))
+                {
+                    throw new Exception("Confirmation code cannot be empty.");
+                }
+
                 var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
 
                 var request = new ConfirmSignUpRequest
@@ -290,10 +298,96 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 Console.WriteLine($"✅ Email confirmed successfully for {email}");
                 return true;
             }
+            catch (CodeMismatchException ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: Invalid verification code. {ex.Message}");
+                throw new Exception("Invalid verification code. Please check the code and try again.");
+            }
+            catch (ExpiredCodeException ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: Verification code has expired. {ex.Message}");
+                throw new Exception("Verification code has expired. Please request a new code.");
+            }
+            catch (NotAuthorizedException ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: User may already be confirmed or unauthorized. {ex.Message}");
+                throw new Exception("User may already be confirmed or there was an authorization error. Please try logging in.");
+            }
+            catch (UserNotFoundException ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: User not found. {ex.Message}");
+                throw new Exception("User not found. Please check your email address.");
+            }
+            catch (LimitExceededException ex)
+            {
+                Console.WriteLine($"❌ ConfirmEmail failed: Too many attempts. {ex.Message}");
+                throw new Exception("Too many verification attempts. Please try again later.");
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ ConfirmEmail failed: {ex.Message}");
-                return false;
+                // Re-throw if it's already our custom exception
+                if (ex.Message.Contains("Confirmation code cannot be empty") || 
+                    ex.Message.Contains("Invalid verification code") ||
+                    ex.Message.Contains("Verification code has expired") ||
+                    ex.Message.Contains("User may already be confirmed") ||
+                    ex.Message.Contains("User not found") ||
+                    ex.Message.Contains("Too many verification attempts"))
+                {
+                    throw;
+                }
+                
+                Console.WriteLine($"❌ ConfirmEmail failed: {ex.GetType().Name} - {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw new Exception($"Email confirmation failed: {ex.Message}");
+            }
+        }
+
+        // ===============================
+        // RESEND CONFIRMATION CODE
+        // ===============================
+        public async Task<bool> ResendConfirmationCodeAsync(string email)
+        {
+            try
+            {
+                var secretHash = CalculateSecretHash(email, _clientId, _clientSecret);
+
+                var request = new ResendConfirmationCodeRequest
+                {
+                    ClientId = _clientId,
+                    Username = email,
+                    SecretHash = secretHash
+                };
+
+                var response = await _client.ResendConfirmationCodeAsync(request);
+
+                Console.WriteLine($"📩 Verification code resent to {response.CodeDeliveryDetails.Destination}");
+                return true;
+            }
+            catch (UserNotFoundException ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmationCode failed: User not found. {ex.Message}");
+                throw new Exception("User not found. Please check your email address.");
+            }
+            catch (InvalidParameterException ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmationCode failed: Invalid parameter. {ex.Message}");
+                throw new Exception("Invalid email address.");
+            }
+            catch (NotAuthorizedException ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmationCode failed: User may already be confirmed. {ex.Message}");
+                throw new Exception("User may already be confirmed. Please try logging in.");
+            }
+            catch (LimitExceededException ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmationCode failed: Too many attempts. {ex.Message}");
+                throw new Exception("Too many requests. Please try again later.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmationCode failed: {ex.GetType().Name} - {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw new Exception($"Failed to resend confirmation code: {ex.Message}");
             }
         }
 

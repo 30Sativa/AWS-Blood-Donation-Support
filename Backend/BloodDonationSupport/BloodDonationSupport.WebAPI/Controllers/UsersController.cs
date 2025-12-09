@@ -211,6 +211,13 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        [HttpPost("resend-confirmation-code")]
+        public async Task<IActionResult> ResendConfirmationCode([FromBody] ResendConfirmationCodeRequest request)
+        {
+            var result = await _mediator.Send(new ResendConfirmationCodeCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // [PUT] api/users/{id}/roles
         [HttpPut("{id:long}/roles")]
         [Authorize(Policy = "AdminOnly")]
