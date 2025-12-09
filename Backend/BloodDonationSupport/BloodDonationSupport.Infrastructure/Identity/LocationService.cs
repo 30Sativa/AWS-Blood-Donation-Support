@@ -34,7 +34,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        // PARSE ADDRESS
+        // PARSE ADDRESS (GEOCODING)
         // ============================================================
         public async Task<ParsedAddressResult?> ParseAddressAsync(string fullAddress)
         {
@@ -72,7 +72,6 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 Country = parts.ElementAtOrDefault(4) ?? "Vietnam",
                 PostalCode = "",
                 NormalizedAddress = label,
-                PlaceId = null,
                 ConfidenceScore = response.Results[0].Relevance,
                 Latitude = latitude,
                 Longitude = longitude
@@ -80,7 +79,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        // GET NEARBY DONORS (FIXED)
+        // GET NEARBY DONORS — FIXED (Distance already in KM)
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
         {
@@ -97,21 +96,11 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            // Giữ nguyên donor + approxKm để giữ đúng index
             var candidates = donors
                 .Where(d => IsValidLatLon(d.Latitude!.Value, d.Longitude!.Value))
-                .Select(d => new
-                {
-                    Donor = d,
-                    ApproxKm = HaversineKm(latitude, longitude, d.Latitude!.Value, d.Longitude!.Value)
-                })
-                .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
                 .ToList();
 
-            if (!candidates.Any())
-                return new List<NearbyDonorResponse>();
-
-            // Chuẩn bị request AWS RouteMatrix
+            // Prepare AWS RouteMatrix input
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
@@ -121,7 +110,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     new() { longitude, latitude }
                 },
                 DestinationPositions = candidates
-                    .Select(x => new List<double> { x.Donor.Longitude!.Value, x.Donor.Latitude!.Value })
+                    .Select(x => new List<double> { x.Longitude!.Value, x.Latitude!.Value })
                     .ToList()
             };
 
@@ -138,12 +127,15 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 var entry = firstRow[i];
                 if (entry?.Distance == null)
                     continue;
-                Console.WriteLine($"[AWS RAW] Donor #{i} → Distance = {entry.Distance}");
-                double distanceKm = entry.Distance.Value / 1000.0;
+
+                // 🔥 FIX: AWS ESRI Distance is already in KM → DO NOT divide by 1000
+                double distanceKm = entry.Distance.Value;
+
+                Console.WriteLine($"[AWS RAW] Donor #{i} → Distance = {distanceKm}");
 
                 if (distanceKm <= radiusKm)
                 {
-                    var d = candidates[i].Donor;
+                    var d = candidates[i];
 
                     results.Add(new NearbyDonorResponse
                     {
@@ -166,7 +158,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        // GET NEARBY REQUESTS (FIXED)
+        // GET NEARBY REQUESTS — FIXED
         // ============================================================
         public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm)
         {
@@ -181,20 +173,12 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Where(r => r.Latitude != null && r.Longitude != null)
                 .ToListAsync();
 
-            if (!requests.Any()) return new List<NearbyRequestResponse>();
+            if (!requests.Any())
+                return new List<NearbyRequestResponse>();
 
             var candidates = requests
                 .Where(r => IsValidLatLon(r.Latitude!.Value, r.Longitude!.Value))
-                .Select(r => new
-                {
-                    Request = r,
-                    ApproxKm = HaversineKm(latitude, longitude, r.Latitude!.Value, r.Longitude!.Value)
-                })
-                .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
                 .ToList();
-
-            if (!candidates.Any())
-                return new List<NearbyRequestResponse>();
 
             var req = new CalculateRouteMatrixRequest
             {
@@ -205,7 +189,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
                     new() { longitude, latitude }
                 },
                 DestinationPositions = candidates
-                    .Select(x => new List<double> { x.Request.Longitude!.Value, x.Request.Latitude!.Value })
+                    .Select(x => new List<double> { x.Longitude!.Value, x.Latitude!.Value })
                     .ToList()
             };
 
@@ -223,11 +207,14 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 if (entry?.Distance == null)
                     continue;
 
-                double distanceKm = entry.Distance.Value / 1000.0;
+                // 🔥 FIX: Distance already km
+                double distanceKm = entry.Distance.Value;
+
+                Console.WriteLine($"[AWS RAW] Request #{i} → Distance = {distanceKm}");
 
                 if (distanceKm <= radiusKm)
                 {
-                    var r = candidates[i].Request;
+                    var r = candidates[i];
 
                     results.Add(new NearbyRequestResponse
                     {
@@ -254,25 +241,8 @@ namespace BloodDonationSupport.Infrastructure.Identity
             return results.OrderBy(x => x.DistanceKm).ToList();
         }
 
-        // ============================================================
-        // UTILITIES
-        // ============================================================
+        // UTIL
         private static bool IsValidLatLon(double lat, double lon)
             => lat is >= -90 and <= 90 && lon is >= -180 and <= 180;
-
-        private static double ToRad(double deg) => deg * Math.PI / 180.0;
-
-        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
-        {
-            const double R = 6371;
-            var dLat = ToRad(lat2 - lat1);
-            var dLon = ToRad(lon2 - lon1);
-            var a =
-                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
-                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-
-            return R * (2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a)));
-        }
     }
 }
