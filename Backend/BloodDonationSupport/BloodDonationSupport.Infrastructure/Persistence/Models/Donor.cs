@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace BloodDonationSupport.Infrastructure.Persistence.Models;
+﻿namespace BloodDonationSupport.Infrastructure.Persistence.Models;
 
 public partial class Donor
 {
@@ -26,6 +23,8 @@ public partial class Donor
     public DateTime? UpdatedAt { get; set; }
 
     public virtual Address? Address { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
@@ -38,6 +37,7 @@ public partial class Donor
     public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
 
     public virtual ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
+    public virtual ICollection<DonorHealthCondition> DonorHealthConditions { get; set; } = new List<DonorHealthCondition>();
 
     public virtual User User { get; set; } = null!;
 }

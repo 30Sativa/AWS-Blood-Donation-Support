@@ -1,0 +1,27 @@
+﻿namespace BloodDonationSupport.Application.Features.Requests.DTOs.Response
+{
+    public class NearbyRequestResponse
+    {
+        public long RequestId { get; set; }
+        public long RequesterUserId { get; set; }
+        public string? FullName { get; set; }
+        public string? BloodGroup { get; set; }
+
+        // 🔹 Bổ sung property này để fix lỗi
+        public string? ComponentName { get; set; }
+
+        public string? AddressDisplay { get; set; }
+        public string Urgency { get; set; } = "NORMAL";
+        public string Status { get; set; } = "REQUESTED";
+
+        // 🔹 Nếu bạn đang gán trong LINQ: QuantityUnits, NeedBeforeUtc, CreatedAt
+        public int QuantityUnits { get; set; }
+
+        public DateTime? NeedBeforeUtc { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public double DistanceKm { get; set; }
+    }
+}

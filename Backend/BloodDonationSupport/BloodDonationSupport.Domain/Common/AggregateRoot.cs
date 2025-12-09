@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BloodDonationSupport.Domain.Common
+﻿namespace BloodDonationSupport.Domain.Common
 {
-    internal class AggregateRoot
+    public abstract class AggregateRoot<TId> : BaseEntity<TId>
     {
+        protected static void CheckRule(IBusinessRule rule)
+        {
+            if (rule.IsBroken())
+                throw new DomainException(rule.Message);
+        }
     }
 }

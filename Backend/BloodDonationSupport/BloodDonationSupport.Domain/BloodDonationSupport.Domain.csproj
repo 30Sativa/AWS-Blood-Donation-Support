@@ -7,15 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Donors\Entities\" />
-    <Folder Include="Donors\Factories\" />
-    <Folder Include="Donors\Errors\" />
-    <Folder Include="Donors\Events\" />
-    <Folder Include="Donors\Rules\" />
     <Folder Include="Donors\ValueObjects\" />
     <Folder Include="Shared\Enums\" />
     <Folder Include="Shared\Factories\" />
-    <Folder Include="Shared\ValueObjects\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="13.1.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
   </ItemGroup>
 
 </Project>

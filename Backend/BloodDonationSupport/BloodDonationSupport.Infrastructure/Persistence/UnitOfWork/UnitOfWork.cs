@@ -1,0 +1,52 @@
+﻿using BloodDonationSupport.Application.Common.Interfaces;
+using BloodDonationSupport.Infrastructure.Persistence.Contexts;
+using Microsoft.EntityFrameworkCore.Storage;
+
+namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
+{
+    public class UnitOfWork : IUnitOfWork
+    {
+        private readonly AppDbContext _context;
+        private IDbContextTransaction? _transaction;
+
+        public UnitOfWork(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task BeginTransactionAsync()
+        {
+            _transaction = await _context.Database.BeginTransactionAsync();
+        }
+
+        public async Task CommitTransactionAsync()
+        {
+            if (_transaction != null)
+            {
+                await _transaction.CommitAsync();
+            }
+        }
+
+        public void Dispose()
+        {
+            _transaction?.Dispose();
+            _context.Dispose();
+        }
+
+        public async Task RollbackTransactionAsync()
+        {
+            if (_transaction != null)
+            {
+                await _transaction.RollbackAsync();
+            }
+        }
+
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var result = await _context.SaveChangesAsync(cancellationToken);
+            // Clear ChangeTracker after SaveChanges to prevent issues with tracked entities
+            _context.ChangeTracker.Clear();
+            return result;
+        }
+    }
+}
