@@ -34,7 +34,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        // PARSE ADDRESS (AWS GEOCODING)
+        // PARSE ADDRESS
         // ============================================================
         public async Task<ParsedAddressResult?> ParseAddressAsync(string fullAddress)
         {
@@ -49,12 +49,10 @@ namespace BloodDonationSupport.Infrastructure.Identity
             };
 
             var response = await _locationClient.SearchPlaceIndexForTextAsync(request);
-
             if (response.Results == null || response.Results.Count == 0)
                 return null;
 
-            var result = response.Results[0];
-            var place = result.Place;
+            var place = response.Results[0].Place;
 
             if (place.Geometry?.Point == null || place.Geometry.Point.Count != 2)
                 return null;
@@ -67,22 +65,22 @@ namespace BloodDonationSupport.Infrastructure.Identity
 
             return new ParsedAddressResult
             {
-                Line1 = parts.Length > 0 ? parts[0] : label,
-                District = parts.Length > 1 ? parts[1] : "",
-                City = parts.Length > 2 ? parts[2] : "",
-                Province = parts.Length > 3 ? parts[3] : "",
-                Country = parts.Length > 4 ? parts[4] : "Vietnam",
+                Line1 = parts.ElementAtOrDefault(0) ?? "",
+                District = parts.ElementAtOrDefault(1) ?? "",
+                City = parts.ElementAtOrDefault(2) ?? "",
+                Province = parts.ElementAtOrDefault(3) ?? "",
+                Country = parts.ElementAtOrDefault(4) ?? "Vietnam",
                 PostalCode = "",
                 NormalizedAddress = label,
                 PlaceId = null,
-                ConfidenceScore = result.Relevance,
+                ConfidenceScore = response.Results[0].Relevance,
                 Latitude = latitude,
                 Longitude = longitude
             };
         }
 
         // ============================================================
-        // GET NEARBY DONORS
+        // GET NEARBY DONORS (FIXED)
         // ============================================================
         public async Task<List<NearbyDonorResponse>> GetNearbyDonorsAsync(double latitude, double longitude, double radiusKm)
         {
@@ -99,64 +97,59 @@ namespace BloodDonationSupport.Infrastructure.Identity
             if (!donors.Any())
                 return new List<NearbyDonorResponse>();
 
-            var prefiltered = donors
+            // Giữ nguyên donor + approxKm để giữ đúng index
+            var candidates = donors
                 .Where(d => IsValidLatLon(d.Latitude!.Value, d.Longitude!.Value))
                 .Select(d => new
                 {
                     Donor = d,
-                    ApproxKm = HaversineKm(
-                        latitude,
-                        longitude,
-                        d.Latitude!.Value,
-                        d.Longitude!.Value)
+                    ApproxKm = HaversineKm(latitude, longitude, d.Latitude!.Value, d.Longitude!.Value)
                 })
                 .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
-                .Select(x => x.Donor)
                 .ToList();
 
-            if (!prefiltered.Any())
+            if (!candidates.Any())
                 return new List<NearbyDonorResponse>();
 
+            // Chuẩn bị request AWS RouteMatrix
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
-                DeparturePositions = new List<List<double>> { new() { longitude, latitude } },
-                DestinationPositions = prefiltered
-                    .Select(d => new List<double> { d.Longitude!.Value, d.Latitude!.Value })
+                DeparturePositions = new List<List<double>>
+                {
+                    new() { longitude, latitude }
+                },
+                DestinationPositions = candidates
+                    .Select(x => new List<double> { x.Donor.Longitude!.Value, x.Donor.Latitude!.Value })
                     .ToList()
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
-            var results = new List<NearbyDonorResponse>();
 
-            // RouteMatrix is [departure][destination]; we have a single departure so use row 0.
-            if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
-                return results;
+            if (resp?.RouteMatrix == null || resp.RouteMatrix.Count == 0)
+                return new List<NearbyDonorResponse>();
 
             var firstRow = resp.RouteMatrix[0];
-            if (firstRow == null)
-                return results;
+            var results = new List<NearbyDonorResponse>();
 
-            int count = Math.Min(prefiltered.Count, firstRow.Count);
-
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < candidates.Count; i++)
             {
                 var entry = firstRow[i];
-                if (entry == null || entry.Distance == null)
+                if (entry?.Distance == null)
                     continue;
 
                 double distanceKm = entry.Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
                 {
-                    var d = prefiltered[i];
+                    var d = candidates[i].Donor;
 
                     results.Add(new NearbyDonorResponse
                     {
                         DonorId = d.DonorId,
                         FullName = d.User.UserProfile.FullName,
-                        BloodGroup = d.BloodType != null ? $"{d.BloodType.Abo} {d.BloodType.Rh}" : "Unknown",
+                        BloodGroup = $"{d.BloodType?.Abo} {d.BloodType?.Rh}",
                         AddressDisplay = d.Address != null
                             ? $"{d.Address.Line1}, {d.Address.District}, {d.Address.City}"
                             : "Chưa có địa chỉ",
@@ -173,7 +166,7 @@ namespace BloodDonationSupport.Infrastructure.Identity
         }
 
         // ============================================================
-        // GET NEARBY REQUESTS (FIXED VERSION)
+        // GET NEARBY REQUESTS (FIXED)
         // ============================================================
         public async Task<List<NearbyRequestResponse>> GetNearbyRequestsAsync(double latitude, double longitude, double radiusKm)
         {
@@ -188,68 +181,60 @@ namespace BloodDonationSupport.Infrastructure.Identity
                 .Where(r => r.Latitude != null && r.Longitude != null)
                 .ToListAsync();
 
-            if (!requests.Any())
-                return new List<NearbyRequestResponse>();
+            if (!requests.Any()) return new List<NearbyRequestResponse>();
 
-            var prefiltered = requests
+            var candidates = requests
                 .Where(r => IsValidLatLon(r.Latitude!.Value, r.Longitude!.Value))
                 .Select(r => new
                 {
                     Request = r,
-                    ApproxKm = HaversineKm(
-                        latitude,
-                        longitude,
-                        r.Latitude.Value,
-                        r.Longitude.Value)
+                    ApproxKm = HaversineKm(latitude, longitude, r.Latitude!.Value, r.Longitude!.Value)
                 })
                 .Where(x => x.ApproxKm <= AWS_LIMIT_KM)
-                .Select(x => x.Request)
                 .ToList();
 
-            if (!prefiltered.Any())
+            if (!candidates.Any())
                 return new List<NearbyRequestResponse>();
 
             var req = new CalculateRouteMatrixRequest
             {
                 CalculatorName = _routeCalculatorName,
                 TravelMode = TravelMode.Car,
-                DeparturePositions = new List<List<double>> { new() { longitude, latitude } },
-                DestinationPositions = prefiltered
-                    .Select(r => new List<double> { r.Longitude!.Value, r.Latitude!.Value })
+                DeparturePositions = new List<List<double>>
+                {
+                    new() { longitude, latitude }
+                },
+                DestinationPositions = candidates
+                    .Select(x => new List<double> { x.Request.Longitude!.Value, x.Request.Latitude!.Value })
                     .ToList()
             };
 
             var resp = await _locationClient.CalculateRouteMatrixAsync(req);
-            var results = new List<NearbyRequestResponse>();
 
-            // RouteMatrix is [departure][destination]; we have a single departure so use row 0.
-            if (resp.RouteMatrix == null || resp.RouteMatrix.Count == 0)
-                return results;
+            if (resp?.RouteMatrix == null || resp.RouteMatrix.Count == 0)
+                return new List<NearbyRequestResponse>();
 
             var firstRow = resp.RouteMatrix[0];
-            if (firstRow == null)
-                return results;
+            var results = new List<NearbyRequestResponse>();
 
-            int count = Math.Min(prefiltered.Count, firstRow.Count);
-
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < candidates.Count; i++)
             {
                 var entry = firstRow[i];
-                if (entry == null || entry.Distance == null)
+                if (entry?.Distance == null)
                     continue;
 
                 double distanceKm = entry.Distance.Value / 1000.0;
 
                 if (distanceKm <= radiusKm)
                 {
-                    var r = prefiltered[i];
+                    var r = candidates[i].Request;
 
                     results.Add(new NearbyRequestResponse
                     {
                         RequestId = r.RequestId,
                         RequesterUserId = r.RequesterUserId,
                         FullName = r.RequesterUser?.UserProfile?.FullName,
-                        BloodGroup = r.BloodType != null ? $"{r.BloodType.Abo} {r.BloodType.Rh}" : "Unknown",
+                        BloodGroup = $"{r.BloodType?.Abo} {r.BloodType?.Rh}",
                         ComponentName = r.Component?.ComponentName,
                         AddressDisplay = r.DeliveryAddress != null
                             ? $"{r.DeliveryAddress.Line1}, {r.DeliveryAddress.District}, {r.DeliveryAddress.City}"
@@ -282,10 +267,10 @@ namespace BloodDonationSupport.Infrastructure.Identity
             const double R = 6371;
             var dLat = ToRad(lat2 - lat1);
             var dLon = ToRad(lon2 - lon1);
-
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var a =
+                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
 
             return R * (2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a)));
         }
