@@ -8,7 +8,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Appointment> builder)
         {
-            builder.ToTable("appointments", t => t.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"));
+            builder.ToTable("appointments", t =>
+                t.HasCheckConstraint("CK_appointments_status", "[status] IN ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')"));
 
             builder.HasKey(a => a.AppointmentId)
                    .HasName("PK_appointments");
@@ -47,7 +48,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasDefaultValueSql("SYSUTCDATETIME()");
 
-            // Foreign keys
+            builder.Property(a => a.Notes)
+                   .HasColumnName("notes");
+
+            // Relationships
             builder.HasOne(a => a.Request)
                    .WithMany(r => r.Appointments)
                    .HasForeignKey(a => a.RequestId)
@@ -73,14 +77,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .OnDelete(DeleteBehavior.Restrict);
 
             // Indexes
-            builder.HasIndex(a => a.RequestId)
-                   .HasDatabaseName("IX_appointments_req");
+            builder.HasIndex(a => a.RequestId).HasDatabaseName("IX_appointments_req");
+            builder.HasIndex(a => a.DonorId).HasDatabaseName("IX_appointments_donor");
+            builder.HasIndex(a => new { a.ScheduledAt, a.Status }).HasDatabaseName("IX_appointments_scheduled");
 
-            builder.HasIndex(a => a.DonorId)
-                   .HasDatabaseName("IX_appointments_donor");
-
-            builder.HasIndex(a => new { a.ScheduledAt, a.Status })
-                   .HasDatabaseName("IX_appointments_scheduled");
+            // CHỈ CẦN 2 DÒNG NÀY LÀ ĐỦ – KHÔNG THÊM GÌ NỮA!
+            builder.Ignore("AddressId");
+            builder.Ignore("UserId");
         }
     }
 }

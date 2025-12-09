@@ -27,6 +27,14 @@
 
   <ItemGroup>
 
+    <Folder Include="Features\Addresses\Commands\" />
+
+    <Folder Include="Features\Addresses\Queries\" />
+
+    <Folder Include="Features\Matches\DTOs\Response\" />
+
+    <Folder Include="Features\Matches\DTOs\Request\" />
+
     <Folder Include="Features\Users\Events\" />
   </ItemGroup>
 

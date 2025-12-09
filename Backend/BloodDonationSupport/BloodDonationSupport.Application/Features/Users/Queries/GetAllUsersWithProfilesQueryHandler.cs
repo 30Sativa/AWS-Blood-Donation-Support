@@ -6,7 +6,7 @@ using MediatR;
 
 namespace BloodDonationSupport.Application.Features.Users.Queries
 {
-    public class GetAllUsersWithProfilesQueryHandler: IRequestHandler<GetAllUsersWithProfilesQuery, BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>>
+    public class GetAllUsersWithProfilesQueryHandler : IRequestHandler<GetAllUsersWithProfilesQuery, BaseResponse<PaginatedResponse<GetAllUserWithProfileResponse>>>
     {
         private readonly IUserRepository _userRepository;
         private readonly IUserProfileRepository _userProfileRepository;

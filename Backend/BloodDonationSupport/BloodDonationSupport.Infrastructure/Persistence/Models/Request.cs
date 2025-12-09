@@ -25,6 +25,8 @@ public partial class Request
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 

@@ -2,11 +2,6 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Posts.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Posts.Queries
 {
@@ -18,10 +13,11 @@ namespace BloodDonationSupport.Application.Features.Posts.Queries
         {
             _postRepository = postRepository;
         }
+
         public async Task<BaseResponse<PostResponse>> Handle(GetPostByIdQuery request, CancellationToken cancellationToken)
         {
             var post = await _postRepository.GetByIdAsync(request.id);
-            if(post == null)
+            if (post == null)
             {
                 return BaseResponse<PostResponse>.FailureResponse("Post not found.");
             }

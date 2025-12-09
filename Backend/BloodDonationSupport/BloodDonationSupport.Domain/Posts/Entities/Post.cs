@@ -20,7 +20,8 @@ namespace BloodDonationSupport.Domain.Posts.Entities
         // ✅ navigation property để EF load tags
         public IReadOnlyCollection<PostTag> Tags => _tags.AsReadOnly();
 
-        private Post() { } // EF cần constructor rỗng
+        private Post()
+        { } // EF cần constructor rỗng
 
         public Post(PostTitle title, PostSlug slug, string content, string? excerpt, long authorId)
         {

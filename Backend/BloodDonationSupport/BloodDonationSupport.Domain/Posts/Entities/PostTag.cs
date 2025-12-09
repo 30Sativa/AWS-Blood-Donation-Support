@@ -10,9 +10,16 @@ namespace BloodDonationSupport.Domain.Posts.Entities
         private readonly List<Post> _posts = new();  // navigation ngược
         public IReadOnlyCollection<Post> Posts => _posts.AsReadOnly();
 
-        private PostTag() { }
+        private PostTag()
+        { }
 
         public PostTag(string name, string slug)
+        {
+            TagName = name;
+            TagSlug = slug;
+        }
+
+        public void Update(string name, string slug)
         {
             TagName = name;
             TagSlug = slug;

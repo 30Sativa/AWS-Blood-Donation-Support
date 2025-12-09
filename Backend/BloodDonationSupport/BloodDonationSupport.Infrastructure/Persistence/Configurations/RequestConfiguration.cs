@@ -85,7 +85,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
                    .HasConstraintName("FK_requests_blood_components");
 
             builder.HasOne(r => r.DeliveryAddress)
-                   .WithMany()
+                   .WithMany(a => a.Requests)
                    .HasForeignKey(r => r.DeliveryAddressId)
                    .HasConstraintName("FK_requests_addresses")
                    .OnDelete(DeleteBehavior.SetNull);

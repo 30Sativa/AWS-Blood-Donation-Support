@@ -4,12 +4,6 @@ using BloodDonationSupport.Application.Features.Posts.DTOs.Response;
 using BloodDonationSupport.Domain.Posts.Entities;
 using BloodDonationSupport.Domain.Posts.ValueObjects;
 using MediatR;
-using Microsoft.IdentityModel.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Posts.Commands
 {
@@ -35,18 +29,18 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
                 return BaseResponse<PostResponse>.FailureResponse("At least one tag is required.");
 
             //Check slug tồn tại
-            if(await _postRepository.ExistsAsync(p=> p.Slug.Value == dto.Slug)) return BaseResponse<PostResponse>.FailureResponse($"Post with slug {dto.Slug} already exists.");
+            if (await _postRepository.ExistsAsync(p => p.Slug.Value == dto.Slug)) return BaseResponse<PostResponse>.FailureResponse($"Post with slug {dto.Slug} already exists.");
 
             // Tạo danh sách tag
             var tagsToAttach = new List<PostTag>();
             foreach (var tagName in dto.TagNames)
             {
-                if(string.IsNullOrWhiteSpace(tagName)) continue;
+                if (string.IsNullOrWhiteSpace(tagName)) continue;
                 var normalizedSlug = tagName.Trim().ToLower().Replace(" ", "-");
 
                 //check tag tồn tại chưa
                 var existingTags = await _postTagRepository.FindAsync(t => t.TagSlug == normalizedSlug);
-                var existingTag  = existingTags.FirstOrDefault();
+                var existingTag = existingTags.FirstOrDefault();
 
                 if (existingTag != null)
                 {
@@ -59,10 +53,8 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
                     await _postTagRepository.AddAsync(newTag);
                     tagsToAttach.Add(newTag);
                 }
-
-
             }
-            if(!tagsToAttach.Any())
+            if (!tagsToAttach.Any())
             {
                 return BaseResponse<PostResponse>.FailureResponse("At least one valid tag is required.");
             }
@@ -80,9 +72,8 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
                 post.AddTag(tag);
             }
 
-            if(dto.IsPublished)
+            if (dto.IsPublished)
                 post.Publish();
-
 
             //Lưu db
 

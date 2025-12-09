@@ -1,9 +1,4 @@
 ﻿using BloodDonationSupport.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Domain.Posts.ValueObjects
 {
@@ -11,7 +6,8 @@ namespace BloodDonationSupport.Domain.Posts.ValueObjects
     {
         public string Value { get; private set; }
 
-        private PostTitle() { }
+        private PostTitle()
+        { }
 
         public PostTitle(string value)
         {
@@ -20,7 +16,6 @@ namespace BloodDonationSupport.Domain.Posts.ValueObjects
 
             Value = value.Trim();
         }
-        
 
         protected override IEnumerable<object> GetEqualityComponents()
         {

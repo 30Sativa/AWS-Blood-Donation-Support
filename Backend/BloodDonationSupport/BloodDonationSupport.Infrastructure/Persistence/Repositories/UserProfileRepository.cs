@@ -90,7 +90,7 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
                     up.PrivacyPhoneVisibleToStaffOnly
                 ))
                 .ToListAsync();
-            
+
             return (items, totalCount);
         }
 

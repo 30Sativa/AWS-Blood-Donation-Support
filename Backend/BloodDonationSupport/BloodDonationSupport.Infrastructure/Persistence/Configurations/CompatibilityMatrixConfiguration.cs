@@ -12,6 +12,26 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
 
             builder.HasKey(c => new { c.FromBloodTypeId, c.ToBloodTypeId, c.ComponentId });
 
+            // Map properties to database column names (snake_case)
+            builder.Property(c => c.FromBloodTypeId)
+                   .HasColumnName("from_blood_type_id")
+                   .IsRequired();
+
+            builder.Property(c => c.ToBloodTypeId)
+                   .HasColumnName("to_blood_type_id")
+                   .IsRequired();
+
+            builder.Property(c => c.ComponentId)
+                   .HasColumnName("component_id")
+                   .IsRequired();
+
+            builder.Property(c => c.IsCompatible)
+                   .HasColumnName("is_compatible")
+                   .IsRequired();
+
+            builder.Property(c => c.PriorityLevel)
+                   .HasColumnName("priority_level");
+
             builder.HasOne(c => c.FromBloodType)
                    .WithMany(b => b.CompatibilityMatrixFromBloodTypes)
                    .HasForeignKey(c => c.FromBloodTypeId)

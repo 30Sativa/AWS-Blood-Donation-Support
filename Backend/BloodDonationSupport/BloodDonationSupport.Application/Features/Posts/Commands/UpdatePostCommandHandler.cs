@@ -2,17 +2,11 @@
 using BloodDonationSupport.Application.Common.Responses;
 using BloodDonationSupport.Application.Features.Posts.DTOs.Response;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BloodDonationSupport.Application.Features.Posts.Commands
 {
     public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, BaseResponse<PostResponse>>
     {
-
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPostRepository _postRepository;
         private readonly IPostTagRepository _postTagRepository;
@@ -26,7 +20,7 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
 
         public async Task<BaseResponse<PostResponse>> Handle(UpdatePostCommand request, CancellationToken cancellationToken)
         {
-           var dto = request.Request;
+            var dto = request.Request;
 
             var post = await _postRepository.GetByIdAsync(request.id);
             if (post == null)
@@ -40,7 +34,7 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
             //xử lí tags
             post.ClearTags();
 
-            if (dto.TagNames == null || dto.TagNames.Any())
+            if (dto.TagNames == null || !dto.TagNames.Any())
             {
                 return BaseResponse<PostResponse>.FailureResponse("TagNames cannot be null or empty.");
             }
@@ -59,9 +53,7 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
                 post.AddTag(tag);
             }
 
-
-
-            if(dto.IsPublished&& dto.IsPublished)
+            if (dto.IsPublished && !post.IsPublished)
             {
                 post.Publish();
             }
@@ -82,7 +74,6 @@ namespace BloodDonationSupport.Application.Features.Posts.Commands
             };
 
             return BaseResponse<PostResponse>.SuccessResponse(response, "Post updated successfully");
-
         }
     }
 }

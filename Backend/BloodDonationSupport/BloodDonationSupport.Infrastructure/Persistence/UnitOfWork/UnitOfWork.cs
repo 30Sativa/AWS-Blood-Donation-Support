@@ -1,6 +1,5 @@
 ﻿using BloodDonationSupport.Application.Common.Interfaces;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
-using BloodDonationSupport.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
@@ -34,11 +33,6 @@ namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
             _context.Dispose();
         }
 
-        public IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : class
-        {
-            return new GenericRepository<TEntity>(_context);
-        }
-
         public async Task RollbackTransactionAsync()
         {
             if (_transaction != null)
@@ -49,7 +43,10 @@ namespace BloodDonationSupport.Infrastructure.Persistence.UnitOfWork
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            return await _context.SaveChangesAsync(cancellationToken);
+            var result = await _context.SaveChangesAsync(cancellationToken);
+            // Clear ChangeTracker after SaveChanges to prevent issues with tracked entities
+            _context.ChangeTracker.Clear();
+            return result;
         }
     }
 }

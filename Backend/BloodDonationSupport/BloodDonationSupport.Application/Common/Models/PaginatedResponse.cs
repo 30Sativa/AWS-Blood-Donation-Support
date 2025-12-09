@@ -1,6 +1,6 @@
 ﻿namespace BloodDonationSupport.Application.Common.Models
 {
-    public class PaginatedResponse<T> 
+    public class PaginatedResponse<T>
     {
         public IEnumerable<T> Items { get; set; } = new List<T>();
         public int PageNumber { get; set; }

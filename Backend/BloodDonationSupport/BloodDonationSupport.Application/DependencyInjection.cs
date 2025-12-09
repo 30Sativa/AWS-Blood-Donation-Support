@@ -16,7 +16,6 @@ namespace BloodDonationSupport.Application
             // 🧩 Pipeline Behaviors
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
-            services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditingBehavior<,>));
 
             return services;
         }

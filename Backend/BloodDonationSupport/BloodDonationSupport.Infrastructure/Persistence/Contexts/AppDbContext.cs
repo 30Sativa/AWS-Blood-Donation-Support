@@ -23,6 +23,8 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
 
         public virtual DbSet<Address> Addresses { get; set; }
         public virtual DbSet<Appointment> Appointments { get; set; }
+        public virtual DbSet<Match> Matches { get; set; }
+        public virtual DbSet<HealthCondition> HealthConditions { get; set; }
         public virtual DbSet<BloodComponent> BloodComponents { get; set; }
         public virtual DbSet<BloodType> BloodTypes { get; set; }
         public virtual DbSet<Donation> Donations { get; set; }
@@ -34,9 +36,11 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Contexts
         public virtual DbSet<QcTest> QcTests { get; set; }
         public virtual DbSet<Reminder> Reminders { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
+        public virtual DbSet<CompatibilityMatrix> CompatibilityMatrix { get; set; }
 
         // Blogging
         public virtual DbSet<Post> Posts { get; set; }
+
         public virtual DbSet<PostTag> PostTags { get; set; }
 
         #endregion DbSets

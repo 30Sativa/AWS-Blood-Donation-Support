@@ -4,7 +4,6 @@ using BloodDonationSupport.Domain.Posts.ValueObjects;
 using BloodDonationSupport.Infrastructure.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using Models = BloodDonationSupport.Infrastructure.Persistence.Models;
 
 namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 {
@@ -136,6 +135,90 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Repositories
 
             var compiled = predicate.Compile();
             return entities.Select(MapToDomain).Where(compiled).ToList();
+        }
+
+        public async Task<(IEnumerable<Post> Items, int TotalCount)> SearchAsync(
+            string? keyword,
+            string? tagSlug,
+            bool? isPublished,
+            int pageNumber,
+            int pageSize)
+        {
+            var query = _context.Posts
+                .Include(p => p.Tags)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var normalized = keyword.Trim().ToLower();
+                query = query.Where(p =>
+                    EF.Functions.Like(p.Title.ToLower(), $"%{normalized}%") ||
+                    (p.Excerpt != null && EF.Functions.Like(p.Excerpt.ToLower(), $"%{normalized}%")) ||
+                    EF.Functions.Like(p.Content.ToLower(), $"%{normalized}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(tagSlug))
+            {
+                var normalizedTag = tagSlug.Trim().ToLower();
+                query = query.Where(p => p.Tags.Any(t => t.TagSlug == normalizedTag));
+            }
+
+            if (isPublished.HasValue)
+            {
+                query = query.Where(p => p.IsPublished == isPublished.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+            var entities = await query
+                .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return (entities.Select(MapToDomain), totalCount);
+        }
+
+        public async Task<(IEnumerable<Post> Items, int TotalCount)> GetPublishedPagedAsync(
+            int pageNumber,
+            int pageSize,
+            string? tagSlug)
+        {
+            var query = _context.Posts
+                .Include(p => p.Tags)
+                .Where(p => p.IsPublished)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(tagSlug))
+            {
+                var normalized = tagSlug.Trim().ToLower();
+                query = query.Where(p => p.Tags.Any(t => t.TagSlug == normalized));
+            }
+
+            var totalCount = await query.CountAsync();
+            var entities = await query
+                .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return (entities.Select(MapToDomain), totalCount);
+        }
+
+        public async Task<Post?> GetPublishedBySlugAsync(string slug)
+        {
+            var entity = await _context.Posts
+                .Include(p => p.Tags)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Slug == slug && p.IsPublished);
+
+            return entity == null ? null : MapToDomain(entity);
+        }
+
+        public async Task<bool> IsTagUsedAsync(int tagId)
+        {
+            return await _context.Posts.AnyAsync(p => p.Tags.Any(t => t.TagId == tagId));
         }
 
         public void Update(Post domainEntity)

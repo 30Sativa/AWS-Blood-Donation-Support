@@ -1,11 +1,8 @@
-﻿using BloodDonationSupport.Application.Common.Responses;
-using BloodDonationSupport.Application.Features.Posts.Commands;
+﻿using BloodDonationSupport.Application.Features.Posts.Commands;
 using BloodDonationSupport.Application.Features.Posts.DTOs.Request;
-using BloodDonationSupport.Application.Features.Posts.DTOs.Response;
 using BloodDonationSupport.Application.Features.Posts.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BloodDonationSupport.WebAPI.Controllers
@@ -25,6 +22,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [POST] api/posts
         [HttpPost]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> CreatePost([FromBody] CreatePostRequest request)
         {
             var result = await _mediator.Send(new CreatePostCommand(request));
@@ -33,6 +31,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [PUT] api/posts/{id}
         [HttpPut("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> UpdatePost(long id, [FromBody] CreatePostRequest request)
         {
             var result = await _mediator.Send(new UpdatePostCommand(id, request));
@@ -47,8 +46,44 @@ namespace BloodDonationSupport.WebAPI.Controllers
             return Ok(result);
         }
 
+        // [GET] api/posts/search
+        [HttpGet("search")]
+        [Authorize(Policy = "AdminOrStaff")]
+        public async Task<IActionResult> SearchPosts([FromQuery] SearchPostsRequest request)
+        {
+            var query = new SearchPostsQuery(
+                request.Keyword,
+                request.TagSlug,
+                request.IsPublished,
+                request.PageNumber,
+                request.PageSize);
+
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+
+        // [GET] api/posts/published
+        [HttpGet("published")]
+        public async Task<IActionResult> GetPublishedPosts([FromQuery] GetPublishedPostsRequest request)
+        {
+            var result = await _mediator.Send(new GetPublishedPostsQuery(
+                request.TagSlug,
+                request.PageNumber,
+                request.PageSize));
+            return Ok(result);
+        }
+
+        // [GET] api/posts/slug/{slug}
+        [HttpGet("slug/{slug}")]
+        public async Task<IActionResult> GetBySlug(string slug, [FromQuery] bool publishedOnly = true)
+        {
+            var result = await _mediator.Send(new GetPostBySlugQuery(slug, publishedOnly));
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
         // [GET] api/posts/{id}
         [HttpGet("{id:long}")]
+        [Authorize(Policy = "AdminOrStaff")]
         public async Task<IActionResult> GetPostById(long id)
         {
             var result = await _mediator.Send(new GetPostByIdQuery(id));
@@ -57,6 +92,7 @@ namespace BloodDonationSupport.WebAPI.Controllers
 
         // [DELETE] api/posts/{id}
         [HttpDelete("{id:long}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeletePost(long id)
         {
             var result = await _mediator.Send(new DeletePostCommand(id));
@@ -69,6 +105,33 @@ namespace BloodDonationSupport.WebAPI.Controllers
         {
             var result = await _mediator.Send(new GetAllTagsQuery());
             return Ok(result);
+        }
+
+        // [POST] api/posts/tags
+        [HttpPost("tags")]
+        [Authorize(Policy = "AdminOrStaff")]
+        public async Task<IActionResult> CreateTag([FromBody] CreateTagRequest request)
+        {
+            var result = await _mediator.Send(new CreateTagCommand(request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [PUT] api/posts/tags/{id}
+        [HttpPut("tags/{id:int}")]
+        [Authorize(Policy = "AdminOrStaff")]
+        public async Task<IActionResult> UpdateTag(int id, [FromBody] UpdateTagRequest request)
+        {
+            var result = await _mediator.Send(new UpdateTagCommand(id, request));
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // [DELETE] api/posts/tags/{id}
+        [HttpDelete("tags/{id:int}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> DeleteTag(int id)
+        {
+            var result = await _mediator.Send(new DeleteTagCommand(id));
+            return result.Success ? Ok(result) : BadRequest(result);
         }
     }
 }

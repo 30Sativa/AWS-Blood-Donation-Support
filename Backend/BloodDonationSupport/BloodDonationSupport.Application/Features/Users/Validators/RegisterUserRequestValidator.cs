@@ -16,9 +16,11 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
                 .WithMessage("Password must have at least 8 characters, including upper/lowercase, number and special symbol.");
 
             RuleFor(x => x.PhoneNumber)
-                .Matches(@"^\+?[1-9]\d{1,15}$")
-                .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
-                .WithMessage("Invalid phone number format.");
+    .Matches(@"^(\+?\d{7,15})$")
+    .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
+    .WithMessage("Invalid phone number format.");
+
+
 
             RuleFor(x => x.FullName)
                 .NotEmpty().WithMessage("Full name is required.")
@@ -30,7 +32,7 @@ namespace BloodDonationSupport.Application.Features.Users.Validators
                 .WithMessage("Birth year must be between 1900 and current year.");
 
             RuleFor(x => x.Gender)
-                .Must(g => string.IsNullOrWhiteSpace(g) || new[] { "Male", "Female", "Other" }.Contains(g))
+                .Must(g => string.IsNullOrWhiteSpace(g) || new[] { "Nam", "Nữ", "Khác" }.Contains(g))
                 .WithMessage("Gender must be one of: Male, Female, Other.");
         }
     }

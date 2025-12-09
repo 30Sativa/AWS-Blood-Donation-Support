@@ -3,6 +3,7 @@
     public class AwsOptions
     {
         public string Region { get; set; } = default!;
+        public string SnsMatchTopic { get; set; } = default!;
         public CognitoOptions Cognito { get; set; } = default!;
         public AwsCredentials Credentials { get; set; } = new();
     }

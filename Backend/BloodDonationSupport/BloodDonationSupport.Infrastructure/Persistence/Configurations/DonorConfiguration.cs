@@ -56,6 +56,13 @@ namespace BloodDonationSupport.Infrastructure.Persistence.Configurations
 
             builder.Property(d => d.UpdatedAt)
                    .HasColumnName("updated_at");
+            builder.Property(d => d.Latitude)
+       .HasColumnName("latitude")
+       .HasColumnType("DECIMAL(9,6)");
+
+            builder.Property(d => d.Longitude)
+                   .HasColumnName("longitude")
+                   .HasColumnType("DECIMAL(9,6)");
 
             // Foreign keys
             builder.HasOne(d => d.User)

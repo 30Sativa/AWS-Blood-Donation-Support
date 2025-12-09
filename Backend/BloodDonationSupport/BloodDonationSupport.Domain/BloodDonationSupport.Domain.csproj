@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Donors\ValueObjects\" />
     <Folder Include="Shared\Enums\" />
     <Folder Include="Shared\Factories\" />
-    <Folder Include="Shared\ValueObjects\" />
   </ItemGroup>
 
   <ItemGroup>

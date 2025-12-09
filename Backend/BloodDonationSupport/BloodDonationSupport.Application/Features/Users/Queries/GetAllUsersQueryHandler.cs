@@ -20,7 +20,7 @@ namespace BloodDonationSupport.Application.Features.Users.Queries
         {
             var (users, totalCount) = await _userRepository.GetPagedAsync(request.PageNumber, request.PageSize);
             var result = new List<UserResponse>();
-            
+
             foreach (var user in users)
             {
                 var profile = await _userProfileRepository.GetByIdAsync(user.Id);

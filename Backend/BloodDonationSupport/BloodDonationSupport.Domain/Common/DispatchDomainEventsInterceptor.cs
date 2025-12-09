@@ -12,14 +12,15 @@ namespace BloodDonationSupport.Domain.Common
             _mediator = mediator;
         }
 
-        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
-        DbContextEventData eventData,
-        InterceptionResult<int> result,
-        CancellationToken cancellationToken = default)
+        // ✅ Publish events AFTER SaveChanges has completed successfully
+        public override async ValueTask<int> SavedChangesAsync(
+            SaveChangesCompletedEventData eventData,
+            int result,
+            CancellationToken cancellationToken = default)
         {
             var context = eventData.Context;
             if (context == null)
-                return await base.SavingChangesAsync(eventData, result, cancellationToken);
+                return result;
 
             var entities = context.ChangeTracker
                 .Entries()
@@ -36,7 +37,8 @@ namespace BloodDonationSupport.Domain.Common
                     await _mediator.Publish(domainEvent, cancellationToken);
             }
 
-            return await base.SavingChangesAsync(eventData, result, cancellationToken);
+            // ✅ must return result to match ValueTask<int>
+            return result;
         }
     }
 }
